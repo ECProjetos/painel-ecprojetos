@@ -24,9 +24,11 @@ import {
 import {
   Sidebar,
   SidebarContent,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
