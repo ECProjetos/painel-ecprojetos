@@ -1,7 +1,8 @@
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/sidebar/app-sidebar";
 export default async function PrivateLayout({
   children,
 }: {
@@ -13,5 +14,11 @@ export default async function PrivateLayout({
   if (error || !data?.user) {
     redirect("/login");
   }
-  return <>{children}</>;
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      {/* Aqui entram os filhos: layouts e páginas aninhadas */}
+      {children}
+    </SidebarProvider>
+  );
 }

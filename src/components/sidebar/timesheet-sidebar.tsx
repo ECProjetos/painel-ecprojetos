@@ -1,3 +1,4 @@
+// app/components/sidebar/timesheet-sidebar.tsx
 "use client";
 
 import { useUserStore } from "@/stores/userStore";
@@ -15,14 +16,13 @@ import {
   Rocket,
 } from "lucide-react";
 
-import { Sidebar, SidebarContent, useSidebar } from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
 
-import { NavDiretor } from "./nav-diretor";
-import { NavGestor } from "./nav-gestor";
 import { NavColaborador } from "./nav-colaborador";
+import { NavGestor } from "./nav-gestor";
+import { NavDiretor } from "./nav-diretor";
 
 import { roles } from "@/constants/roles";
-
 import { getUser } from "@/hooks/use-user";
 
 const createData = (
@@ -70,53 +70,54 @@ const createData = (
       subTitle: "Em Breve",
     },
   ],
-  navGestor: isGestor
-    ? [
-        {
-          title: "Gestão",
-          url: "/controle-horarios/gestao/painel-equipes",
-          icon: ChartPie,
-          isActive: pathname.startsWith("/controle-horarios/gestao"),
-          items: [
-            {
-              title: "Painel de Equipes",
-              url: "/controle-horarios/gestao/painel-equipes",
-              isActive: pathname.startsWith(
-                "/controle-horarios/gestao/painel-equipes"
-              ),
-            },
-            {
-              title: "Painel de Projetos",
-              url: "/controle-horarios/gestao/painel-projetos",
-              isActive: pathname.startsWith(
-                "/controle-horarios/gestao/painel-projetos"
-              ),
-            },
-            {
-              title: "Colaboradores",
-              url: "/controle-horarios/gestao/colaboradores",
-              isActive: pathname.startsWith(
-                "/controle-horarios/gestao/colaboradores"
-              ),
-            },
-            {
-              title: "Inconsistências",
-              url: "/controle-horarios/gestao/inconsistencias",
-              isActive: pathname.startsWith(
-                "/controle-horarios/gestao/inconsistencias"
-              ),
-            },
-            {
-              title: "Calendário",
-              url: "/controle-horarios/gestao/calendario",
-              isActive: pathname.startsWith(
-                "/controle-horarios/gestao/calendario"
-              ),
-            },
-          ],
-        },
-      ]
-    : [],
+  navGestor:
+    isGestor || isDiretor
+      ? [
+          {
+            title: "Gestão",
+            url: "/controle-horarios/gestao/painel-equipes",
+            icon: ChartPie,
+            isActive: pathname.startsWith("/controle-horarios/gestao"),
+            items: [
+              {
+                title: "Painel de Equipes",
+                url: "/controle-horarios/gestao/painel-equipes",
+                isActive: pathname.startsWith(
+                  "/controle-horarios/gestao/painel-equipes"
+                ),
+              },
+              {
+                title: "Painel de Projetos",
+                url: "/controle-horarios/gestao/painel-projetos",
+                isActive: pathname.startsWith(
+                  "/controle-horarios/gestao/painel-projetos"
+                ),
+              },
+              {
+                title: "Colaboradores",
+                url: "/controle-horarios/gestao/colaboradores",
+                isActive: pathname.startsWith(
+                  "/controle-horarios/gestao/colaboradores"
+                ),
+              },
+              {
+                title: "Inconsistências",
+                url: "/controle-horarios/gestao/inconsistencias",
+                isActive: pathname.startsWith(
+                  "/controle-horarios/gestao/inconsistencias"
+                ),
+              },
+              {
+                title: "Calendário",
+                url: "/controle-horarios/gestao/calendario",
+                isActive: pathname.startsWith(
+                  "/controle-horarios/gestao/calendario"
+                ),
+              },
+            ],
+          },
+        ]
+      : [],
   navDiretor: isDiretor
     ? [
         {
@@ -146,56 +147,41 @@ const createData = (
 });
 
 export function TimesheetSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
-  const { open } = useSidebar();
   const pathname = usePathname();
   const user = useUserStore((state) => state.user);
   const setUser = useUserStore((state) => state.setUser);
   const [isGestor, setIsGestor] = useState(false);
   const [isDiretor, setIsDiretor] = useState(false);
 
-  // Ensure user data is loaded when sidebar mounts
+  // Carrega dados do usuário e define flags de gestor/diretor
   useEffect(() => {
     const fetchUserIfNeeded = async () => {
       if (!user) {
         const userData = await getUser();
-        if (userData) {
-          setUser(userData);
-          setIsGestor(userData.role === roles.gestor);
-          setIsDiretor(userData.role === roles.diretor);
-        }
+        if (!userData) return; // abort if no user
+        setUser(userData);
+        setIsGestor(userData.role === roles.gestor);
+        setIsDiretor(userData.role === roles.diretor);
+      } else {
+        setIsGestor(user.role === roles.gestor);
+        setIsDiretor(user.role === roles.diretor);
       }
     };
-
     fetchUserIfNeeded();
   }, [user, setUser]);
+
   const data = createData(pathname, isGestor, isDiretor);
-  const navData = {
-    navColaborador: data.navColaborador,
-    navGestor: isGestor ? data.navGestor : [],
-    navDiretor: isDiretor ? data.navDiretor : [],
-  };
 
   return (
     <Sidebar
       collapsible="icon"
       {...props}
-      className={
-        open
-          ? "border-none !min-h-[115vh] pb-3"
-          : "border-none !min-h-[115vh] pb-3"
-      }
+      className="relative border-l !min-h-[115vh]"
     >
       <SidebarContent className="h-full">
-        {/* colaborador */}
-        <NavColaborador items={navData.navColaborador} />
-        {/* gestor */}
-        {navData.navGestor.length > 0 && (
-          <NavGestor items={navData.navGestor} />
-        )}
-        {/* diretor */}
-        {navData.navDiretor.length > 0 && (
-          <NavDiretor items={navData.navDiretor} />
-        )}
+        <NavColaborador items={data.navColaborador} />
+        {data.navGestor.length > 0 && <NavGestor items={data.navGestor} />}
+        {data.navDiretor.length > 0 && <NavDiretor items={data.navDiretor} />}
       </SidebarContent>
     </Sidebar>
   );
