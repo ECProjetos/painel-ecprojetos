@@ -1,12 +1,18 @@
-import { create } from "zustand";
-import { User } from "@supabase/supabase-js";
+import type { User } from '@supabase/supabase-js';
+import { create } from 'zustand';
 
-export interface UserStoreState {
-  user: User | null;
-  setUser: (user: User | null) => void;
+// Enhanced user type with role information
+export interface EnhancedUser extends User {
+  name?: string;
+  role?: string;
 }
 
-export const useUserStore = create<UserStoreState>((set) => ({
+interface UserStore {
+  user: EnhancedUser | null;
+  setUser: (user: EnhancedUser) => void;
+}
+
+export const useUserStore = create<UserStore>((set) => ({
   user: null,
-  setUser: (user: User | null) => set({ user }),
+  setUser: (user) => set({ user }),
 }));
