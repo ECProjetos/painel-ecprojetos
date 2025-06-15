@@ -58,7 +58,7 @@ export function NavDiretor({
                     <SidebarMenuButton
                       tooltip={item.title}
                       className={cn(
-                        "flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
+                        "flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
                         item.isActive && activeItemStyles
                       )}
                     >

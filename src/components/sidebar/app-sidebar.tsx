@@ -6,20 +6,7 @@ import { ComponentProps, useEffect } from "react";
 
 import Image from "next/image";
 
-import {
-  Briefcase,
-  Clock,
-  PanelLeftClose,
-  PanelLeftOpen,
-  //   Home,
-  //   History,
-  //   ListPlus,
-  //   Calendar,
-  //   Send,
-  //   LayoutDashboard,
-  //   ChartPie,
-  //   Rocket,
-} from "lucide-react";
+import { Briefcase, Clock, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 import {
   Sidebar,
@@ -80,7 +67,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const user = useUserStore((state) => state.user);
   const setUser = useUserStore((state) => state.setUser);
-  const userRole = user?.role || "";
+  const userRole = user?.role;
   // Ensure user data is loaded when sidebar mounts
   useEffect(() => {
     const fetchUserIfNeeded = async () => {
@@ -122,7 +109,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
               <div className="flex flex-col">
                 <h1 className="text-sm font-bold">EC Projetos</h1>
                 {(() => {
-                  const label = getRoleLabel(userRole);
+                  const label = getRoleLabel(userRole!);
                   return label ? (
                     <p className="text-xs text-gray-500"> {label} </p>
                   ) : (
@@ -137,7 +124,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
 
       {/* Floating rounded toggle button on the edge of sidebar */}
       <div
-        className="absolute z-30"
+        className="absolute z-30 "
         style={{
           left: open
             ? "calc(var(--sidebar-width) - 14px)"
