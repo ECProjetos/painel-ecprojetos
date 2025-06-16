@@ -39,7 +39,7 @@ const createData = (pathname: string) => ({
     },
     {
       title: "Plano de Carreira",
-      url: "#",
+      url: "/plano-carreira",
       icon: Briefcase,
       isActive: pathname.startsWith("/plano-carreira"),
     },
