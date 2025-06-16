@@ -8,7 +8,6 @@ export async function POST(request: Request) {
     try {
         // Verifica se o usuário está autenticado e autorizado
         const authResponse = await getAuthenticatedUserRole()
-        console.log('authResponse', authResponse)
         if (authResponse.status !== 200) {
             return authResponse
         }

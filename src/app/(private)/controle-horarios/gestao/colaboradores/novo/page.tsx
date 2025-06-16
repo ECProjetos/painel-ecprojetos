@@ -60,8 +60,10 @@ export default function NewColaboradoresPage() {
         values.password
       );
       // se o servidor quiser devolver, por exemplo, o id do novo user:
-      // console.log("Servidor retornou:", result);
       toast.success("Colaborador criado com sucesso!");
+      setTimeout(() => {
+        window.location.href = "/controle-horarios/gestao/colaboradores";
+      }, 2000);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error("Erro ao criar colaborador:", err);

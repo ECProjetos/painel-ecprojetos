@@ -24,7 +24,7 @@ export async function getAuthenticatedUserRole() {
             return NextResponse.json({ error: 'Erro ao verificar role do usuário' }, { status: 500 })
         }
 
-        console.log('role', role)
+
         // Se o usuário não for um GESTOR ou DIRETOR, retorna erro
         if (role.role !== roles.gestor && role.role !== roles.diretor) {
             return NextResponse.json({ error: 'Usuário não tem permissão para criar colaboradores' }, { status: 403 })

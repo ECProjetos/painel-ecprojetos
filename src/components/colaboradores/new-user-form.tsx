@@ -1,5 +1,5 @@
 // src/components/NewColaboradorForm.tsx
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -27,7 +27,10 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 
 interface NewColaboradorFormProps {
   cargos: { id: number; nome: string }[];
@@ -54,6 +57,10 @@ export function NewColaboradorForm({
       confirmPassword: "",
     },
   });
+
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState<boolean>(false);
 
   return (
     <Form {...form}>
@@ -109,7 +116,7 @@ export function NewColaboradorForm({
                     onValueChange={(v) => field.onChange(parseInt(v, 10))}
                     value={field.value?.toString()}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione o cargo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -137,7 +144,7 @@ export function NewColaboradorForm({
                     onValueChange={(v) => field.onChange(parseInt(v, 10))}
                     value={field.value?.toString()}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione o departamento" />
                     </SelectTrigger>
                     <SelectContent>
@@ -163,7 +170,7 @@ export function NewColaboradorForm({
                 <FormLabel>Role</FormLabel>
                 <FormControl>
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione a role" />
                     </SelectTrigger>
                     <SelectContent>
@@ -200,34 +207,90 @@ export function NewColaboradorForm({
             )}
           />
 
-          {/* Senha */}
           <FormField
             control={form.control}
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Senha</FormLabel>
+                <FormLabel className="dark:text-gray-200">Senha</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="Senha" {...field} />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Digite a sua senha"
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          {/* Confirmação de Senha */}
           <FormField
             control={form.control}
             name="confirmPassword"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Confirmar Senha</FormLabel>
+                <FormLabel className="dark:text-gray-200">
+                  Confirmar Senha
+                </FormLabel>
                 <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="Confirme a senha"
-                    {...field}
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Confirme a sua senha"
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"
+                      tabIndex={-1}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff size={18} />
+                      ) : (
+                        <Eye size={18} />
+                      )}
+                    </button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Status (radio) */}
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <FormControl>
+                  <RadioGroup
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    className="flex space-x-6"
+                  >
+                    <label className="flex items-center space-x-2">
+                      <RadioGroupItem value="ativo" id="status-ativo" />
+                      <span>Ativo</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <RadioGroupItem value="inativo" id="status-inativo" />
+                      <span>Inativo</span>
+                    </label>
+                  </RadioGroup>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -235,39 +298,14 @@ export function NewColaboradorForm({
           />
         </div>
 
-        {/* Status (radio) */}
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <FormControl>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  value={field.value}
-                  className="flex space-x-6"
-                >
-                  <label className="flex items-center space-x-2">
-                    <RadioGroupItem value="ativo" id="status-ativo" />
-                    <span>Ativo</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <RadioGroupItem value="inativo" id="status-inativo" />
-                    <span>Inativo</span>
-                  </label>
-                </RadioGroup>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         {/* Buttons */}
         <div className="flex w-full justify-end space-x-2">
-          <Button variant="outline" type="button" onClick={() => form.reset()}>
-            Cancel
-          </Button>
+          <Link
+            href="/controle-horarios/gestao/colaboradores"
+            className={cn(buttonVariants({ variant: "outline" }), "w-auto")}
+          >
+            Cancelar
+          </Link>
           <Button type="submit">Salvar</Button>
         </div>
       </form>
