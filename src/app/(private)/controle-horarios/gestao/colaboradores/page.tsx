@@ -13,8 +13,25 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { PlusCircle } from "lucide-react";
 import Link from "next/link";
+import { getAllColaboradores } from "@/app/actions/colaboradores";
+import { useEffect, useState } from "react";
+import { Colaborador } from "@/types/colaboradores";
 
 export default function ColaboradoresPage() {
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  useEffect(() => {
+    async function fetchColaboradores() {
+      try {
+        const data = await getAllColaboradores();
+        setColaboradores(data);
+      } catch (error) {
+        console.error("Erro ao buscar colaboradores:", error);
+      }
+    }
+    fetchColaboradores();
+  }, []);
+
+  console.log("Colaboradores:", colaboradores);
   return (
     <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
       <div className="flex h-16 shrink-0 items-center gap-2 px-4">

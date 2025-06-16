@@ -1,5 +1,6 @@
-// src/app/actions/colaboradores.ts
-"use client";
+"use server";
+
+import { createClient } from "@/utils/supabase/server";
 
 export async function createColaborador(
     nome: string,
@@ -38,3 +39,23 @@ export async function createColaborador(
     // Nesse caso retorna o corpo JSON para quem chamou
     return res.json();
 }
+
+
+export async function getAllColaboradores() {
+    try {
+        const supabase = await createClient();
+
+        const { data, error } = await supabase
+            .from('vw_user_info')
+            .select('*')
+            .order('nome_colaborador', { ascending: true });
+        if (error) {
+            throw new Error(error.message);
+        }
+        console.log("Colaboradores:", data);
+        return data;
+    } catch (error) {
+        console.error("Erro ao buscar colaboradores:", error);
+        throw error;
+    }
+} 
