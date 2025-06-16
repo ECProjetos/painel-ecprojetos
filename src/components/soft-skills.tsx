@@ -11,10 +11,12 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 
+import { respostasSchema, RespostasType } from "@/types/plano-carreira/soft-skills"; // ajuste o path
+
 type SoftSkillsTableProps = {
     habilidades: string[];
     opcoes: string[];
-    onSubmit?: (respostas: { [key: number]: string }) => void;
+    onSubmit?: (respostas: RespostasType) => void;
 };
 
 export function SoftSkillsTable({
@@ -22,7 +24,7 @@ export function SoftSkillsTable({
     opcoes,
     onSubmit
 }: SoftSkillsTableProps) {
-    const [respostas, setRespostas] = useState<{ [key: number]: string }>({});
+    const [respostas, setRespostas] = useState<Partial<RespostasType>>({});
 
     const handleChange = (habilidadeIdx: number, value: string) => {
         setRespostas((prev) => ({ ...prev, [habilidadeIdx]: value }));
@@ -30,10 +32,16 @@ export function SoftSkillsTable({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        // Validar com zod
+        const parseResult = respostasSchema.safeParse(respostas);
+        if (!parseResult.success) {
+            alert("Por favor, preencha todas as habilidades!");
+            return;
+        }
         if (onSubmit) {
-            onSubmit(respostas);
+            onSubmit(parseResult.data);
         } else {
-            alert(JSON.stringify(respostas, null, 2));
+            alert(JSON.stringify(parseResult.data, null, 2));
         }
     };
 
@@ -44,9 +52,9 @@ export function SoftSkillsTable({
                     <Table className="w-full border rounded-xl shadow bg-white">
                         <TableHeader>
                             <TableRow className="bg-blue-50">
-                                <TableHead className="text-lg font-bold text-blue-900">Habilidade</TableHead>
+                                <TableHead className="text-lg font-bold text-black">Habilidade</TableHead>
                                 {opcoes.map((opcao, idx) => (
-                                    <TableHead key={idx} className="text-center text-base font-semibold text-blue-800">
+                                    <TableHead key={idx} className="text-center text-base font-semibold text-black">
                                         {opcao}
                                     </TableHead>
                                 ))}
@@ -65,11 +73,11 @@ export function SoftSkillsTable({
                                                 <input
                                                     type="radio"
                                                     name={`habilidade-${hIdx}`}
-                                                    value={(opIdx + 1).toString()}
-                                                    checked={respostas[hIdx] === (opIdx + 1).toString()}
-                                                    onChange={() => handleChange(hIdx, (opIdx + 1).toString())}
+                                                    value={opcao}
+                                                    checked={respostas[hIdx] === opcao}
+                                                    onChange={() => handleChange(hIdx, opcao)}
                                                     aria-label={opcao}
-                                                    className="accent-blue-600 w-5 h-5 border-2 border-blue-400 focus:ring-2 focus:ring-blue-400"
+                                                    className="accent-blue-600 w-3 h-3 border-2 border-blue-400 "
                                                 />
                                             </label>
                                         </TableCell>
@@ -82,7 +90,7 @@ export function SoftSkillsTable({
             </div>
             <Button
                 type="submit"
-                className="mt-8 w-48 text-white text-lg py-3 transition"
+                className="mt-8 w-40 text-white  py-3"
             >
                 Enviar Avaliação
             </Button>
