@@ -48,14 +48,32 @@ export async function getAllColaboradores() {
         const { data, error } = await supabase
             .from('vw_user_info')
             .select('*')
-            .order('nome_colaborador', { ascending: true });
+            .order('nome', { ascending: true });
         if (error) {
             throw new Error(error.message);
         }
-        console.log("Colaboradores:", data);
         return data;
     } catch (error) {
         console.error("Erro ao buscar colaboradores:", error);
         throw error;
     }
-} 
+}
+
+export async function getColaboradorById(id: string) {
+    try {
+        const supabase = await createClient();
+
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', id)
+            .single();
+        if (error) {
+            throw new Error(error.message);
+        }
+        return data;
+    } catch (error) {
+        console.error("Erro ao buscar colaborador:", error);
+        throw error;
+    }
+}
