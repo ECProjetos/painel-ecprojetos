@@ -15,9 +15,9 @@ export default function HomePage() {
       </Link>
       <Link
         className={cn(buttonVariants({ variant: "default", size: "lg" }))}
-        href="/dashboard"
+        href="/controle-horarios/inicio"
       >
-        dashboard
+        Controle de Horários
       </Link>
     </div>
   );

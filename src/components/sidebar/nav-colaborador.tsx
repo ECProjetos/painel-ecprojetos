@@ -22,7 +22,7 @@ import {
 const activeItemStyles =
   "text-blue-600 [&_svg]:text-blue-600 bg-white shadow-sm border dark:bg-blue-950 dark:text-blue-400";
 
-export function NavGeneral({
+export function NavColaborador({
   items,
 }: {
   items: {

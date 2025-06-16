@@ -1,0 +1,54 @@
+"use client";
+
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { buttonVariants } from "@/components/ui/button";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
+import { PlusCircle } from "lucide-react";
+import Link from "next/link";
+
+export default function ColaboradoresPage() {
+  return (
+    <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
+      <div className="flex h-16 shrink-0 items-center gap-2 px-4">
+        <SidebarTrigger className="-ml-1" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/private/controle-horarios/inicio">
+                Controle de Horários
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/private/gestao/painel-equipes">
+                Gestão
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbPage>Colaboradores</BreadcrumbPage>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+      <div className="space-y-4 mt-4">
+        <div className="flex items-center align-center justify-between">
+          <h1 className="text-2xl font-bold">Gestão de Colaboradores</h1>
+          <Link
+            href="/private/controle-horarios/gestao/colaboradores/novo"
+            className={cn(buttonVariants({ variant: "default" }))}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Colaborador
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}

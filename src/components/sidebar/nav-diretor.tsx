@@ -22,7 +22,7 @@ import {
 const activeItemStyles =
   "text-blue-600 [&_svg]:text-blue-600 bg-white shadow-sm border dark:bg-blue-950 dark:text-blue-400";
 
-export function NavGeneral({
+export function NavDiretor({
   items,
 }: {
   items: {
@@ -102,7 +102,7 @@ export function NavGeneral({
                   tooltip={item.title}
                   onClick={() => router.push(item.url)}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
+                    "flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
                     item.isActive && activeItemStyles
                   )}
                 >
