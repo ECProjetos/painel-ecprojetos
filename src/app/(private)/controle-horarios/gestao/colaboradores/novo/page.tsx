@@ -10,22 +10,39 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { buttonVariants } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
-import Link from "next/link";
 import { getAllCargos } from "@/app/actions/get-cargos";
+import { getAllDepartments } from "@/app/actions/get-departamentos";
+import { NewColaboradorForm } from "@/components/colaboradores/new-user-form";
 
 export default function NewColaboradoresPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [cargos, setCargos] = useState<any>([]);
+  const [cargos, setCargos] = useState<{ id: number; nome: string }[]>([]);
+  const [departamentos, setDepartamentos] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    async function fetchCargos() {
-      const cargosData = await getAllCargos();
-      setCargos(cargosData);
+    async function fetchData() {
+      try {
+        // Executa as duas requisições em paralelo
+        const [cargosData, departamentosData] = await Promise.all([
+          getAllCargos(),
+          getAllDepartments(),
+        ]);
+
+        setCargos(cargosData);
+        setDepartamentos(departamentosData);
+      } catch (err) {
+        console.error("Erro ao carregar dados:", err);
+      } finally {
+        setLoading(false);
+      }
     }
-    fetchCargos();
+
+    fetchData();
   }, []);
+
   return (
     <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
       <div className="flex h-16 shrink-0 items-center gap-2 px-4">
@@ -54,6 +71,20 @@ export default function NewColaboradoresPage() {
         <div className="flex items-center align-center justify-between">
           <h1 className="text-2xl font-bold">Novo Colaborador</h1>
         </div>
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <p>Carregando...</p>
+          </div>
+        ) : (
+          <NewColaboradorForm
+            cargos={cargos}
+            departamentos={departamentos}
+            onSubmit={(values) => {
+              console.log("Form submitted with values:", values);
+              // Handle form submission logic here
+            }}
+          />
+        )}
       </div>
     </div>
   );
