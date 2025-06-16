@@ -299,7 +299,7 @@ export function NewColaboradorForm({
         </div>
 
         {/* Buttons */}
-        <div className="flex w-full justify-end space-x-2">
+        <div className="flex w-full justify-between">
           <Link
             href="/controle-horarios/gestao/colaboradores"
             className={cn(buttonVariants({ variant: "outline" }), "w-auto")}
