@@ -8,6 +8,7 @@ export async function POST(request: Request) {
     try {
         // Verifica se o usuário está autenticado e autorizado
         const authResponse = await getAuthenticatedUserRole()
+        console.log('authResponse', authResponse)
         if (authResponse.status !== 200) {
             return authResponse
         }
@@ -49,12 +50,25 @@ export async function POST(request: Request) {
                 working_hours_per_day,
                 status: 'ativo',
                 cargo_id: cargoId,
-                departamento_id: departamentoId,
             })
         if (insertError) {
             console.error('Erro ao inserir colaborador:', insertError)
             return NextResponse.json({ error: 'Erro ao inserir colaborador' }, { status: 500 })
         }
+        // criar relação entra o usuário e o departamento na tabela user_departments
+
+        const { error: departmentError } = await supabaseAdmin
+            .from('user_departments')
+            .insert({
+                user_id: userId,
+                department_id: departamentoId,
+            })
+
+        if (departmentError) {
+            console.error('Erro ao inserir departamento do colaborador:', departmentError)
+            return NextResponse.json({ error: 'Erro ao inserir departamento do colaborador' }, { status: 500 })
+        }
+
         return NextResponse.json({ message: 'Colaborador criado com sucesso' }, { status: 201 })
     } catch (error) {
         console.error('Erro ao criar colaborador:', error)

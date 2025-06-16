@@ -14,6 +14,9 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getAllCargos } from "@/app/actions/get-cargos";
 import { getAllDepartments } from "@/app/actions/get-departamentos";
 import { NewColaboradorForm } from "@/components/colaboradores/new-user-form";
+import { NewColaborador } from "@/types/colaboradores";
+import { createColaborador } from "@/app/actions/colaboradores";
+import { toast } from "sonner";
 
 export default function NewColaboradoresPage() {
   const [cargos, setCargos] = useState<{ id: number; nome: string }[]>([]);
@@ -42,6 +45,29 @@ export default function NewColaboradoresPage() {
 
     fetchData();
   }, []);
+
+  // no NewColaboradoresPage / componente que usa o form
+  const handleFormSubmit = async (values: NewColaborador) => {
+    try {
+      await createColaborador(
+        values.nome,
+        values.email,
+        values.cargoId,
+        values.departamentoId,
+        values.role,
+        values.working_hours_per_day,
+        values.status,
+        values.password
+      );
+      // se o servidor quiser devolver, por exemplo, o id do novo user:
+      // console.log("Servidor retornou:", result);
+      toast.success("Colaborador criado com sucesso!");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
+      console.error("Erro ao criar colaborador:", err);
+      toast.error(err.message || "Erro ao criar colaborador. Tente novamente.");
+    }
+  };
 
   return (
     <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
@@ -80,8 +106,7 @@ export default function NewColaboradoresPage() {
             cargos={cargos}
             departamentos={departamentos}
             onSubmit={(values) => {
-              console.log("Form submitted with values:", values);
-              // Handle form submission logic here
+              handleFormSubmit(values);
             }}
           />
         )}

@@ -264,7 +264,7 @@ export function NewColaboradorForm({
         />
 
         {/* Buttons */}
-        <div className="flex justify-end space-x-2">
+        <div className="flex w-full justify-end space-x-2">
           <Button variant="outline" type="button" onClick={() => form.reset()}>
             Cancel
           </Button>
