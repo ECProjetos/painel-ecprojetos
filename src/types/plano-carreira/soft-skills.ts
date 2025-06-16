@@ -1,28 +1,20 @@
-// type.ts
+// types/type.ts
 import { z } from "zod";
 
-export const habilidades = [
-    "Comunicação",
-    "Trabalho em equipe",
-    "Proatividade",
-    "Resolução de problemas",
-    "Organização de tempo",
-    "Pensamento crítico",
-    "Capricho",
-    "Não ter medo de encarar desafios",
-    "Postura profissional",
-    "Gentileza e educação",
-    "Engajamento com a missão e visão da empresa",
-];
+export const softSkillsAssessmentSchema = z.object({
+    colaborador_id: z.string().uuid(),
+    evaluator_id: z.string().uuid(),
+    comunicacao: z.string(),
+    trabalho_em_equipe: z.string(),
+    proatividade: z.string(),
+    resolucao_de_problemas: z.string(),
+    organizacao_de_tempo: z.string(),
+    pensamento_critico: z.string(),
+    capricho: z.string(),
+    nao_medo_desafios: z.string(),
+    postura_profissional: z.string(),
+    gentileza_educacao: z.string(),
+    engajamento_missao_visao: z.string()
+});
 
-export const opcoes = ["1", "2", "3", "4", "5"] as const;
-
-export const respostaSchema = z.enum(opcoes);
-
-export const respostasSchema = z.object(
-  Object.fromEntries(
-    habilidades.map((_, idx) => [idx, respostaSchema])
-  )
-);
-
-export type RespostasType = z.infer<typeof respostasSchema>;
+export type SoftSkillsAssessmentType = z.infer<typeof softSkillsAssessmentSchema>;

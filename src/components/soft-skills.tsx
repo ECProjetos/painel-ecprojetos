@@ -11,31 +11,73 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 
-import { respostasSchema, RespostasType } from "@/types/plano-carreira/soft-skills"; // ajuste o path
+import { SoftSkillsAssessmentType, softSkillsAssessmentSchema } from "@/types/plano-carreira/soft-skills"; // ajuste o path
+import { useParams } from "next/navigation";
+
+type Colaborador = {
+    id: string;
+    nome: string;
+};
 
 type SoftSkillsTableProps = {
     habilidades: string[];
     opcoes: string[];
-    onSubmit?: (respostas: RespostasType) => void;
+    colaboradores: Colaborador[];
+    evaluatorId: string; // Passe o id do avaliador via prop
+    onSubmit?: (respostas: SoftSkillsAssessmentType) => void;
 };
+
+const fieldNames = [
+    "comunicacao",
+    "trabalho_em_equipe",
+    "proatividade",
+    "resolucao_de_problemas",
+    "organizacao_de_tempo",
+    "pensamento_critico",
+    "capricho",
+    "nao_medo_desafios",
+    "postura_profissional",
+    "gentileza_educacao",
+    "engajamento_missao_visao",
+];
+
+type SoftSkillField = typeof fieldNames[number];
+
 
 export function SoftSkillsTable({
     habilidades,
     opcoes,
+    evaluatorId,
     onSubmit
 }: SoftSkillsTableProps) {
-    const [respostas, setRespostas] = useState<Partial<RespostasType>>({});
+    const [respostas, setRespostas] = useState<Partial<Record<SoftSkillField, string>>>({});
 
-    const handleChange = (habilidadeIdx: number, value: string) => {
-        setRespostas((prev) => ({ ...prev, [habilidadeIdx]: value }));
+    const handleChange = (field: string, value: string) => {
+        setRespostas((prev) => ({ ...prev, [field]: value }));
     };
+
+    const params = useParams();
+
+    const colaboradorId = params.id;
+
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Validar com zod
-        const parseResult = respostasSchema.safeParse(respostas);
+        if (!colaboradorId) {
+            alert("Selecione um colaborador.");
+            return;
+        }
+        // Validação Zod
+        const dadosParaValidar = {
+            ...respostas,
+            colaborador_id: colaboradorId,
+            evaluator_id: evaluatorId,
+        };
+        const parseResult = softSkillsAssessmentSchema.safeParse(dadosParaValidar);
         if (!parseResult.success) {
             alert("Por favor, preencha todas as habilidades!");
+            console.error("Erro de validação:", parseResult.error.format());
+
             return;
         }
         if (onSubmit) {
@@ -61,36 +103,34 @@ export function SoftSkillsTable({
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {habilidades.map((habilidade, hIdx) => (
-                                <TableRow
-                                    key={hIdx}
-                                    className={hIdx % 2 === 0 ? "bg-gray-50 hover:bg-blue-50 transition" : "bg-white hover:bg-blue-50 transition"}
-                                >
-                                    <TableCell className="font-medium text-gray-800 py-3">{habilidade}</TableCell>
-                                    {opcoes.map((opcao, opIdx) => (
-                                        <TableCell key={opIdx} className="text-center">
-                                            <label className="inline-flex items-center justify-center cursor-pointer w-8 h-8">
-                                                <input
-                                                    type="radio"
-                                                    name={`habilidade-${hIdx}`}
-                                                    value={opcao}
-                                                    checked={respostas[hIdx] === opcao}
-                                                    onChange={() => handleChange(hIdx, opcao)}
-                                                    aria-label={opcao}
-                                                    className="accent-blue-600 w-3 h-3 border-2 border-blue-400 "
-                                                />
-                                            </label>
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))}
+                            {habilidades.map((habilidade, hIdx) => {
+                                const field = fieldNames[hIdx];
+                                return (
+                                    <TableRow key={hIdx}>
+                                        <TableCell>{habilidade}</TableCell>
+                                        {opcoes.map((_, opIdx) => (
+                                            <TableCell key={opIdx} className="text-center">
+                                                <label>
+                                                    <input
+                                                        type="radio"
+                                                        name={field}
+                                                        value={(opIdx + 1).toString()}
+                                                        checked={respostas[field] === (opIdx + 1).toString()}
+                                                        onChange={() => handleChange(field, (opIdx + 1).toString())}
+                                                    />
+                                                </label>
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 </div>
             </div>
             <Button
                 type="submit"
-                className="mt-8 w-40 text-white  py-3"
+                className="mt-8 w-40 text-white py-3"
             >
                 Enviar Avaliação
             </Button>
