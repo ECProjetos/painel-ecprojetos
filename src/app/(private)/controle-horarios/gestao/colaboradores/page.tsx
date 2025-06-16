@@ -41,7 +41,7 @@ export default function ColaboradoresPage() {
         <div className="flex items-center align-center justify-between">
           <h1 className="text-2xl font-bold">Gestão de Colaboradores</h1>
           <Link
-            href="/private/controle-horarios/gestao/colaboradores/novo"
+            href="/controle-horarios/gestao/colaboradores/novo"
             className={cn(buttonVariants({ variant: "default" }))}
           >
             <PlusCircle className="mr-2 h-4 w-4" />
@@ -52,3 +52,5 @@ export default function ColaboradoresPage() {
     </div>
   );
 }
+// This page is for managing collaborators in the time control system.
+// It includes a breadcrumb navigation and a button to add new collaborators.
