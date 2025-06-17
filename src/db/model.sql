@@ -1,142 +1,124 @@
--- 1. Cria o tipo ENUM para roles (se ainda não existir)
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
-    CREATE TYPE user_role AS ENUM ('COLABORADOR', 'GESTOR', 'DIRETOR');
-  END IF;
-END
-$$;
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
--- 2. Tabela de Cargos
-CREATE TABLE IF NOT EXISTS cargos (
-  id   SERIAL PRIMARY KEY,
-  nome VARCHAR(100) NOT NULL UNIQUE
+CREATE TABLE public.activities (
+  id integer NOT NULL DEFAULT nextval('activities_id_seq'::regclass),
+  name character varying NOT NULL,
+  description text,
+  department_id integer NOT NULL,
+  CONSTRAINT activities_pkey PRIMARY KEY (id),
+  CONSTRAINT activities_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id)
 );
-
--- 3. Insere os cargos iniciais
-INSERT INTO cargos (nome) VALUES
-  ('Estagiário'),
-  ('Assistente de projetos I'),
-  ('Assistente de projetos II'),
-  ('Consultor de projetos I'),
-  ('Consultor de projetos II'),
-  ('Consultor de projetos III'),
-  ('Consultor de projetos IV'),
-  ('Consultor de projetos V'),
-  ('Consultor de projetos VI'),
-  ('Consultor de projetos VII'),
-  ('Consultor de projetos VIII'),
-  ('Diretor')
-ON CONFLICT (nome) DO NOTHING;
-
--- 4. Tabela de Departamentos
-CREATE TABLE IF NOT EXISTS departments (
-  id   SERIAL PRIMARY KEY,
-  name VARCHAR(100) NOT NULL UNIQUE
+CREATE TABLE public.calendar_events (
+  id integer NOT NULL DEFAULT nextval('calendar_events_id_seq'::regclass),
+  title character varying NOT NULL,
+  event_date date NOT NULL,
+  type character varying NOT NULL,
+  description text,
+  CONSTRAINT calendar_events_pkey PRIMARY KEY (id)
 );
-
--- 5. Insere os departamentos iniciais
-INSERT INTO departments (name) VALUES
-  ('Departamento de Economia'),
-  ('Departamento de Engenharia'),
-  ('Departamento de Meio Ambiente e Geoprocessamento'),
-  ('Departamento Administrativo/RH/Financeiro'),
-  ('Departamento de TI'),
-  ('Departamento Comercial'),
-  ('Departamento de Marketing')
-ON CONFLICT (name) DO NOTHING;
-
-CREATE TABLE IF NOT EXISTS public.users (
-  id                       UUID                    NOT NULL PRIMARY KEY
-    REFERENCES auth.users(id) ON DELETE CASCADE,
-  updated_at               TIMESTAMPTZ,
-  name                     VARCHAR(100)            NOT NULL,
-  email                    VARCHAR(150)            NOT NULL UNIQUE,
-  role                     user_role               NOT NULL DEFAULT 'COLABORADOR',
-  cargo_id                 INTEGER                 REFERENCES cargos(id),
-  status                   VARCHAR(20)             NOT NULL DEFAULT 'active',
-  working_hours_per_day    INTEGER                 NOT NULL DEFAULT 8,
-  banco_horas_anterior     NUMERIC(7,2)            NOT NULL DEFAULT 0,
-  banco_horas_atual        NUMERIC(7,2)            NOT NULL DEFAULT 0
+CREATE TABLE public.cargos (
+  id integer NOT NULL DEFAULT nextval('cargos_id_seq'::regclass),
+  nome character varying NOT NULL UNIQUE,
+  CONSTRAINT cargos_pkey PRIMARY KEY (id)
 );
-
-
--- 7. Associação Usuário ↔ Departamento (visibilidade)
-CREATE TABLE IF NOT EXISTS user_departments (
-  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  department_id INTEGER NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
-  PRIMARY KEY (user_id, department_id)
+CREATE TABLE public.departments (
+  id integer NOT NULL DEFAULT nextval('departments_id_seq'::regclass),
+  name character varying NOT NULL UNIQUE,
+  CONSTRAINT departments_pkey PRIMARY KEY (id)
 );
-
--- 8. Tabela de Projetos (vinculados a departamento)
-CREATE TABLE IF NOT EXISTS projects (
-  id              SERIAL       PRIMARY KEY,
-  name            VARCHAR(150) NOT NULL,
-  code            VARCHAR(50)  UNIQUE,
-  estimated_hours INTEGER,
-  description     TEXT,
-  department_id   INTEGER      NOT NULL REFERENCES departments(id) ON DELETE SET NULL
+CREATE TABLE public.event_departments (
+  event_id integer NOT NULL,
+  department_id integer NOT NULL,
+  CONSTRAINT event_departments_pkey PRIMARY KEY (event_id, department_id),
+  CONSTRAINT event_departments_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.calendar_events(id),
+  CONSTRAINT event_departments_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id)
 );
-
--- 9. Tabela de Atividades (vinculadas a departamento)
-CREATE TABLE IF NOT EXISTS activities (
-  id             SERIAL       PRIMARY KEY,
-  name           VARCHAR(150) NOT NULL,
-  description    TEXT,
-  department_id  INTEGER      NOT NULL REFERENCES departments(id) ON DELETE CASCADE
+CREATE TABLE public.inconsistencies (
+  id integer NOT NULL DEFAULT nextval('inconsistencies_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  inconsistency_date date NOT NULL,
+  type character varying NOT NULL,
+  justification text,
+  status character varying NOT NULL DEFAULT 'pending'::character varying,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT inconsistencies_pkey PRIMARY KEY (id),
+  CONSTRAINT inconsistencies_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-
--- 10. Registro de Ponto (Time Entries)
-CREATE TABLE IF NOT EXISTS time_entries (
-  id           SERIAL       PRIMARY KEY,
-  user_id      UUID      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  entry_date   DATE         NOT NULL,
-  period       SMALLINT     NOT NULL CHECK (period IN (1,2,3)),
-  entry_time   TIME,
-  exit_time    TIME,
-  created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+CREATE TABLE public.projects (
+  id integer NOT NULL DEFAULT nextval('projects_id_seq'::regclass),
+  name character varying NOT NULL,
+  code character varying UNIQUE,
+  estimated_hours integer,
+  description text,
+  department_id integer NOT NULL,
+  CONSTRAINT projects_pkey PRIMARY KEY (id),
+  CONSTRAINT projects_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id)
 );
-
--- 11. Alocação de Horas (Time Allocations)
-CREATE TABLE IF NOT EXISTS time_allocations (
-  id              SERIAL       PRIMARY KEY,
-  user_id         UUID      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  project_id      INTEGER      NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  activity_id     INTEGER      NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
-  allocation_date DATE         NOT NULL,
-  hours           NUMERIC(5,2) NOT NULL,
-  comment         TEXT,
-  created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+CREATE TABLE public.soft_skills_assessment (
+  id integer NOT NULL DEFAULT nextval('soft_skills_assessment_id_seq'::regclass),
+  colaborador_id uuid NOT NULL,
+  evaluator_id uuid NOT NULL,
+  comunicacao text NOT NULL,
+  trabalho_em_equipe text NOT NULL,
+  proatividade text NOT NULL,
+  resolucao_de_problemas text NOT NULL,
+  organizacao_de_tempo text NOT NULL,
+  pensamento_critico text NOT NULL,
+  capricho text NOT NULL,
+  encarar_desafios text NOT NULL,
+  postura_profissional text NOT NULL,
+  gentileza_e_educacao text NOT NULL,
+  engajamento_missao_visao text NOT NULL,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT soft_skills_assessment_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_user FOREIGN KEY (colaborador_id) REFERENCES public.users(id),
+  CONSTRAINT fk_evaluator FOREIGN KEY (evaluator_id) REFERENCES public.users(id)
 );
-
--- 12. Inconsistências
-CREATE TABLE IF NOT EXISTS inconsistencies (
-  id                 SERIAL       PRIMARY KEY,
-  user_id            UUID      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  inconsistency_date DATE         NOT NULL,
-  type               VARCHAR(50)  NOT NULL,
-  justification      TEXT,
-  status             VARCHAR(20)  NOT NULL DEFAULT 'pending',
-  created_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+CREATE TABLE public.time_allocations (
+  id integer NOT NULL DEFAULT nextval('time_allocations_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  project_id integer NOT NULL,
+  activity_id integer NOT NULL,
+  allocation_date date NOT NULL,
+  hours numeric NOT NULL,
+  comment text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT time_allocations_pkey PRIMARY KEY (id),
+  CONSTRAINT time_allocations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT time_allocations_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT time_allocations_activity_id_fkey FOREIGN KEY (activity_id) REFERENCES public.activities(id)
 );
-
--- 13. Eventos de Calendário
-CREATE TABLE IF NOT EXISTS calendar_events (
-  id          SERIAL       PRIMARY KEY,
-  title       VARCHAR(150) NOT NULL,
-  event_date  DATE         NOT NULL,
-  type        VARCHAR(50)  NOT NULL,
-  description TEXT
+CREATE TABLE public.time_entries (
+  user_id uuid NOT NULL,
+  entry_date date NOT NULL,
+  period smallint NOT NULL CHECK (period = ANY (ARRAY[1, 2, 3])),
+  entry_time time without time zone,
+  exit_time time without time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT time_entries_pkey PRIMARY KEY (user_id, entry_date, period)
 );
-
--- 14. Associação Evento ↔ Departamento
-CREATE TABLE IF NOT EXISTS event_departments (
-  event_id      INTEGER NOT NULL REFERENCES calendar_events(id) ON DELETE CASCADE,
-  department_id INTEGER NOT NULL REFERENCES departments(id)    ON DELETE CASCADE,
-  PRIMARY KEY (event_id, department_id)
+CREATE TABLE public.user_departments (
+  user_id uuid NOT NULL,
+  department_id integer NOT NULL,
+  CONSTRAINT user_departments_pkey PRIMARY KEY (user_id, department_id),
+  CONSTRAINT user_departments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_departments_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id)
 );
-
-
+CREATE TABLE public.users (
+  id uuid NOT NULL,
+  name character varying NOT NULL,
+  email character varying NOT NULL UNIQUE,
+  role USER-DEFINED NOT NULL DEFAULT 'COLABORADOR'::user_role,
+  cargo_id integer,
+  status character varying NOT NULL DEFAULT 'active'::character varying,
+  working_hours_per_day integer NOT NULL DEFAULT 8,
+  banco_horas_anterior numeric NOT NULL DEFAULT 0,
+  banco_horas_atual numeric NOT NULL DEFAULT 0,
+  CONSTRAINT users_pkey PRIMARY KEY (id),
+  CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT users_cargo_id_fkey FOREIGN KEY (cargo_id) REFERENCES public.cargos(id)
+);

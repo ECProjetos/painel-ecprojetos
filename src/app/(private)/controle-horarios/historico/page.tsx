@@ -1,10 +1,71 @@
+"use client";
+
+import { AlocacapPainel } from "@/components/historico/alocacao/painel-alocacao";
+import { MarcacaoPainel } from "@/components/historico/marcacao/painel-marcacao";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Clock, Folder } from "lucide-react";
+
 export default function ControleHorariosHistoricoPage() {
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50 p-4 pl-0 dark:bg-[#18181B]">
-      <h1 className="text-2xl font-bold">Histórico de Controle de Horários</h1>
-      <p className="mt-4 text-gray-600">
-        Esta página está em desenvolvimento. Volte mais tarde!
-      </p>
+    <div className="flex flex-col bg-white shadow-lg rounded-2xl p-2 sm:p-4 sm:px-6 lg:px-8 flex-1 min-h-[125vh] border dark:bg-[#1c1c20]">
+      <header className="flex h-16 shrink-0 items-center gap-2">
+        <SidebarTrigger className="-ml-1" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/private/controle-horarios/inicio">
+                Controle de Horários
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbPage>Histórico</BreadcrumbPage>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </header>
+
+      {/* Conteúdo principal */}
+      <div className="px-4">
+        <div className="mb-6 space-y-1">
+          <h1 className="text-2xl font-semibold">
+            Histórico de Ponto e Alocação
+          </h1>
+          <p className="text-gray-600">
+            Acomponhe suas marcações e como você alocou seu tempo por projeto
+          </p>
+        </div>
+        <Tabs defaultValue="marcacao" className="w-full">
+          <TabsList>
+            <TabsTrigger
+              className="flex justify-between items-center"
+              value="marcacao"
+            >
+              <Clock /> Marcação do Ponto
+            </TabsTrigger>
+            <TabsTrigger
+              className="flex justify-between items-center"
+              value="alocacao"
+            >
+              <Folder /> Alocação de Tempo
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="marcacao">
+            <MarcacaoPainel />
+          </TabsContent>
+          <TabsContent value="alocacao">
+            <AlocacapPainel />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
