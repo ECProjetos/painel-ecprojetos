@@ -61,6 +61,7 @@ export async function marcarPonto({
         .from("time_entries")
         .upsert(payload, {
             onConflict: 'user_id,entry_date,period'
+        
         });
 
     if (error) {

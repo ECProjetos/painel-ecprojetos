@@ -15,8 +15,8 @@ import { useUserStore } from "@/stores/userStore";
 export default function Page() {
   const user = useUserStore((state) => state.user);
   return (
-    <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
-      <div className="flex h-16 shrink-0 items-center gap-2 px-4">
+    <div className="flex flex-col bg-white shadow-lg rounded-2xl p-2 sm:p-4 sm:px-6 lg:px-8 flex-1 min-h-[125vh] border dark:bg-[#1c1c20]">
+      <header className="flex h-16 shrink-0 items-center gap-2">
         <SidebarTrigger className="-ml-1" />
         <Breadcrumb>
           <BreadcrumbList>
@@ -29,7 +29,7 @@ export default function Page() {
             <BreadcrumbPage>Início</BreadcrumbPage>
           </BreadcrumbList>
         </Breadcrumb>
-      </div>
+      </header>
 
       {/* Conteúdo principal */}
       <div className="px-4">

@@ -176,9 +176,9 @@ export function TimesheetSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
     <Sidebar
       collapsible="icon"
       {...props}
-      className="relative border-none !min-h-[115vh]"
+      className="absolute h-full border-none !min-h-[115vh]"
     >
-      <SidebarContent className="h-full">
+      <SidebarContent className="fixed h-full">
         <NavColaborador items={data.navColaborador} />
         {data.navGestor.length > 0 && <NavGestor items={data.navGestor} />}
         {data.navDiretor.length > 0 && <NavDiretor items={data.navDiretor} />}
