@@ -12,15 +12,25 @@ export const ColaboradorSchema = z.object({
     departamentoId: z.number().int().positive({ message: 'Departamento é obrigatório' }),
 });
 
-export const NewColaboradorSchema = ColaboradorSchema.omit({
-    id: true,
-}).extend({
+export const NewColaboradorSchema = ColaboradorSchema.omit({ id: true }).extend({
     password: z.string().min(8, { message: 'Senha deve ter pelo menos 8 caracteres' }),
     confirmPassword: z.string().min(8, { message: 'Confirmação de senha deve ter pelo menos 8 caracteres' }),
 }).refine((data) => data.password === data.confirmPassword, {
     message: 'As senhas não coincidem',
 });
 
+export const ColaboradorViewSchema = z.object({
+    id: z.string().uuid(),
+    nome: z.string(),
+    email: z.string().email(),
+    nome_departamento: z.string().nullable(),
+    nome_cargo: z.string().nullable(),
+    status: z.enum(['ativo', 'inativo']),
+    carga_horaria: z.number().nullable(),
+    banco_horas_atual: z.number().nullable(),
+})
+
+export type ColaboradorView = z.infer<typeof ColaboradorViewSchema>;
 export type Colaborador = z.infer<typeof ColaboradorSchema>;
 
 export type NewColaborador = z.infer<typeof NewColaboradorSchema>;
