@@ -2,15 +2,15 @@
 
 import { supabaseAdmin } from '@/utils/supabase/admin'
 import { NextResponse } from 'next/server'
-import { getAuthenticatedUserRole } from '@/hooks/use-role'
+//import { getAuthenticatedUserRole } from '@/hooks/use-role'
 
 export async function POST(request: Request) {
     try {
         // Verifica se o usuário está autenticado e autorizado
-        const authResponse = await getAuthenticatedUserRole()
-        if (authResponse.status !== 200) {
-            return authResponse
-        }
+        // const authResponse = await getAuthenticatedUserRole()
+        // if (authResponse.status !== 200) {
+        //     return authResponse
+        // }
 
         // Obtém os dados do corpo da requisição
         // // nome: "",
