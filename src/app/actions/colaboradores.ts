@@ -48,7 +48,7 @@ export async function getAllColaboradores() {
         const { data, error } = await supabase
             .from('vw_user_info')
             .select('*')
-            .order('nome_colaborador', { ascending: true });
+            .order('nome', { ascending: true });
         if (error) {
             throw new Error(error.message);
         }

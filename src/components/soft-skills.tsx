@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import React, { useState } from "react";
 import {
     Table,
     TableBody,
@@ -10,77 +10,62 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-
-import { SoftSkillsAssessmentType, softSkillsAssessmentSchema } from "@/types/plano-carreira/soft-skills"; // ajuste o path
 import { useParams } from "next/navigation";
-
-type Colaborador = {
-    id: string;
-    nome: string;
-};
+import {
+    SoftSkillsAssessmentType,
+    softSkillsAssessmentSchema,
+} from "@/types/plano-carreira/soft-skills";
+import { Colaborador } from "@/types/colaboradores";
+import { toast } from 'sonner';
 
 type SoftSkillsTableProps = {
-    habilidades: string[];
+    habilidadesDetalhadas: {
+        nome: string;
+        field: string;
+        descricoes: string[];
+    }[];
     opcoes: string[];
     colaboradores: Colaborador[];
-    evaluatorId: string; // Passe o id do avaliador via prop
+    evaluatorId: string;
     onSubmit?: (respostas: SoftSkillsAssessmentType) => void;
 };
 
-const fieldNames = [
-    "comunicacao",
-    "trabalho_em_equipe",
-    "proatividade",
-    "resolucao_de_problemas",
-    "organizacao_de_tempo",
-    "pensamento_critico",
-    "capricho",
-    "nao_medo_desafios",
-    "postura_profissional",
-    "gentileza_educacao",
-    "engajamento_missao_visao",
-];
-
-type SoftSkillField = typeof fieldNames[number];
-
-
 export function SoftSkillsTable({
-    habilidades,
+    habilidadesDetalhadas,
     opcoes,
     evaluatorId,
-    onSubmit
+    onSubmit,
 }: SoftSkillsTableProps) {
-    const [respostas, setRespostas] = useState<Partial<Record<SoftSkillField, string>>>({});
+    const [respostas, setRespostas] = useState<Record<string, string>>({});
+    const params = useParams();
+    const colaboradorId = params.id as string | undefined;
 
     const handleChange = (field: string, value: string) => {
         setRespostas((prev) => ({ ...prev, [field]: value }));
     };
 
-    const params = useParams();
-
-    const colaboradorId = params.id;
-
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!colaboradorId) {
-            alert("Selecione um colaborador.");
+            toast.error("Colaborador não encontrado!");
             return;
         }
-        // Validação Zod
+
         const dadosParaValidar = {
-            ...respostas,
             colaborador_id: colaboradorId,
             evaluator_id: evaluatorId,
+            ...respostas,
         };
+
         const parseResult = softSkillsAssessmentSchema.safeParse(dadosParaValidar);
         if (!parseResult.success) {
+            console.error("Erro de validação:", parseResult.error);
             alert("Por favor, preencha todas as habilidades!");
-            console.error("Erro de validação:", parseResult.error.format());
-
             return;
         }
+
         if (onSubmit) {
+            toast.success("Avaliação enviada com sucesso!");
             onSubmit(parseResult.data);
         } else {
             alert(JSON.stringify(parseResult.data, null, 2));
@@ -88,50 +73,77 @@ export function SoftSkillsTable({
     };
 
     return (
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col items-center">
-            <div className="overflow-x-auto w-full flex justify-center">
-                <div className="w-full max-w-8xl mx-auto">
-                    <Table className="w-full border rounded-xl shadow bg-white">
+        <form
+            onSubmit={handleSubmit}
+            className="flex-1 flex flex-col items-center min-h-screen text-base md:text-lg"
+        >
+            <div className="w-full flex justify-center">
+                <div className="w-full max-w-none mx-auto">
+                    <Table className="w-full table-fixed border rounded-xl shadow bg-white">
                         <TableHeader>
                             <TableRow className="bg-blue-50">
-                                <TableHead className="text-lg font-bold text-black">Habilidade</TableHead>
-                                {opcoes.map((opcao, idx) => (
-                                    <TableHead key={idx} className="text-center text-base font-semibold text-black">
+                                <TableHead className="w-1/6 text-left px-4 py-2">
+                                    Habilidade
+                                </TableHead>
+                                {opcoes.map((opcao) => (
+                                    <TableHead
+                                        key={opcao}
+                                        className="text-center text-base font-semibold px-2 py-2"
+                                    >
                                         {opcao}
                                     </TableHead>
                                 ))}
                             </TableRow>
                         </TableHeader>
+
                         <TableBody>
-                            {habilidades.map((habilidade, hIdx) => {
-                                const field = fieldNames[hIdx];
-                                return (
-                                    <TableRow key={hIdx}>
-                                        <TableCell>{habilidade}</TableCell>
-                                        {opcoes.map((_, opIdx) => (
-                                            <TableCell key={opIdx} className="text-center">
-                                                <label>
+                            {habilidadesDetalhadas.map(({ nome, field, descricoes }) => (
+                                <TableRow key={field}>
+                                    <TableCell className="font-medium text-gray-800 py-3 px-4 whitespace-normal break-words">
+                                        {nome}
+                                    </TableCell>
+
+                                    {descricoes.map((desc, idx) => {
+                                        const value = String(idx + 1);
+                                        const checked = respostas[field] === value;
+                                        return (
+                                            <TableCell
+                                                key={idx}
+                                                className="text-center py-3 px-2 whitespace-normal break-words text-base md:text-lg"
+                                            >
+                                                <label
+                                                    className={`
+                            cursor-pointer
+                            flex flex-wrap items-center justify-center
+                            text-xs text-center px-2 py-3 rounded border transition
+                            ${checked
+                                                            ? "bg-blue-100 border-blue-600 text-blue-900 font-semibold shadow"
+                                                            : "bg-white border-gray-300 hover:bg-blue-50"
+                                                        }
+                          `}
+                                                    style={{ minHeight: 60 }}
+                                                >
                                                     <input
                                                         type="radio"
                                                         name={field}
-                                                        value={(opIdx + 1).toString()}
-                                                        checked={respostas[field] === (opIdx + 1).toString()}
-                                                        onChange={() => handleChange(field, (opIdx + 1).toString())}
+                                                        value={value}
+                                                        checked={checked}
+                                                        onChange={() => handleChange(field, value)}
+                                                        className="sr-only"
                                                     />
+                                                    <span className="w-full">{desc}</span>
                                                 </label>
                                             </TableCell>
-                                        ))}
-                                    </TableRow>
-                                );
-                            })}
+                                        );
+                                    })}
+                                </TableRow>
+                            ))}
                         </TableBody>
                     </Table>
                 </div>
             </div>
-            <Button
-                type="submit"
-                className="mt-8 w-40 text-white py-3"
-            >
+
+            <Button type="submit" className="mt-8 w-full text-white py-3">
                 Enviar Avaliação
             </Button>
         </form>

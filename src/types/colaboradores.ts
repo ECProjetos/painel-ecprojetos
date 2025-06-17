@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { roleEnum } from './role-enum';
 
 export const ColaboradorSchema = z.object({
-    id: z.string().uuid().optional(),
+    id: z.string().uuid(),
     nome: z.string().min(1, { message: 'Nome é obrigatório' }),
     email: z.string().email({ message: 'Email inválido' }),
     cargoId: z.number().int().positive({ message: 'Cargo é obrigatório' }),
@@ -12,7 +12,9 @@ export const ColaboradorSchema = z.object({
     departamentoId: z.number().int().positive({ message: 'Departamento é obrigatório' }),
 });
 
-export const NewColaboradorSchema = ColaboradorSchema.extend({
+export const NewColaboradorSchema = ColaboradorSchema.omit({
+    id: true,
+}).extend({
     password: z.string().min(8, { message: 'Senha deve ter pelo menos 8 caracteres' }),
     confirmPassword: z.string().min(8, { message: 'Confirmação de senha deve ter pelo menos 8 caracteres' }),
 }).refine((data) => data.password === data.confirmPassword, {
