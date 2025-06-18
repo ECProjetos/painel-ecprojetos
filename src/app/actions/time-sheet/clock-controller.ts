@@ -61,7 +61,7 @@ export async function marcarPonto({
         .from("time_entries")
         .upsert(payload, {
             onConflict: 'user_id,entry_date,period'
-        
+
         });
 
     if (error) {
@@ -82,4 +82,26 @@ export async function getPontoDoDia(userId: string) {
         .order("period", { ascending: true });
 
     return data || [];
+}
+
+export async function getInsightsPontoHistorico(userId: string) {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from("vw_user_month_summary")
+        .select(
+            "user_id, horas_previstas_no_mes, horas_trabalhadas_no_mes, banco_de_horas_inicial, ajuste_de_horas_do_mes, banco_de_horas_atual"
+        )
+        .eq("user_id", userId)
+        .single();
+    if (error) {
+        console.error("Erro ao buscar insights do ponto:", error);
+        throw new Error("Erro ao buscar insights do ponto.");
+    }
+    return {
+        horasPrevistasNoMes: data?.horas_previstas_no_mes || 0,
+        horasTrabalhadasNoMes: data?.horas_trabalhadas_no_mes || 0,
+        bancoDeHorasInicial: data?.banco_de_horas_inicial || 0,
+        ajusteDeHorasDoMes: data?.ajuste_de_horas_do_mes || 0,
+        bancoDeHorasAtual: data?.banco_de_horas_atual || 0,
+    };
 }
