@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import type { TimeEntriesRow } from "@/types/time-sheet/time-entries-row";
+import { TimeEntryDaily } from "@/types/time-sheet/time-entry-daily ";
 
 export async function getStatusUsuario(userId: string) {
     const supabase = await createClient();
@@ -104,4 +105,23 @@ export async function getInsightsPontoHistorico(userId: string) {
         ajusteDeHorasDoMes: data?.ajuste_de_horas_do_mes || 0,
         bancoDeHorasAtual: data?.banco_de_horas_atual || 0,
     };
+}
+
+export async function fetchTimeEntriesByMonth(
+    userId: string,
+    month: number,
+    year: number
+): Promise<TimeEntryDaily[]> {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+        .from("vw_user_time_entries_daily")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("month", month)
+        .eq("year", year)
+        .order("entry_date", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data ?? [];
 }

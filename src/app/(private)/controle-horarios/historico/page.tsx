@@ -24,6 +24,9 @@ export default function ControleHorariosHistoricoPage() {
   const userId = useUserStore((state) => state.user?.id);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [insights, setInsights] = useState<any>(null);
+  const date = new Date();
+  const month = date.getMonth() + 1; // getMonth() retorna de 0 a 11
+  const year = date.getFullYear();
 
   useEffect(() => {
     async function fetchInsights() {
@@ -85,7 +88,12 @@ export default function ControleHorariosHistoricoPage() {
           </TabsList>
           <TabsContent value="marcacao">
             {insights ? (
-              <MarcacaoPainel insights={insights} />
+              <MarcacaoPainel
+                insights={insights}
+                userId={userId as string}
+                month={month}
+                year={year}
+              />
             ) : (
               <div className="flex items-center justify-center h-64">
                 <p className="text-gray-500">Carregando dados...</p>
