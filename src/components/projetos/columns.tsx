@@ -52,15 +52,15 @@ const handleDeleteProject = async (id: number) => {
 
 export const projectColumns: ColumnDef<TimeSumaryViewProject>[] = [
   {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Nome" />
-    ),
-  },
-  {
     accessorKey: "code",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Código" />
+    ),
+  },
+  {
+    accessorKey: "name",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Nome" />
     ),
   },
   {
