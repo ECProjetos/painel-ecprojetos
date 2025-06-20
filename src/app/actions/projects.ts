@@ -12,7 +12,10 @@ export async function createProject(project: NewProject) {
             .from("projects")
             .insert([project])
 
-        if (error) {
+        if (error?.code === "23505") {
+            // Erro de chave única, significa que o projeto já existe   
+            throw new Error("Projeto já existe com o mesmo código.");
+        } else if (error) {
             console.error("Erro ao inserir projeto:", error);
             throw new Error("Erro ao inserir projeto: " + error.message);
         }
@@ -22,6 +25,6 @@ export async function createProject(project: NewProject) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
         console.error("Erro ao criar projeto:", error);
-        throw new Error("Erro ao criar projeto: " + error.message);
+        throw new Error(error.message || "Erro desconhecido ao criar projeto. Entrar em contato com o suporte.");
     }
 }
