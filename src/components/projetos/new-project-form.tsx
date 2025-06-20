@@ -31,18 +31,23 @@ import Link from "next/link";
 interface NewProjectFormProps {
   departments: { id: number; name: string }[];
   onSubmit: (data: NewProject) => void;
+  projeto?: NewProject | null;
 }
 
-export function NewProjectForm({ departments, onSubmit }: NewProjectFormProps) {
+export function NewProjectForm({
+  departments,
+  onSubmit,
+  projeto,
+}: NewProjectFormProps) {
   const form = useForm<NewProject>({
     resolver: zodResolver(newProjectSchema),
     defaultValues: {
-      name: "",
-      code: "",
-      description: "",
-      department_id: undefined as unknown as number,
-      status: "ativo",
-      estimated_hours: 0,
+      name: projeto?.name || "",
+      code: projeto?.code || "",
+      description: projeto?.description || "",
+      department_id: projeto?.department_id || (undefined as unknown as number),
+      status: projeto?.status || "ativo",
+      estimated_hours: projeto?.estimated_hours || 0,
     },
   });
 
@@ -127,7 +132,7 @@ export function NewProjectForm({ departments, onSubmit }: NewProjectFormProps) {
             name="status"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Código do Projeto</FormLabel>
+                <FormLabel>Status do Projeto</FormLabel>
                 <FormControl>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger className="w-full">
@@ -184,7 +189,9 @@ export function NewProjectForm({ departments, onSubmit }: NewProjectFormProps) {
           >
             Voltar
           </Link>
-          <Button type="submit">Criar Projeto</Button>
+          <Button type="submit">
+            {projeto ? "Atualizar Projeto" : "Criar Projeto"}
+          </Button>
         </div>
       </form>
     </Form>

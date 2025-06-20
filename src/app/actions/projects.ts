@@ -50,6 +50,29 @@ export async function getAllProjects() {
     }
 }
 
+export async function getProjectById(id: number) {
+    try {
+        const supabase = await createClient();
+
+        const { data, error } = await supabase
+            .from("projects")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if (error) {
+            console.error("Erro ao buscar projeto:", error);
+            throw new Error("Erro ao buscar projeto: " + error.message);
+        }
+
+        return data;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+        console.error("Erro ao obter projeto:", error);
+        throw new Error(error.message || "Erro desconhecido ao obter projeto. Entrar em contato com o suporte.");
+    }
+}
+
 export async function updateProject(id: number, project: NewProject) {
     try {
         const supabase = await createClient();
