@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,8 +14,32 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { Download, PlusCircle } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
+import { getAllProjects } from "@/app/actions/projects";
+import { TimeSumaryViewProject } from "@/types/projects";
+import { ProjectTable } from "@/components/projetos/table";
+import { projectColumns } from "@/components/projetos/columns";
 
 export default function ProjetosPage() {
+  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState<TimeSumaryViewProject[]>([]);
+
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        const data = await getAllProjects();
+        setProjects(data);
+      } catch (error) {
+        console.error("Erro ao buscar projetos:", error);
+        toast.error("Erro ao buscar projetos. Tente novamente mais tarde.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProjects();
+  }, []);
+
   return (
     <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
       <div className="flex h-16 shrink-0 items-center gap-2 px-4">
@@ -43,7 +68,9 @@ export default function ProjetosPage() {
           <div className="flex items-center space-x-2">
             <Button
               variant="default"
-              onClick={alert.bind(null, "Funcionalidade em desenvolvimento")}
+              onClick={() => {
+                toast.success("Funcionalidade em desenvolvimento");
+              }}
             >
               <Download className="mr-2 h-4 w-4" /> Exportar
             </Button>
@@ -56,13 +83,16 @@ export default function ProjetosPage() {
             </Link>
           </div>
         </div>
-        {/* {loading ? (
+        {loading ? (
           <div className="flex items-center justify-center h-64">
-            <p>Carregando colaboradores...</p>
+            <p>Carregando pROJETOS...</p>
           </div>
         ) : (
-          <ColaboradoresTable colaboradores={colaboradores} />
-        )} */}
+          <ProjectTable
+            data={projects}
+            columns={projectColumns}
+          />
+        )}
       </div>
     </div>
   );

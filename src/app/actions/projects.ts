@@ -28,3 +28,70 @@ export async function createProject(project: NewProject) {
         throw new Error(error.message || "Erro desconhecido ao criar projeto. Entrar em contato com o suporte.");
     }
 }
+
+export async function getAllProjects() {
+    try {
+        const supabase = await createClient();
+
+        const { data, error } = await supabase
+            .from("project_time_summary")
+            .select("*")
+            .order("name", { ascending: false });
+
+        if (error) {
+            console.error("Erro ao buscar projetos:", error);
+            throw new Error("Erro ao buscar projetos: " + error.message);
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Erro ao obter projetos:", error);
+        throw new Error("Erro desconhecido ao obter projetos. Entrar em contato com o suporte.");
+    }
+}
+
+export async function updateProject(id: number, project: NewProject) {
+    try {
+        const supabase = await createClient();
+
+        const { error } = await supabase
+            .from("projects")
+            .update(project)
+            .eq("id", id);
+
+        if (error) {
+            console.error("Erro ao atualizar projeto:", error);
+            throw new Error("Erro ao atualizar projeto: " + error.message);
+        }
+
+        // Revalidar o caminho para atualizar a lista de projetos
+        revalidatePath("/controle-horarios/direcao/projetos");
+
+    } catch (error) {
+        console.error("Erro ao atualizar projeto:", error);
+        throw new Error("Erro desconhecido ao atualizar projeto. Entrar em contato com o suporte.");
+    }
+}
+
+export async function deletProject(id: number) {
+    try {
+        const supabase = await createClient();
+
+        const { error } = await supabase
+            .from("projects")
+            .delete()
+            .eq("id", id);
+
+        if (error) {
+            console.error("Erro ao excluir projeto:", error);
+            throw new Error("Erro ao excluir projeto: " + error.message);
+        }
+
+        // Revalidar o caminho para atualizar a lista de projetos
+        revalidatePath("/controle-horarios/direcao/projetos");
+
+    } catch (error) {
+        console.error("Erro ao excluir projeto:", error);
+        throw new Error("Erro desconhecido ao excluir projeto. Entrar em contato com o suporte.");
+    }
+}

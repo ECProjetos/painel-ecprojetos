@@ -3,6 +3,7 @@ export const STATUS_PROJECT = {
     ACTIVE: { value: 'ativo', label: 'Ativo' },
     INACTIVE: { value: 'inativo', label: 'Inativo' },
     PAUSED: { value: 'pausado', label: 'Pausado' },
+    COMPLETED: { value: 'concluido', label: 'Concluído' }
 } as const;
 
 export type StatusValue = typeof STATUS_PROJECT[keyof typeof STATUS_PROJECT]['value'];
