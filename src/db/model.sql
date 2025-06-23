@@ -6,6 +6,7 @@ CREATE TABLE public.activities (
   name character varying NOT NULL,
   description text,
   department_id integer NOT NULL,
+  status USER-DEFINED NOT NULL DEFAULT 'ativo'::atividade_status,
   CONSTRAINT activities_pkey PRIMARY KEY (id),
   CONSTRAINT activities_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id)
 );
@@ -53,6 +54,7 @@ CREATE TABLE public.projects (
   estimated_hours integer,
   description text,
   department_id integer NOT NULL,
+  status USER-DEFINED NOT NULL DEFAULT 'ativo'::projct_status,
   CONSTRAINT projects_pkey PRIMARY KEY (id),
   CONSTRAINT projects_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id)
 );
