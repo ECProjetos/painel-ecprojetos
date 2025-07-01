@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import React, { useState } from "react";
 import {
     Table,
     TableBody,
@@ -10,80 +10,140 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { useParams } from "next/navigation";
+import {
+    SoftSkillsAssessmentType,
+    softSkillsAssessmentSchema,
+} from "@/types/plano-carreira/soft-skills";
+import { Colaborador } from "@/types/colaboradores";
+import { toast } from 'sonner';
 
 type SoftSkillsTableProps = {
-    habilidades: string[];
+    habilidadesDetalhadas: {
+        nome: string;
+        field: string;
+        descricoes: string[];
+    }[];
     opcoes: string[];
-    onSubmit?: (respostas: { [key: number]: string }) => void;
+    colaboradores: Colaborador[];
+    evaluatorId: string;
+    onSubmit?: (respostas: SoftSkillsAssessmentType) => void;
 };
 
 export function SoftSkillsTable({
-    habilidades,
+    habilidadesDetalhadas,
     opcoes,
-    onSubmit
+    evaluatorId,
+    onSubmit,
 }: SoftSkillsTableProps) {
-    const [respostas, setRespostas] = useState<{ [key: number]: string }>({});
+    const [respostas, setRespostas] = useState<Record<string, string>>({});
+    const params = useParams();
+    const colaboradorId = params.id as string | undefined;
 
-    const handleChange = (habilidadeIdx: number, value: string) => {
-        setRespostas((prev) => ({ ...prev, [habilidadeIdx]: value }));
+    const handleChange = (field: string, value: string) => {
+        setRespostas((prev) => ({ ...prev, [field]: value }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!colaboradorId) {
+            toast.error("Colaborador não encontrado!");
+            return;
+        }
+
+        const dadosParaValidar = {
+            colaborador_id: colaboradorId,
+            evaluator_id: evaluatorId,
+            ...respostas,
+        };
+
+        const parseResult = softSkillsAssessmentSchema.safeParse(dadosParaValidar);
+        if (!parseResult.success) {
+            console.error("Erro de validação:", parseResult.error);
+            alert("Por favor, preencha todas as habilidades!");
+            return;
+        }
+
         if (onSubmit) {
-            onSubmit(respostas);
+            toast.success("Avaliação enviada com sucesso!");
+            onSubmit(parseResult.data);
         } else {
-            alert(JSON.stringify(respostas, null, 2));
+            alert(JSON.stringify(parseResult.data, null, 2));
         }
     };
 
     return (
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col items-center">
-            <div className="overflow-x-auto w-full flex justify-center">
-                <div className="w-full max-w-8xl mx-auto">
-                    <Table className="w-full border rounded-xl shadow bg-white">
+        <form
+            onSubmit={handleSubmit}
+            className="flex-1 flex flex-col items-center min-h-screen text-base md:text-lg"
+        >
+            <div className="w-full flex justify-center">
+                <div className="w-full max-w-none mx-auto">
+                    <Table className="w-full table-fixed border rounded-xl shadow bg-white">
                         <TableHeader>
                             <TableRow className="bg-blue-50">
-                                <TableHead className="text-lg font-bold text-blue-900">Habilidade</TableHead>
-                                {opcoes.map((opcao, idx) => (
-                                    <TableHead key={idx} className="text-center text-base font-semibold text-blue-800">
+                                <TableHead className="w-1/6 text-left px-4 py-2">
+                                    Habilidade
+                                </TableHead>
+                                {opcoes.map((opcao) => (
+                                    <TableHead
+                                        key={opcao}
+                                        className="text-center text-base font-semibold px-2 py-2"
+                                    >
                                         {opcao}
                                     </TableHead>
                                 ))}
                             </TableRow>
                         </TableHeader>
+
                         <TableBody>
-                            {habilidades.map((habilidade, hIdx) => (
-                                <TableRow
-                                    key={hIdx}
-                                    className={hIdx % 2 === 0 ? "bg-gray-50 hover:bg-blue-50 transition" : "bg-white hover:bg-blue-50 transition"}
-                                >
-                                    <TableCell className="font-medium text-gray-800 py-3">{habilidade}</TableCell>
-                                    {opcoes.map((opcao, opIdx) => (
-                                        <TableCell key={opIdx} className="text-center">
-                                            <label className="inline-flex items-center justify-center cursor-pointer w-8 h-8">
-                                                <input
-                                                    type="radio"
-                                                    name={`habilidade-${hIdx}`}
-                                                    value={(opIdx + 1).toString()}
-                                                    checked={respostas[hIdx] === (opIdx + 1).toString()}
-                                                    onChange={() => handleChange(hIdx, (opIdx + 1).toString())}
-                                                    aria-label={opcao}
-                                                    className="accent-blue-600 w-5 h-5 border-2 border-blue-400 focus:ring-2 focus:ring-blue-400"
-                                                />
-                                            </label>
-                                        </TableCell>
-                                    ))}
+                            {habilidadesDetalhadas.map(({ nome, field, descricoes }) => (
+                                <TableRow key={field}>
+                                    <TableCell className="font-medium text-gray-800 py-3 px-4 whitespace-normal break-words">
+                                        {nome}
+                                    </TableCell>
+
+                                    {descricoes.map((desc, idx) => {
+                                        const value = String(idx + 1);
+                                        const checked = respostas[field] === value;
+                                        return (
+                                            <TableCell
+                                                key={idx}
+                                                className="text-center py-3 px-2 whitespace-normal break-words text-base md:text-lg"
+                                            >
+                                                <label
+                                                    className={`
+                            cursor-pointer
+                            flex flex-wrap items-center justify-center
+                            text-xs text-center px-2 py-3 rounded border transition
+                            ${checked
+                                                            ? "bg-blue-100 border-blue-600 text-blue-900 font-semibold shadow"
+                                                            : "bg-white border-gray-300 hover:bg-blue-50"
+                                                        }
+                          `}
+                                                    style={{ minHeight: 60 }}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name={field}
+                                                        value={value}
+                                                        checked={checked}
+                                                        onChange={() => handleChange(field, value)}
+                                                        className="sr-only"
+                                                    />
+                                                    <span className="w-full">{desc}</span>
+                                                </label>
+                                            </TableCell>
+                                        );
+                                    })}
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
                 </div>
             </div>
-            <Button
-                type="submit"
-                className="mt-8 w-48 text-white text-lg py-3 transition"
-            >
+
+            <Button type="submit" className="mt-8 w-full text-white py-3">
                 Enviar Avaliação
             </Button>
         </form>

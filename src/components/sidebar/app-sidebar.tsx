@@ -93,7 +93,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar
-      collapsible="icon"
+      collapsible='icon'
       {...props}
       className={
         open

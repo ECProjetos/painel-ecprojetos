@@ -12,12 +12,9 @@ export async function getAllCargos() {
         if (error) {
             throw new Error(`Error fetching cargos: ${error.message}`);
         }
-
+        console.log("Fetched cargos:", data);
         // Return the fetched cargos like array of dictionaries [id: value, nome: value]
-        return data.map(cargo => ({
-            id: cargo.id,
-            nome: cargo.nome
-        }));
+        return data
 
     }
 
