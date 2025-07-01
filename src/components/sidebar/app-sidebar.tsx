@@ -39,7 +39,7 @@ const createData = (pathname: string) => ({
     },
     {
       title: "Plano de Carreira",
-      url: "#",
+      url: "/plano-carreira",
       icon: Briefcase,
       isActive: pathname.startsWith("/plano-carreira"),
     },
@@ -93,7 +93,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar
-      collapsible="icon"
+      collapsible='icon'
       {...props}
       className={
         open
