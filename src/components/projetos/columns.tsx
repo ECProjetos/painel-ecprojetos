@@ -53,21 +53,15 @@ const handleDeleteProject = async (id: number) => {
 export const projectColumns: ColumnDef<TimeSumaryViewProject>[] = [
   {
     accessorKey: "code",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Código" />
-    ),
+    header: "Código",
   },
   {
     accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Nome" />
-    ),
+    header: "Nome",
   },
   {
     accessorKey: "description",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Descrição" />
-    ),
+    header: "Descrição",
     cell: ({ row }) => {
       const description = row.original.description
         ? row.original.description
@@ -117,9 +111,7 @@ export const projectColumns: ColumnDef<TimeSumaryViewProject>[] = [
 
   {
     accessorKey: "department_name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Departamento" />
-    ),
+    header: "Departamento",
   },
   {
     accessorKey: "estimated_hours",
@@ -135,9 +127,7 @@ export const projectColumns: ColumnDef<TimeSumaryViewProject>[] = [
   },
   {
     accessorKey: "status",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
-    ),
+    header: "Status",
     cell: ({ row }) => {
       const status = row.original.status;
       return (

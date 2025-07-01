@@ -37,6 +37,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import Link from "next/link";
 
 export default function AlocarHorasPage() {
   const user = useUserStore((state) => state.user);
@@ -73,6 +83,7 @@ export default function AlocarHorasPage() {
       setSummary
     );
     getUserProjects(user.id).then(setProjects);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, form.watch("allocation_date")]);
 
   // busca atividades ao escolher projeto
@@ -82,6 +93,7 @@ export default function AlocarHorasPage() {
     const deptId = projects.find((p) => p.id === pid)?.department_id;
     if (!deptId) return;
     getProjectActivities(deptId).then(setActivities);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.watch("project_id"), projects]);
 
   // submissão
@@ -98,7 +110,30 @@ export default function AlocarHorasPage() {
   );
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 p-4">
+    <div className="w-full mx-auto space-y-6 px-4">
+      {/* → título e breadcrumb */}
+      <div className="flex flex-col">
+        <div className="flex h-16 shrink-0 items-center gap-2">
+          <SidebarTrigger className="-ml-1" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/controle-horarios/inicio">
+                    Controle de Horários
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbPage>Alocar Horas</BreadcrumbPage>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+        <h1 className="text-2xl font-semibold">Alocar Horas</h1>
+        <h3 className="text-lg text-gray-600">
+          Registre suas horas de trabalho em projetos e atividades.
+        </h3>
+      </div>
       {/* → resumo diário */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between mb-2">
@@ -110,7 +145,7 @@ export default function AlocarHorasPage() {
         <div className="w-full h-3 bg-gray-200 rounded">
           <div
             className="h-3 bg-blue-600 rounded"
-            style={{ width: `${pct}%` }}
+            style={{ width: `${pct > 100 ? 100 : pct}%` }}
           />
         </div>
         <p className="text-right text-blue-600 font-semibold mt-1">
@@ -132,7 +167,7 @@ export default function AlocarHorasPage() {
                 <FormLabel>Projeto</FormLabel>
                 <FormControl>
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione um projeto" />
                     </SelectTrigger>
                     <SelectContent>
@@ -157,7 +192,7 @@ export default function AlocarHorasPage() {
                 <FormLabel>Atividade</FormLabel>
                 <FormControl>
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione uma atividade" />
                     </SelectTrigger>
                     <SelectContent>
