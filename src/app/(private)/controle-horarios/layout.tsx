@@ -13,8 +13,8 @@ export default function ControleHorariosInicioLayout({
     // Segundo provedor: isola o estado do TimesheetSidebar
     <SidebarProvider>
       <TimesheetSidebar />
-      <SidebarInset>
-        <div className="flex justify-center items-center min-h-screen bg-gray-50 p-4 pl-0 dark:bg-[#18181B]">
+      <SidebarInset className="w-full">
+        <div className="flex flex-col justify-center min-h-screen bg-gray-50 p-2 sm:p-4 pl-0 dark:bg-[#18181B]">
           {children}
         </div>
       </SidebarInset>

@@ -42,13 +42,13 @@ export default function ColaboradoresPage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/private/controle-horarios/inicio">
+              <BreadcrumbLink href="/controle-horarios/inicio">
                 Controle de Horários
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink href="/private/gestao/painel-equipes">
+              <BreadcrumbLink href="/controle-horarios/gestao/painel-equipes">
                 Gestão
               </BreadcrumbLink>
             </BreadcrumbItem>

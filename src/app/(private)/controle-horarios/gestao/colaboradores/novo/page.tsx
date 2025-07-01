@@ -78,7 +78,7 @@ export default function NewColaboradoresPage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/controle-horarios/inicio">
+              <BreadcrumbLink href="/controle-horarios/controle-horarios/inicio">
                 Controle de Horários
               </BreadcrumbLink>
             </BreadcrumbItem>
@@ -86,7 +86,7 @@ export default function NewColaboradoresPage() {
             <BreadcrumbEllipsis />
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink href="/gestao/painel-equipes">
+              <BreadcrumbLink href="/controle-horarios/gestao/painel-equipes">
                 Colaboradores
               </BreadcrumbLink>
             </BreadcrumbItem>
