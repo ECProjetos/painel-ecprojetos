@@ -42,30 +42,69 @@ export async function createColaborador(
     return res.json();
 }
 
-
 export async function updateColaborador(
     id: string,
     data: ColaboradorUpdate
 ) {
-    try {
-        const supabase = await createClient();
+    const supabase = await createClient();
 
-        const { data: updatedData, error } = await supabase
-            .from('users')
-            .update(data)
-            .eq('id', id)
+    // 1) Monta apenas os campos de users que vieram no data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const userPayload: Record<string, any> = {};
+    if (data.nome !== undefined) userPayload.name = data.nome;
+    if (data.email !== undefined) userPayload.email = data.email;
+    if (data.cargoId !== undefined) userPayload.cargo_id = data.cargoId;
+    if (data.role !== undefined) userPayload.role = data.role;
+    if (data.working_hours_per_day !== undefined)
+        userPayload.working_hours_per_day = data.working_hours_per_day;
+    if (data.status !== undefined) userPayload.status = data.status;
 
-        if (error) {
-            console.error("Erro ao atualizar colaborador:", error);
-            throw new Error(error.message);
+    // 2) Atualiza tabela "users" se houver algo para alterar
+    if (Object.keys(userPayload).length > 0) {
+        const { error: userError } = await supabase
+            .from("users")
+            .update(userPayload)
+            .eq("id", id);
+
+        if (userError) {
+            console.error("Erro ao atualizar users:", userError);
+            throw new Error(userError.message);
         }
-
-        return updatedData;
-    } catch (error) {
-        console.error("Erro ao atualizar colaborador:", error);
-        throw error;
     }
+
+    // 3) Se veio departamentoId, faz upsert (sem delete) em user_departments
+    if (data.departamentoId !== undefined) {
+        const deptRow = await supabase
+            .from("user_departments")
+            .select("user_id")
+            .eq("user_id", id)
+            .maybeSingle();
+
+        if (deptRow.data) {
+            // já existe, faz update
+            const { error: updError } = await supabase
+                .from("user_departments")
+                .update({ department_id: data.departamentoId })
+                .eq("user_id", id);
+            if (updError) {
+                console.error("Erro ao atualizar dept:", updError);
+                throw new Error(updError.message);
+            }
+        } else {
+            // não existia, insere novo
+            const { error: insError } = await supabase
+                .from("user_departments")
+                .insert({ user_id: id, department_id: data.departamentoId });
+            if (insError) {
+                console.error("Erro ao inserir dept:", insError);
+                throw new Error(insError.message);
+            }
+        }
+    }
+
+    return { success: true };
 }
+
 
 export async function updateColaboradorEmail(
     id: string,

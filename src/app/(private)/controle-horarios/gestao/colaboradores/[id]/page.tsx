@@ -25,6 +25,7 @@ import { EditColaboradorForm } from "@/components/colaboradores/user-form";
 import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SkeletonTable } from "@/components/skeleton-table";
+import Link from "next/link";
 
 export default function EditColaboradorPage() {
   const params = useParams();
@@ -72,6 +73,9 @@ export default function EditColaboradorPage() {
     try {
       await updateColaborador(params.id as string, values);
       toast.success("Colaborador atualizado com sucesso!");
+      setTimeout(() => {
+        window.location.href = "/controle-horarios/gestao/colaboradores";
+      }, 2000); // Redireciona após 2 segundos
     } catch (error) {
       toast.error("Erro ao atualizar colaborador.");
       console.error("Erro ao atualizar colaborador:", error);
@@ -85,16 +89,20 @@ export default function EditColaboradorPage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/controle-horarios/controle-horarios/inicio">
-                Controle de Horários
+              <BreadcrumbLink asChild>
+                <Link href="/controle-horarios/inicio">
+                  Controle de Horários
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbEllipsis />
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink href="/controle-horarios/gestao/painel-equipes">
-                Colaboradores
+              <BreadcrumbLink asChild>
+                <Link href="/controle-horarios/gestao/colaboradores">
+                  Colaboradores
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />

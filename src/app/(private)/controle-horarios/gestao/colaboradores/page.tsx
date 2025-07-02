@@ -19,6 +19,7 @@ import { ColaboradorView } from "@/types/colaboradores";
 import { ColaboradorTable } from "@/components/colaboradores/table";
 import { colaboradoresColumns } from "@/components/colaboradores/columns";
 import { toast } from "sonner";
+import { SkeletonTable } from "@/components/skeleton-table";
 
 export default function ColaboradoresPage() {
   const [colaboradores, setColaboradores] = useState<ColaboradorView[]>([]);
@@ -45,14 +46,18 @@ export default function ColaboradoresPage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/controle-horarios/inicio">
-                Controle de Horários
+              <BreadcrumbLink asChild>
+                <Link href="/controle-horarios/inicio">
+                  Controle de Horários
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink href="/controle-horarios/gestao/painel-equipes">
-                Gestão
+              <BreadcrumbLink asChild>
+                <Link href="/controle-horarios/gestao/painel-equipes">
+                  Gestão
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
@@ -69,6 +74,7 @@ export default function ColaboradoresPage() {
               onClick={() => {
                 toast.success("Funcionalidade em desenvolvimento");
               }}
+              disabled={loading}
             >
               <Download className="mr-2 h-4 w-4" /> Exportar
             </Button>
@@ -82,9 +88,7 @@ export default function ColaboradoresPage() {
           </div>
         </div>
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <p>Carregando colaboradores...</p>
-          </div>
+          <SkeletonTable />
         ) : (
           <div className="overflow-auto">
             <ColaboradorTable

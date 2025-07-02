@@ -17,6 +17,8 @@ import { NewColaboradorForm } from "@/components/colaboradores/new-user-form";
 import { NewColaborador } from "@/types/colaboradores";
 import { createColaborador } from "@/app/actions/colaboradores";
 import { toast } from "sonner";
+import { SkeletonTable } from "@/components/skeleton-table";
+import Link from "next/link";
 
 export default function NewColaboradoresPage() {
   const [cargos, setCargos] = useState<{ id: number; nome: string }[]>([]);
@@ -78,16 +80,20 @@ export default function NewColaboradoresPage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/controle-horarios/controle-horarios/inicio">
-                Controle de Horários
+              <BreadcrumbLink asChild>
+                <Link href="/controle-horarios/inicio">
+                  Controle de Horários
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbEllipsis />
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink href="/controle-horarios/gestao/painel-equipes">
-                Colaboradores
+              <BreadcrumbLink asChild>
+                <Link href="/controle-horarios/gestao/colaboradores">
+                  Colaboradores
+                </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
@@ -100,9 +106,7 @@ export default function NewColaboradoresPage() {
           <h1 className="text-2xl font-bold">Novo Colaborador</h1>
         </div>
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <p>Carregando...</p>
-          </div>
+          <SkeletonTable />
         ) : (
           <NewColaboradorForm
             cargos={cargos}
