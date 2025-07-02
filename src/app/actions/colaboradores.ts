@@ -40,23 +40,19 @@ export async function createColaborador(
     return res.json();
 }
 
-
 export async function getAllColaboradores() {
-    try {
-        const supabase = await createClient();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('vw_colaboradores')
+        .select('*')
+        .order('nome', { ascending: true });
 
-        const { data, error } = await supabase
-            .from('vw_user_info')
-            .select('*')
-            .order('nome', { ascending: true });
-        if (error) {
-            throw new Error(error.message);
-        }
-        return data;
-    } catch (error) {
+    if (error) {
         console.error("Erro ao buscar colaboradores:", error);
-        throw error;
+        throw new Error(error.message);
     }
+    console.log("Colaboradores:", data);
+    return data;
 }
 
 export async function getColaboradorById(id: string) {
@@ -77,3 +73,4 @@ export async function getColaboradorById(id: string) {
         throw error;
     }
 }
+
