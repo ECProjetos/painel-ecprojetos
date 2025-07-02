@@ -1,11 +1,10 @@
-"use client";
-import React, { useState } from "react";
+import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import {
-  NewColaboradorSchema,
-  type NewColaborador,
+  ColaboradorUpdateSchema,
+  type ColaboradorUpdate,
 } from "@/types/colaboradores";
 import { rolesListDynamic, type RoleOption } from "@/constants/roles";
 
@@ -30,37 +29,25 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
 
-interface NewColaboradorFormProps {
+interface EditColaboradorFormProps {
+  initialValues: ColaboradorUpdate & { id: string };
   cargos: { id: number; nome: string }[];
   departamentos: { id: number; name: string }[];
-  onSubmit: (values: NewColaborador) => void;
+  onSubmit: (values: ColaboradorUpdate) => void;
 }
 
-export function NewColaboradorForm({
+export function EditColaboradorForm({
+  initialValues,
   cargos,
   departamentos,
   onSubmit,
-}: NewColaboradorFormProps) {
-  const form = useForm<NewColaborador>({
-    resolver: zodResolver(NewColaboradorSchema),
-    defaultValues: {
-      nome: "",
-      email: "",
-      cargoId: undefined as unknown as number,
-      departamentoId: undefined as unknown as number,
-      role: rolesListDynamic[0]?.value as NewColaborador["role"],
-      working_hours_per_day: 0,
-      status: "ativo",
-      password: "",
-      confirmPassword: "",
-    },
+}: EditColaboradorFormProps) {
+  const form = useForm<ColaboradorUpdate>({
+    resolver: zodResolver(ColaboradorUpdateSchema),
+    defaultValues: initialValues,
+    mode: "onBlur",
   });
-
-  const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState<boolean>(false);
 
   return (
     <Form {...form}>
@@ -132,6 +119,7 @@ export function NewColaboradorForm({
               </FormItem>
             )}
           />
+
           {/* Departamento */}
           <FormField
             control={form.control}
@@ -161,7 +149,7 @@ export function NewColaboradorForm({
             )}
           />
 
-          {/* Role (COLABORADOR | GESTOR | DIRETOR) */}
+          {/* Role */}
           <FormField
             control={form.control}
             name="role"
@@ -169,7 +157,10 @@ export function NewColaboradorForm({
               <FormItem>
                 <FormLabel>Role</FormLabel>
                 <FormControl>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value as string}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione a role" />
                     </SelectTrigger>
@@ -207,69 +198,7 @@ export function NewColaboradorForm({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="dark:text-gray-200">Senha</FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Digite a sua senha"
-                      {...field}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="confirmPassword"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="dark:text-gray-200">
-                  Confirmar Senha
-                </FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Confirme a sua senha"
-                      {...field}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"
-                      tabIndex={-1}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff size={18} />
-                      ) : (
-                        <Eye size={18} />
-                      )}
-                    </button>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Status (radio) */}
+          {/* Status */}
           <FormField
             control={form.control}
             name="status"
@@ -279,7 +208,7 @@ export function NewColaboradorForm({
                 <FormControl>
                   <RadioGroup
                     onValueChange={field.onChange}
-                    value={field.value}
+                    value={field.value as string}
                     className="flex space-x-6"
                   >
                     <label className="flex items-center space-x-2">
@@ -298,7 +227,7 @@ export function NewColaboradorForm({
           />
         </div>
 
-        {/* Buttons */}
+        {/* Actions */}
         <div className="flex w-full justify-between">
           <Link
             href="/controle-horarios/gestao/colaboradores"

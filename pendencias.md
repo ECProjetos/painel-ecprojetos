@@ -1,0 +1,1 @@
+- adcionar onUbdade quando deletar projeto, para atualizar os projetos exibidos

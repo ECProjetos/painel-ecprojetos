@@ -40,34 +40,43 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Label } from "@radix-ui/react-label";
 
-const handleDeleteProject = async (id: number) => {
+type handleDeleteProjectProps = {
+  id: number;
+  onUpdate: () => void;
+};
+
+const handleDeleteProject = async ({
+  id,
+  onUpdate,
+}: handleDeleteProjectProps) => {
   try {
     await deletProject(id);
     toast.success("Projeto deletado com sucesso.");
+    onUpdate(); // Chama a função de atualização após deletar
   } catch (error) {
     console.error("Erro ao deletar projeto:", error);
     toast.error("Erro ao deletar projeto. Tente novamente mais tarde.");
   }
 };
 
-export const projectColumns: ColumnDef<TimeSumaryViewProject>[] = [
+type projectColumnsProps = {
+  onUpdate: () => void;
+};
+
+export const projectColumns = ({
+  onUpdate,
+}: projectColumnsProps): ColumnDef<TimeSumaryViewProject>[] => [
   {
     accessorKey: "code",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Código" />
-    ),
+    header: "Código",
   },
   {
     accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Nome" />
-    ),
+    header: "Nome",
   },
   {
     accessorKey: "description",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Descrição" />
-    ),
+    header: "Descrição",
     cell: ({ row }) => {
       const description = row.original.description
         ? row.original.description
@@ -117,9 +126,7 @@ export const projectColumns: ColumnDef<TimeSumaryViewProject>[] = [
 
   {
     accessorKey: "department_name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Departamento" />
-    ),
+    header: "Departamento",
   },
   {
     accessorKey: "estimated_hours",
@@ -135,9 +142,7 @@ export const projectColumns: ColumnDef<TimeSumaryViewProject>[] = [
   },
   {
     accessorKey: "status",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
-    ),
+    header: "Status",
     cell: ({ row }) => {
       const status = row.original.status;
       return (
@@ -227,7 +232,9 @@ export const projectColumns: ColumnDef<TimeSumaryViewProject>[] = [
                   <AlertDialogAction
                     disabled={!isConfirmValid}
                     className="bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
-                    onClick={() => handleDeleteProject(project.id)}
+                    onClick={() =>
+                      handleDeleteProject({ id: project.id, onUpdate })
+                    }
                   >
                     Deletar
                   </AlertDialogAction>

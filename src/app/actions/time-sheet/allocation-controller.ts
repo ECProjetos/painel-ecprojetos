@@ -50,6 +50,7 @@ export async function getAllocationSummary(
 export async function getUserProjects(userId: string) {
     const supabase = await createClient();
 
+    console.log(userId)
     // busca departamentos
     const { data: deps, error: depErr } = await supabase
         .from("user_departments")
@@ -57,13 +58,14 @@ export async function getUserProjects(userId: string) {
         .eq("user_id", userId);
 
     if (depErr) throw new Error(depErr.message);
-
+    console.log("Departamentos do usuário:", deps);
     // se não tem deps, retorna vazio
     const deptIds = deps?.map((d) => d.department_id) ?? [];
     // adcionando a id 8 na lista de departamentos id se ja não estiver
     if (!deptIds.includes("8")) {
         deptIds.push("8");
     }
+    console.log("IDs de departamentos:", deptIds);
 
     // busca projetos ativos nesses deps
     const { data: projects, error: projErr } = await supabase

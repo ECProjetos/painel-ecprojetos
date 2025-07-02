@@ -23,6 +23,7 @@ import { projectColumns } from "@/components/projetos/columns";
 export default function ProjetosPage() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<TimeSumaryViewProject[]>([]);
+  const [refresh, setRefresh] = useState<number>(0);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -38,7 +39,7 @@ export default function ProjetosPage() {
     }
 
     fetchProjects();
-  }, []);
+  }, [refresh]);
 
   return (
     <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
@@ -90,7 +91,9 @@ export default function ProjetosPage() {
         ) : (
           <ProjectTable
             data={projects}
-            columns={projectColumns}
+            columns={projectColumns({
+              onUpdate: () => setRefresh((prev) => prev + 1),
+            })}
           />
         )}
       </div>
