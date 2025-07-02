@@ -40,17 +40,31 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Label } from "@radix-ui/react-label";
 
-const handleDeleteAtividade = async (id: number) => {
+type handleDeleteAtividadeProps = {
+  id: number;
+  onUpdate: () => void;
+};
+
+const handleDeleteAtividade = async ({
+  id,
+  onUpdate,
+}: handleDeleteAtividadeProps) => {
   try {
     await deleteAtividade(id);
     toast.success("Atividade deletada com sucesso.");
+    onUpdate(); // Chama a função de atualização após deletar
   } catch (error) {
     console.error("Erro ao deletar atividade:", error);
     toast.error("Erro ao deletar atividade. Tente novamente mais tarde.");
   }
 };
+type atividadeColumnsProps = {
+  onUpdate: () => void;
+};
 
-export const atividadeColumns: ColumnDef<AtividadeView>[] = [
+export const atividadeColumns = ({
+  onUpdate,
+}: atividadeColumnsProps): ColumnDef<AtividadeView>[] => [
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -199,7 +213,9 @@ export const atividadeColumns: ColumnDef<AtividadeView>[] = [
                   <AlertDialogAction
                     disabled={!isConfirmValid}
                     className="bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
-                    onClick={() => handleDeleteAtividade(atividade.id)}
+                    onClick={() =>
+                      handleDeleteAtividade({ id: atividade.id, onUpdate })
+                    }
                   >
                     Deletar
                   </AlertDialogAction>

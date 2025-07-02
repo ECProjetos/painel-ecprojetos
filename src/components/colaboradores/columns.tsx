@@ -40,17 +40,32 @@ import { Label } from "@radix-ui/react-label";
 
 import { deleteColaborador } from "@/app/actions/colaboradores";
 
-const handleDeleteColaborador = async (id: string) => {
+type handleDeleteColaboradorProps = {
+  id: string;
+  onUpdate: () => void;
+};
+
+const handleDeleteColaborador = async ({
+  id,
+  onUpdate,
+}: handleDeleteColaboradorProps) => {
   try {
     await deleteColaborador(id);
     toast.success("Colaborador deletado com sucesso.");
+    onUpdate(); // Chama a função de atualização após deletar
   } catch (error) {
     console.error("Erro ao deletar colaborador:", error);
     toast.error("Erro ao deletar colaborador. Tente novamente mais tarde.");
   }
 };
 
-export const colaboradoresColumns: ColumnDef<ColaboradorView>[] = [
+type colaboradoresColumnsProps = {
+  onUpdate: () => void;
+};
+
+export const colaboradoresColumns = ({
+  onUpdate,
+}: colaboradoresColumnsProps): ColumnDef<ColaboradorView>[] => [
   {
     accessorKey: "nome",
     header: "Nome",
@@ -180,7 +195,9 @@ export const colaboradoresColumns: ColumnDef<ColaboradorView>[] = [
                   <AlertDialogAction
                     disabled={!isConfirmValid}
                     className="bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
-                    onClick={() => handleDeleteColaborador(colaboradore.id)}
+                    onClick={() =>
+                      handleDeleteColaborador({ id: colaboradore.id, onUpdate })
+                    }
                   >
                     Deletar
                   </AlertDialogAction>

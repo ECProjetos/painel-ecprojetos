@@ -23,6 +23,7 @@ import { atividadeColumns } from "@/components/atividades/columns";
 export default function ProjetosPage() {
   const [loading, setLoading] = useState(true);
   const [atividades, setAtividaes] = useState<AtividadeView[]>([]);
+  const [refresh, setRefresh] = useState<number>(0);
 
   useEffect(() => {
     async function fetchAtividades() {
@@ -38,7 +39,7 @@ export default function ProjetosPage() {
     }
 
     fetchAtividades();
-  }, []);
+  }, [refresh]);
 
   return (
     <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
@@ -88,7 +89,12 @@ export default function ProjetosPage() {
             <p>Carregando atividades...</p>
           </div>
         ) : (
-          <AtividadeTable data={atividades} columns={atividadeColumns} />
+          <AtividadeTable
+            data={atividades}
+            columns={atividadeColumns({
+              onUpdate: () => setRefresh((prev) => prev + 1),
+            })}
+          />
         )}
       </div>
     </div>

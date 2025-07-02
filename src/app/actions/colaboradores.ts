@@ -96,7 +96,7 @@ export async function getAllColaboradores() {
         console.error("Erro ao buscar colaboradores:", error);
         throw new Error(error.message);
     }
-    console.log("Colaboradores:", data);
+
     return data;
 }
 
@@ -137,7 +137,7 @@ export async function deleteColaborador(id: string) {
     // Nesse caso retorna o corpo JSON para quem chamou
     return res.json();
 }
-        
+
 
 
 

@@ -23,6 +23,7 @@ import { toast } from "sonner";
 export default function ColaboradoresPage() {
   const [colaboradores, setColaboradores] = useState<ColaboradorView[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refresh, setRefresh] = useState<number>(0);
   useEffect(() => {
     async function fetchColaboradores() {
       try {
@@ -35,7 +36,7 @@ export default function ColaboradoresPage() {
       }
     }
     fetchColaboradores();
-  }, []);
+  }, [refresh]);
 
   return (
     <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
@@ -88,7 +89,9 @@ export default function ColaboradoresPage() {
           <div className="overflow-auto">
             <ColaboradorTable
               data={colaboradores}
-              columns={colaboradoresColumns}
+              columns={colaboradoresColumns({
+                onUpdate: () => setRefresh((prev) => prev + 1),
+              })}
             />
           </div>
         )}
