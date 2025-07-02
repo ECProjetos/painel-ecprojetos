@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { supabaseAdmin } from '@/utils/supabase/admin'
+import { ColaboradorUpdate } from "@/types/colaboradores";
 
 export async function createColaborador(
     nome: string,
@@ -41,6 +42,31 @@ export async function createColaborador(
     return res.json();
 }
 
+
+export async function updateColaborador(
+    id: string,
+    data: ColaboradorUpdate
+) {
+    try {
+        const supabase = await createClient();
+
+        const { data: updatedData, error } = await supabase
+            .from('users')
+            .update(data)
+            .eq('id', id)
+
+        if (error) {
+            console.error("Erro ao atualizar colaborador:", error);
+            throw new Error(error.message);
+        }
+
+        return updatedData;
+    } catch (error) {
+        console.error("Erro ao atualizar colaborador:", error);
+        throw error;
+    }
+}
+
 export async function updateColaboradorEmail(
     id: string,
     email: string
@@ -54,6 +80,16 @@ export async function updateColaboradorEmail(
         if (error) {
             console.error("Erro ao atualizar email do colaborador:", error);
             throw new Error(error.message);
+        }
+
+        // Atualiza o email na tabela users
+        const { error: updateError } = await supabaseAdmin
+            .from('users')
+            .update({ email: email })
+            .eq('id', id);
+        if (updateError) {
+            console.error("Erro ao atualizar email na tabela users:", updateError);
+            throw new Error(updateError.message);
         }
 
         return data;
@@ -104,7 +140,7 @@ export async function getColaboradorById(id: string) {
     try {
         const supabase = await createClient();
 
-        const { data, error } = await supabase
+        const { data: userData, error } = await supabase
             .from('users')
             .select('*')
             .eq('id', id)
@@ -112,6 +148,24 @@ export async function getColaboradorById(id: string) {
         if (error) {
             throw new Error(error.message);
         }
+
+        const { data: userDepartament, error: depError } = await supabase
+            .from('user_departments')
+            .select('department_id')
+            .eq('user_id', id)
+            .single();
+        if (depError) {
+            console.error("Erro ao buscar departamento do colaborador:", depError);
+            throw new Error(depError.message);
+        }
+
+        const data = {
+            ...userData,
+            departamentoId: userDepartament ? userDepartament.department_id : null,
+        };
+
+        console.log("Colaborador encontrado:", data);
+
         return data;
     } catch (error) {
         console.error("Erro ao buscar colaborador:", error);

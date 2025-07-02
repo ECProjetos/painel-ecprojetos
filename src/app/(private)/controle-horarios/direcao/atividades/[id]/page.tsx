@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { getAtividadeById, updateAtividade } from "@/app/actions/atividades";
 import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonTable } from "@/components/skeleton-table";
 
 export default function AtividadePage() {
   const [departamentos, setDepartamentos] = useState<
@@ -109,7 +110,7 @@ export default function AtividadePage() {
           )}
         </h1>
         {loading ? (
-          <div className="text-center text-gray-500">Carregando...</div>
+          <SkeletonTable />
         ) : (
           <NewAtividadeForm
             departments={departamentos}

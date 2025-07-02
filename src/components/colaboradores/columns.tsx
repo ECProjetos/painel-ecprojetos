@@ -143,7 +143,9 @@ export const colaboradoresColumns = ({
             <DropdownMenuLabel>Ações</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href={`gestao/colaboradores/${colaboradore.id}`}>
+              <Link
+                href={`/controle-horarios/gestao/colaboradores/${colaboradore.id}`}
+              >
                 <PenSquare className="mr-2 h-4 w-4" />
                 Editar
               </Link>
