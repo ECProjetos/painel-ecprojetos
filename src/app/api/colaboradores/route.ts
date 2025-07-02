@@ -74,3 +74,27 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
     }
 }
+
+export async function DELETE(request: Request) {
+    try {
+        const { id } = await request.json()
+
+        // Verifica se o ID do colaborador foi fornecido
+        if (!id) {
+            return NextResponse.json({ error: 'ID do colaborador é obrigatório' }, { status: 400 })
+        }
+
+        // Deleta o colaborador da tabela 'users'
+        const { error: adminError } = await supabaseAdmin.from('users').delete().eq('id', id)
+
+        if (adminError) {
+            console.error('Erro ao deletar colaborador:', adminError)
+            return NextResponse.json({ error: 'Erro ao deletar colaborador' }, { status: 500 })
+        }
+
+        return NextResponse.json({ message: 'Colaborador deletado com sucesso' }, { status: 200 })
+    } catch (error) {
+        console.error('Erro ao deletar colaborador:', error)
+        return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+    }
+}

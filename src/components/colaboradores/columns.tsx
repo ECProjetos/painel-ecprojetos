@@ -38,7 +38,17 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Label } from "@radix-ui/react-label";
 
-// implementar haldleDeleteColaborador
+import { deleteColaborador } from "@/app/actions/colaboradores";
+
+const handleDeleteColaborador = async (id: string) => {
+  try {
+    await deleteColaborador(id);
+    toast.success("Colaborador deletado com sucesso.");
+  } catch (error) {
+    console.error("Erro ao deletar colaborador:", error);
+    toast.error("Erro ao deletar colaborador. Tente novamente mais tarde.");
+  }
+};
 
 export const colaboradoresColumns: ColumnDef<ColaboradorView>[] = [
   {
@@ -170,12 +180,7 @@ export const colaboradoresColumns: ColumnDef<ColaboradorView>[] = [
                   <AlertDialogAction
                     disabled={!isConfirmValid}
                     className="bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
-                    onClick={
-                      () =>
-                        toast.info("funcionalidade em desenvolvimento", {
-                          description: colaboradore.id,
-                        }) /* handleDeleteColaborador(colaboradore.id) */
-                    }
+                    onClick={() => handleDeleteColaborador(colaboradore.id)}
                   >
                     Deletar
                   </AlertDialogAction>
