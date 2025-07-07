@@ -23,3 +23,14 @@ export async function submitSoftSkillsAssessment(data: SoftSkillsAssessmentType)
     }
     return inserted;
 }
+
+export async function getAllSoftSkillsAssessments() {
+    const { data, error } = await supabaseAdmin
+        .from('soft_skills_assessment')
+        .select('*');
+    if (error) {
+        throw new Error(error.message || "Erro ao buscar avaliações de soft skills");
+    }
+    return data;
+    }
+    

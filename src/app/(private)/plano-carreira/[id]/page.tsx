@@ -15,16 +15,11 @@ import {
 import { SoftSkillsAssessmentType } from '@/types/plano-carreira/soft-skills';
 import { getAllColaboradores } from '@/app/actions/colaboradores';
 import { Colaborador } from '@/types/colaboradores';
+import { opcoes } from '@/constants/soft-skills';
 
-import { habilidadesDetalhadas } from '@/constants/habilidades';
+import { habilidadesDetalhadas } from '@/constants/soft-skills';
 
-const opcoes = [
-    '1 - Muito abaixo',
-    '2 - Abaixo do esperado',
-    '3 - Dentro do esperado',
-    '4 - Acima do esperado',
-    '5 - Excelente',
-];
+
 
 export default function AvaliacaoColaboradorPage() {
     const params = useParams();

@@ -121,3 +121,11 @@ export const habilidadesDetalhadas = [
     ]
   }
 ];
+
+export const opcoes = [
+  '1 - Muito abaixo',
+  '2 - Abaixo do esperado',
+  '3 - Dentro do esperado',
+  '4 - Acima do esperado',
+  '5 - Excelente',
+];
