@@ -19,6 +19,8 @@ export const NewColaboradorSchema = ColaboradorSchema.omit({ id: true }).extend(
     message: 'As senhas não coincidem',
 });
 
+export const ColaboradorUpdateSchema = ColaboradorSchema.partial()
+
 export const ColaboradorViewSchema = z.object({
     id: z.string().uuid(),
     nome: z.string(),
@@ -34,3 +36,4 @@ export type ColaboradorView = z.infer<typeof ColaboradorViewSchema>;
 export type Colaborador = z.infer<typeof ColaboradorSchema>;
 
 export type NewColaborador = z.infer<typeof NewColaboradorSchema>;
+export type ColaboradorUpdate = z.infer<typeof ColaboradorUpdateSchema>;

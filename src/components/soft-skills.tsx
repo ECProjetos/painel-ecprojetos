@@ -18,6 +18,7 @@ import {
 import { Colaborador } from "@/types/colaboradores";
 import { toast } from 'sonner';
 
+
 type SoftSkillsTableProps = {
     habilidadesDetalhadas: {
         nome: string;
@@ -106,6 +107,9 @@ export function SoftSkillsTable({
                                     {descricoes.map((desc, idx) => {
                                         const value = String(idx + 1);
                                         const checked = respostas[field] === value;
+                                        const metaField = `${field}_meta`;
+                                        const metaChecked = respostas[metaField] === value;
+
                                         return (
                                             <TableCell
                                                 key={idx}
@@ -113,15 +117,16 @@ export function SoftSkillsTable({
                                             >
                                                 <label
                                                     className={`
-                            cursor-pointer
-                            flex flex-wrap items-center justify-center
-                            text-xs text-center px-2 py-3 rounded border transition
-                            ${checked
+                                                        cursor-pointer
+                                                        flex flex-col items-center justify-center
+                                                        text-xs text-center px-2 py-3 rounded border transition
+                                                        relative
+                                                        ${checked
                                                             ? "bg-blue-100 border-blue-600 text-blue-900 font-semibold shadow"
                                                             : "bg-white border-gray-300 hover:bg-blue-50"
                                                         }
-                          `}
-                                                    style={{ minHeight: 60 }}
+                                                    `}
+                                                    style={{ minHeight: 100 }} // Aumentar altura para o botão
                                                 >
                                                     <input
                                                         type="radio"
@@ -131,12 +136,30 @@ export function SoftSkillsTable({
                                                         onChange={() => handleChange(field, value)}
                                                         className="sr-only"
                                                     />
-                                                    <span className="w-full">{desc}</span>
+                                                    <span className="w-full mb-2">{desc}</span>
+                                                    
+                                                    <div
+                                                        onClick={(e) => {
+                                                            e.preventDefault(); // Impede que o clique na meta acione a avaliação
+                                                            e.stopPropagation();
+                                                            handleChange(metaField, value);
+                                                        }}
+                                                        className={`
+                                                            px-3 text-xs rounded-md cursor-pointer
+                                                            transition-all duration-200 ease-in-out
+                                                            ${metaChecked
+                                                                ? "bg-blue-300 text-gray-800 shadow-lg transform scale-105 border"
+                                                                : "bg-gray-400 text-white hover:bg-blue-300 hover:shadow-md"
+                                                            }   
+                                                        `}
+                                                    >
+                                                        {metaChecked ? 'Meta' : 'Meta'} 
+                                                    </div>
                                                 </label>
                                             </TableCell>
-                                        );
+                                        );  
                                     })}
-                                </TableRow>
+                                </TableRow> 
                             ))}
                         </TableBody>
                     </Table>
@@ -147,5 +170,4 @@ export function SoftSkillsTable({
                 Enviar Avaliação
             </Button>
         </form>
-    );
-}
+    )};  

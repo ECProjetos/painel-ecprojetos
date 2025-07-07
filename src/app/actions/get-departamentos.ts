@@ -12,7 +12,6 @@ export async function getAllDepartments() {
         if (error) {
             throw new Error(`Error fetching departments: ${error.message}`);
         }
-        console.log("Fetched departments:", data);
         // Return the fetched departments like array of dictionaries [id: value, nome: value]
         return data
 

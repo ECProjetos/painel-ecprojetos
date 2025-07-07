@@ -6,12 +6,19 @@ import { ComponentProps, useEffect } from "react";
 
 import Image from "next/image";
 
-import { Briefcase, Clock, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { logout } from "@/hooks/use-logout";
+
+import {
+  Briefcase,
+  Clock,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 
 import {
   Sidebar,
   SidebarContent,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
@@ -93,7 +100,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar
-      collapsible='icon'
+      collapsible="icon"
       {...props}
       className={
         open
@@ -150,6 +157,9 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
       {/* Sidebar controle de horario e plano de carreira */}
       <SidebarContent className="h-full">
         <NavGeneral items={navData.navGeneral} />
+        <Button size="icon" variant="outline" onClick={logout}>
+          <LogOut />
+        </Button>
       </SidebarContent>
 
       {/* Add visible toggle button for easier mobile access */}
@@ -177,6 +187,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
       para ajusatar o do footer quando estiver no momento 
       <SidebarFooter>{user && <NavUser user={user} />}</SidebarFooter>
       */}
+      <SidebarFooter></SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
