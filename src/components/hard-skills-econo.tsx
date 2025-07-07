@@ -12,9 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { useParams } from "next/navigation";
 import {
-    SoftSkillsAssessmentType,
-    softSkillsAssessmentSchema,
-} from "@/types/plano-carreira/soft-skills";
+    HardSkillsEconoSchema,
+    HardSkillsEconoType
+} from "@/types/plano-carreira/hard-skills";
 import { Colaborador } from "@/types/colaboradores";
 import { toast } from 'sonner';
 
@@ -28,10 +28,10 @@ type SoftSkillsTableProps = {
     opcoes: string[];
     colaboradores: Colaborador[];
     evaluatorId: string;
-    onSubmit?: (respostas: SoftSkillsAssessmentType) => void;
+    onSubmit?: (respostas: HardSkillsEconoType) => void;
 };
 
-export function HardSkillsTable({
+export function HardEconoSkillsTable({
     habilidadesDetalhadas,
     opcoes,
     evaluatorId,
@@ -58,7 +58,7 @@ export function HardSkillsTable({
             ...respostas,
         };
 
-        const parseResult = softSkillsAssessmentSchema.safeParse(dadosParaValidar);
+        const parseResult = HardSkillsEconoSchema.safeParse(dadosParaValidar);
         if (!parseResult.success) {
             console.error("Erro de validação:", parseResult.error);
             alert("Por favor, preencha todas as habilidades!");
@@ -137,7 +137,7 @@ export function HardSkillsTable({
                                                         className="sr-only"
                                                     />
                                                     <span className="w-full mb-2">{desc}</span>
-                                                    
+
                                                     <div
                                                         onClick={(e) => {
                                                             e.preventDefault(); // Impede que o clique na meta acione a avaliação
@@ -153,13 +153,13 @@ export function HardSkillsTable({
                                                             }   
                                                         `}
                                                     >
-                                                        {metaChecked ? 'Meta' : 'Meta'} 
+                                                        {metaChecked ? 'Meta' : 'Meta'}
                                                     </div>
                                                 </label>
                                             </TableCell>
-                                        );  
+                                        );
                                     })}
-                                </TableRow> 
+                                </TableRow>
                             ))}
                         </TableBody>
                     </Table>
@@ -170,4 +170,5 @@ export function HardSkillsTable({
                 Enviar Avaliação
             </Button>
         </form>
-    )};  
+    )
+};  

@@ -2,24 +2,40 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { getAllColaboradores } from "@/app/actions/colaboradores";
+import { getColaboradoresByDepartamento } from "@/app/actions/colaboradores";
 import { Colaborador } from "@/types/colaboradores";
+import { getDepartamentoByID } from "@/app/actions/colaboradores";
+import { getUser } from "@/hooks/use-user";
 
-interface Props {
-    onSelect?: (id: string) => void; // permite callback opcional ao selecionar colaborador
-}
 
-export default function SelectColaborador({ onSelect }: Props) {
+export default function AvaliacaoSelectColaborador() {
     const router = useRouter();
     const [colaboradorId, setColaboradorId] = useState("");
     const [lista, setLista] = useState<Colaborador[]>([]);
     const [filtro, setFiltro] = useState("");
     const [loading, setLoading] = useState(true);
+    const [nomeDepartamento, setDepartamentoNome] = useState<string>("");
+
+    // Busca o departamento do usuário logado
+    useEffect(() => {
+        async function fetchDepartamento() {
+            try {
+                const user = await getUser();
+                if (user) {
+                    const departamento = await getDepartamentoByID(user.id);
+                    setDepartamentoNome(departamento.nome_departamento);
+                }
+            } catch (err) {
+                console.error("Erro ao buscar departamento:", err);
+            }
+        }
+        fetchDepartamento();
+    }, [nomeDepartamento]);
 
     useEffect(() => {
         async function fetchColaboradores() {
             try {
-                const colaboradores = await getAllColaboradores();
+                const colaboradores = await getColaboradoresByDepartamento(nomeDepartamento);
                 setLista(colaboradores);
             } catch (err) {
                 console.error(err);
@@ -28,7 +44,7 @@ export default function SelectColaborador({ onSelect }: Props) {
             }
         }
         fetchColaboradores();
-    }, []);
+    }, [nomeDepartamento]);
 
     const listaFiltrada = lista.filter((c) =>
         c.nome.toLowerCase().includes(filtro.toLowerCase())
@@ -36,8 +52,7 @@ export default function SelectColaborador({ onSelect }: Props) {
 
     const handleCardClick = (id: string) => {
         setColaboradorId(id);
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        onSelect ? onSelect(id) : router.push(`/plano-carreira/${id}`);
+        router.push(`/plano-carreira/${id}`);
     };
 
     return (

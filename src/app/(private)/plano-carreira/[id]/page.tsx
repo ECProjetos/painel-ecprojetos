@@ -6,12 +6,12 @@ import { useParams } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 import { SoftSkillsTable } from '@/components/soft-skills';
-import  { HardSkillsTable } from '@/components/hard-skills';
-
+import { HardEconoSkillsTable } from '@/components/hard-skills-econo';
+import { TextSubmit } from '@/components/text-submit';
 import { useUserStore } from '@/stores/userStore';
 import { roles } from '@/constants/roles';
-import {    
-    submitSoftSkillsAssessment,
+import {
+    submitSoftSkillsAssessment, submitHardSkillsEcono
 } from '@/app/actions/plano-carreira';
 import { SoftSkillsAssessmentType } from '@/types/plano-carreira/soft-skills';
 import { getAllColaboradores } from '@/app/actions/colaboradores';
@@ -20,6 +20,7 @@ import { opcoes } from '@/constants/soft-skills';
 
 import { habilidadesDetalhadas } from '@/constants/soft-skills';
 
+import { hardSkillsEcono } from '@/constants/hard-skills-econo';
 
 
 export default function AvaliacaoColaboradorPage() {
@@ -77,6 +78,17 @@ export default function AvaliacaoColaboradorPage() {
         submitSoftSkillsAssessment(res).then(() => alert('Soft skills enviadas!'));
 
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleSubmitHard = (res: any) => {
+        submitHardSkillsEcono(res)
+            .then(() => alert('Hard skills enviadas!'))
+            .catch((error) => {
+                console.error("Erro ao enviar hard skills:", error);
+                alert("Erro ao enviar hard skills. Por favor, tente novamente.");
+            });
+
+    }
+
     return (
         <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
             <h1 className="text-3xl font-bold mb-4 text-center bg-blue-50 p-4 rounded-lg">
@@ -97,36 +109,32 @@ export default function AvaliacaoColaboradorPage() {
                 </TabsList>
 
                 <TabsContent value="soft">
-                <div className="text-center text-gray-500">
-                    <SoftSkillsTable
-                        habilidadesDetalhadas={habilidadesDetalhadas}
-                        opcoes={opcoes}
-                        colaboradores={[colaborador]}
-                        evaluatorId={userId}
-                        onSubmit={handleSubmitSoft}
-                    />
-                </div>
+                    <div className="text-center text-gray-500">
+                        <SoftSkillsTable
+                            habilidadesDetalhadas={habilidadesDetalhadas}
+                            opcoes={opcoes}
+                            colaboradores={[colaborador]}
+                            evaluatorId={userId}
+                            onSubmit={handleSubmitSoft}
+                        />
+                    </div>
                 </TabsContent>
 
                 <TabsContent value="hard">
                     <div className="text-center text-gray-500">
-                        <HardSkillsTable
-                        habilidadesDetalhadas={habilidadesDetalhadas}
-                        opcoes={opcoes}
-                        colaboradores={[colaborador]}
-                        evaluatorId={userId}
-                        onSubmit={handleSubmitSoft}
+                        <HardEconoSkillsTable
+                            habilidadesDetalhadas={hardSkillsEcono}
+                            opcoes={opcoes}
+                            colaboradores={[colaborador]}
+                            evaluatorId={userId}
+                            onSubmit={handleSubmitHard}
                         />
                     </div>
-                    {/* Placeholder para futuras implementações */}
-                    {/* Aqui você pode adicionar um componente ou formulário para avaliação de hard skills */}
                 </TabsContent>
 
                 <TabsContent value="feedback">
                     <div className="flex flex-col space-y-4">
-                        <p>
-                            Placeholder
-                        </p>
+                        <TextSubmit />
                     </div>
                 </TabsContent>
             </Tabs>
