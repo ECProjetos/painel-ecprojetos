@@ -31,7 +31,7 @@ type SoftSkillsTableProps = {
     onSubmit?: (respostas: SoftSkillsAssessmentType) => void;
 };
 
-export function SoftSkillsTable({
+export function HardSkillsTable({
     habilidadesDetalhadas,
     opcoes,
     evaluatorId,

@@ -6,10 +6,11 @@ import { useParams } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 import { SoftSkillsTable } from '@/components/soft-skills';
+import  { HardSkillsTable } from '@/components/hard-skills';
 
 import { useUserStore } from '@/stores/userStore';
 import { roles } from '@/constants/roles';
-import {
+import {    
     submitSoftSkillsAssessment,
 } from '@/app/actions/plano-carreira';
 import { SoftSkillsAssessmentType } from '@/types/plano-carreira/soft-skills';
@@ -101,6 +102,7 @@ export default function AvaliacaoColaboradorPage() {
                 </TabsList>
 
                 <TabsContent value="soft">
+                <div className="text-center text-gray-500">
                     <SoftSkillsTable
                         habilidadesDetalhadas={habilidadesDetalhadas}
                         opcoes={opcoes}
@@ -108,13 +110,18 @@ export default function AvaliacaoColaboradorPage() {
                         evaluatorId={userId}
                         onSubmit={handleSubmitSoft}
                     />
+                </div>
                 </TabsContent>
 
                 <TabsContent value="hard">
                     <div className="text-center text-gray-500">
-                        <p>
-                            A avaliação de hard skills será implementada em breve.
-                        </p>
+                        <HardSkillsTable
+                        habilidadesDetalhadas={habilidadesDetalhadas}
+                        opcoes={opcoes}
+                        colaboradores={[colaborador]}
+                        evaluatorId={userId}
+                        onSubmit={handleSubmitSoft}
+                        />
                     </div>
                     {/* Placeholder para futuras implementações */}
                     {/* Aqui você pode adicionar um componente ou formulário para avaliação de hard skills */}

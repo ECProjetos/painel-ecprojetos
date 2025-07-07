@@ -3,8 +3,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { getAllColaboradores } from "@/app/actions/colaboradores";
+import { getColaboradoresByDepartamento, getDepartamentoByID } from "@/app/actions/colaboradores";
 import { Colaborador } from "@/types/colaboradores";
+import { getUser } from "@/hooks/use-user";
 
 
 export default function AvaliacaoSelectColaborador() {
@@ -13,20 +14,37 @@ export default function AvaliacaoSelectColaborador() {
     const [lista, setLista] = useState<Colaborador[]>([]);
     const [filtro, setFiltro] = useState("");
     const [loading, setLoading] = useState(true);
+    const [nomeDepartamento, setDepartamentoNome] = useState<string>("");
+    
+    // Busca o departamento do usuário logado
+    useEffect(() => {
+        async function fetchDepartamento() {
+            try {
+                const user = await getUser();
+                if(user){
+                    const departamento = await getDepartamentoByID(user.id);    
+                    setDepartamentoNome(departamento.nome_departamento);
+                }
+            } catch (err) {
+                console.error("Erro ao buscar departamento:", err); 
+            }
+        }
+        fetchDepartamento();
+    }, [nomeDepartamento]);
 
     useEffect(() => {
         async function fetchColaboradores() {
-            try {
-                const colaboradores = await getAllColaboradores();
+            try {   
+                const colaboradores = await getColaboradoresByDepartamento(nomeDepartamento);
                 setLista(colaboradores);
-            } catch (err) {
-                console.error(err);
+                } catch (err) {
+                    console.error(err);
             } finally {
                 setLoading(false);
             }
         }
         fetchColaboradores();
-    }, []);
+    }, [nomeDepartamento    ]);
 
     // Filtra em tempo real pelo nome
     const listaFiltrada = lista.filter((c) =>
