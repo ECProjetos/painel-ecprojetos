@@ -145,12 +145,12 @@ export function HardSkillsTable({
                                                             handleChange(metaField, value);
                                                         }}
                                                         className={`
-                                                            px-3 py-1 text-xs rounded-full cursor-pointer
+                                                            px-3 text-xs rounded-md cursor-pointer
                                                             transition-all duration-200 ease-in-out
                                                             ${metaChecked
-                                                                ? "bg-blue-300 text-gray-800 font-bold shadow-lg transform scale-105"
-                                                                : "bg-gray-400 text-white hover:bg-blue-800 hover:shadow-md"
-                                                            }
+                                                                ? "bg-blue-300 text-gray-800 shadow-lg transform scale-105 border"
+                                                                : "bg-gray-400 text-white hover:bg-blue-300 hover:shadow-md"
+                                                            }   
                                                         `}
                                                     >
                                                         {metaChecked ? 'Meta' : 'Meta'} 
