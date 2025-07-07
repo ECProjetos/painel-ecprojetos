@@ -146,20 +146,20 @@ export function SoftSkillsTable({
                                                         }}
                                                         className={`
                                                             px-3 py-1 text-xs rounded-full cursor-pointer
-                                                            transition-colors
+                                                            transition-all duration-200 ease-in-out
                                                             ${metaChecked
-                                                                ? "bg-green-500 text-white font-bold shadow-md"
-                                                                : "bg-gray-200 text-gray-700 hover:bg-green-200"
+                                                                ? "bg-blue-300 text-gray-800 font-bold shadow-lg transform scale-105"
+                                                                : "bg-gray-400 text-white hover:bg-blue-800 hover:shadow-md"
                                                             }
                                                         `}
                                                     >
-                                                        {metaChecked ? 'Meta' : 'Definir Meta'}
+                                                        {metaChecked ? 'Meta' : 'Meta'} 
                                                     </div>
                                                 </label>
                                             </TableCell>
-                                        );
+                                        );  
                                     })}
-                                </TableRow>
+                                </TableRow> 
                             ))}
                         </TableBody>
                     </Table>
