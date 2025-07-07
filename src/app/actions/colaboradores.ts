@@ -231,6 +231,38 @@ export async function deleteColaborador(id: string) {
     return res.json();
 }
 
+export async function getDepartamentoByID(id: string) {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('vw_colaboradores')
+        .select('nome_departamento')
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error("Erro ao buscar departamento:", error);
+        throw new Error(error.message);
+    }
+
+    return data;
+}   
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getColaboradoresByDepartamento(nome_departamento: any) {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('vw_colaboradores')
+        .select('*')
+        .eq('nome_departamento', nome_departamento)
+        .order('nome', { ascending: true });
+
+    if (error) {
+        console.error("Erro ao buscar colaboradores:", error);
+        throw new Error(error.message);
+    }
+
+    return data;
+}
 
 
 
