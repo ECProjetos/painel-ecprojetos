@@ -170,7 +170,7 @@ export default function AvaliacaoColaboradorPage() {
                     </div>
                 </TabsContent>
 
-                <TabsContent value="feedback">
+                <TabsContent value="Comentários gerais">
                     <div className="flex flex-col space-y-4">
                         <TextSubmit />
                     </div>

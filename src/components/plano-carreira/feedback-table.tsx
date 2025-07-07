@@ -48,9 +48,9 @@ export function FeedbackTable() {
                 if (evaluatorId) {
                     try {
                         const colaborador = await getColaboradorById(evaluatorId) as Colaborador;
-                        avaliadoresMap[evaluatorId] = colaborador.name;
+                        avaliadoresMap[evaluatorId] = colaborador.nome;
                         console.log(avaliadoresMap);
-                        console.log(`Avaliador ${evaluatorId} encontrado:`, colaborador.name);
+                        console.log(`Avaliador ${evaluatorId} encontrado:`, colaborador.nome);
                     } catch (error) {
                         console.error(`Erro ao buscar avaliador ${evaluatorId}`, error);
                         avaliadoresMap[evaluatorId] = 'Desconhecido';

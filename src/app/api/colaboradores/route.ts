@@ -43,7 +43,7 @@ export async function POST(request: Request) {
             .from('users')
             .insert({
                 id: userId,
-                name: nome,
+                nome,
                 email,
                 role,
                 working_hours_per_day,
