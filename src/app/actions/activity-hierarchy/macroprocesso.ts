@@ -1,6 +1,30 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { NewMacroprocesso } from "@/types/activity-hierarchy/macroprocesso";
+
+export async function createMacroprocesso(
+    macroprocesso: NewMacroprocesso
+) {
+    try {
+        const supabase = await createClient();
+
+        const { data, error } = await supabase
+            .from("macroprocesso")
+            .insert([macroprocesso])
+            .select("*");
+
+        if (error) {
+            console.error("Erro ao criar macroprocesso:", error);
+            throw new Error("Erro ao criar macroprocesso: " + error.message);
+        }
+
+        return data[0];
+    } catch (error) {
+        console.error("Erro ao criar macroprocesso:", error);
+        throw new Error("Erro desconhecido ao criar macroprocesso. Entrar em contato com o suporte.");
+    }
+}
 
 export async function getMacroprocessos() {
     try {

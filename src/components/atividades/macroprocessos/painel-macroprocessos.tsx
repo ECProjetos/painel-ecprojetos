@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { Macroprocesso } from "@/types/activity-hierarchy/macroprocesso";
+import {
+  Macroprocesso,
+} from "@/types/activity-hierarchy/macroprocesso";
 import { MacroprocessoTable } from "@/components/atividades/macroprocessos/table";
 import { macroprocessoColumns } from "@/components/atividades/macroprocessos/columns";
 import { toast } from "sonner";
-import { Download, PlusCircle } from "lucide-react";
+import { Download } from "lucide-react";
 import { SkeletonTable } from "@/components/skeleton-table";
-
+import { MacroprocessDialog } from "@/components/atividades/macroprocessos/dialog";
 type PainelMacroprocessosProps = {
   loading: boolean;
   onUpdate: () => void;
@@ -33,10 +35,7 @@ export function PainelMacroprocessos({
           >
             <Download className="mr-2 h-4 w-4" /> Exportar
           </Button>
-          <Button variant="outline" size="sm">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Macroprocesso
-          </Button>
+          <MacroprocessDialog onSuccess={onUpdate} />
         </div>
       </div>
       {loading ? (

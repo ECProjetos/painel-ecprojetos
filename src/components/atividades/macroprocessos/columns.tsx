@@ -74,5 +74,16 @@ export const macroprocessoColumns = ({
   {
     accessorKey: "status",
     header: "Status",
+    cell: ({ row }) => {
+      const status = row.original.status;
+      return (
+        <Badge
+          variant={status === "ativo" ? "ativo" : "inativel"}
+          className="capitalize"
+        >
+          {status}
+        </Badge>
+      );
+    },
   },
 ];
