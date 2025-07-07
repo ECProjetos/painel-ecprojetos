@@ -26,6 +26,7 @@ export const softSkillsAssessmentSchema = z.object({
     gentileza_e_educacao_meta: z.string().optional(),
     engajamento_missao_visao: z.string(),
     engajamento_missao_visao_meta: z.string().optional(),
+    created_at: z.string().optional(),
 });
 
 export type SoftSkillsAssessmentType = z.infer<typeof softSkillsAssessmentSchema>;

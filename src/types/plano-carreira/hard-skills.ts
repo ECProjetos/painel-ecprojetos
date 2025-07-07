@@ -79,6 +79,8 @@ export type HardSkillsEconoType = z.infer<typeof HardSkillsEconoSchema>;
 
 
 export const HardSkillsMeioAmbienteSchema = z.object({
+    colaborador_id: z.string().uuid(),
+    evaluator_id: z.string().uuid(),
     dominio_de_qgis: z.string(),
     conhecimento_em_sig: z.string(),
     elaboracao_de_estudos_ambientais: z.string(),

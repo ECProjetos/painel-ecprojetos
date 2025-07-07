@@ -15,10 +15,8 @@ import { getAllCargos } from "@/app/actions/get-cargos";
 import { getAllDepartments } from "@/app/actions/get-departamentos";
 import { Colaborador, ColaboradorUpdate } from "@/types/colaboradores";
 import {
-  updateColaboradorPassword,
   getColaboradorById,
   updateColaborador,
-  updateColaboradorEmail,
 } from "@/app/actions/colaboradores";
 import { toast } from "sonner";
 import { EditColaboradorForm } from "@/components/colaboradores/user-form";

@@ -5,13 +5,14 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
-import { SoftSkillsTable } from '@/components/soft-skills';
-import { HardEconoSkillsTable } from '@/components/hard-skills-econo';
+import { SoftSkillsTable } from '@/components/plano-carreira/soft-skills';
+import { HardEconoSkillsTable } from '@/components/plano-carreira/hard-skills-econo';
 import { TextSubmit } from '@/components/text-submit';
 import { useUserStore } from '@/stores/userStore';
 import { roles } from '@/constants/roles';
 import {
-    submitSoftSkillsAssessment, submitHardSkillsEcono
+    submitSoftSkillsAssessment, submitHardSkillsEcono,
+    submitHardSkillsMg
 } from '@/app/actions/plano-carreira';
 import { SoftSkillsAssessmentType } from '@/types/plano-carreira/soft-skills';
 import { getAllColaboradores } from '@/app/actions/colaboradores';
@@ -21,6 +22,10 @@ import { opcoes } from '@/constants/soft-skills';
 import { habilidadesDetalhadas } from '@/constants/soft-skills';
 
 import { hardSkillsEcono } from '@/constants/hard-skills-econo';
+import { hardSkillsAmbientais } from '@/constants/hard-skills-mg';
+import { HardSkillsMgTable } from '@/components/plano-carreira/hard-skills-mg';
+import { getDepartamentoByID } from '@/app/actions/colaboradores';
+import { getUser } from '@/hooks/use-user';
 
 
 export default function AvaliacaoColaboradorPage() {
@@ -30,12 +35,26 @@ export default function AvaliacaoColaboradorPage() {
     const userId = useUserStore((s) => s.user?.id)!;
     const role = useUserStore((s) => s.user?.role);
     const isDiretor = role === roles.diretor;
-
     const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
     const [loading, setLoading] = useState(true);
-
-    // tab active: "soft" | "hard" | "feedback"
     const [activeTab, setActiveTab] = useState<'soft' | 'hard' | 'feedback'>('soft');
+    const [nomeDepartamento, setDepartamentoNome] = useState<string>("");
+
+    // Busca o departamento do usuário logado
+    useEffect(() => {
+        async function fetchDepartamento() {
+            try {
+                const user = await getUser();
+                if (user) {
+                    const departamento = await getDepartamentoByID(user.id);
+                    setDepartamentoNome(departamento.nome_departamento);
+                }
+            } catch (err) {
+                console.error("Erro ao buscar departamento:", err);
+            }
+        }
+        fetchDepartamento();
+    }, [nomeDepartamento]);
 
     useEffect(() => {
         getAllColaboradores()
@@ -79,14 +98,23 @@ export default function AvaliacaoColaboradorPage() {
 
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleSubmitHard = (res: any) => {
+    const handleSubmitHardEcono = (res: any) => {
         submitHardSkillsEcono(res)
             .then(() => alert('Hard skills enviadas!'))
             .catch((error) => {
                 console.error("Erro ao enviar hard skills:", error);
                 alert("Erro ao enviar hard skills. Por favor, tente novamente.");
             });
+    }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleSubmitHardAmbiental = (res: any) => {
+        submitHardSkillsMg(res)
+            .then(() => alert('Hard skills ambientais enviadas!'))
+            .catch((error) => {
+                console.error("Erro ao enviar hard skills ambientais:", error);
+                alert("Erro ao enviar hard skills ambientais. Por favor, tente novamente.");
+            });
     }
 
     return (
@@ -122,13 +150,23 @@ export default function AvaliacaoColaboradorPage() {
 
                 <TabsContent value="hard">
                     <div className="text-center text-gray-500">
-                        <HardEconoSkillsTable
-                            habilidadesDetalhadas={hardSkillsEcono}
-                            opcoes={opcoes}
-                            colaboradores={[colaborador]}
-                            evaluatorId={userId}
-                            onSubmit={handleSubmitHard}
-                        />
+                        {nomeDepartamento === "Departamento de Meio Ambiente e Geoprocessamento" ? (
+                            <HardSkillsMgTable
+                                habilidadesDetalhadas={hardSkillsAmbientais}
+                                opcoes={opcoes}
+                                colaboradores={[colaborador]}
+                                evaluatorId={userId}
+                                onSubmit={handleSubmitHardAmbiental}
+                            />
+                        ) : (
+                            <HardEconoSkillsTable
+                                habilidadesDetalhadas={hardSkillsEcono}
+                                opcoes={opcoes}
+                                colaboradores={[colaborador]}
+                                evaluatorId={userId}
+                                onSubmit={handleSubmitHardEcono}
+                            />
+                        )}
                     </div>
                 </TabsContent>
 
