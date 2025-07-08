@@ -26,6 +26,7 @@ import { hardSkillsAmbientais } from '@/constants/hard-skills-mg';
 import { HardSkillsMgTable } from '@/components/plano-carreira/hard-skills-mg';
 import { getDepartamentoByID } from '@/app/actions/colaboradores';
 import { getUser } from '@/hooks/use-user';
+import { useClientRole } from '@/hooks/use-client-role';
 
 
 export default function AvaliacaoColaboradorPage() {
@@ -33,7 +34,7 @@ export default function AvaliacaoColaboradorPage() {
     const colaboradorId = params.id as string | undefined;
 
     const userId = useUserStore((s) => s.user?.id)!;
-    const role = useUserStore((s) => s.user?.role);
+    const { role } = useClientRole();
     const isDiretor = role === roles.diretor;
     const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
     const [loading, setLoading] = useState(true);
@@ -133,7 +134,7 @@ export default function AvaliacaoColaboradorPage() {
                 <TabsList className="mb-6 w-full flex justify-center">
                     <TabsTrigger value="soft">Soft Skills</TabsTrigger>
                     <TabsTrigger value="hard">Hard Skills</TabsTrigger>
-                    <TabsTrigger value="feedback">Feedback</TabsTrigger>
+                    <TabsTrigger value="feedback">Comentários gerais</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="soft">
@@ -170,7 +171,7 @@ export default function AvaliacaoColaboradorPage() {
                     </div>
                 </TabsContent>
 
-                <TabsContent value="Comentários gerais">
+                <TabsContent value="feedback">
                     <div className="flex flex-col space-y-4">
                         <TextSubmit />
                     </div>

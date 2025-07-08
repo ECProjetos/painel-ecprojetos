@@ -37,6 +37,7 @@ export default function AvaliacaoSelectColaborador() {
             try {
                 const colaboradores = await getColaboradoresByDepartamento(nomeDepartamento);
                 setLista(colaboradores);
+                console.log("Colaboradores:", colaboradores);
             } catch (err) {
                 console.error(err);
             } finally {
