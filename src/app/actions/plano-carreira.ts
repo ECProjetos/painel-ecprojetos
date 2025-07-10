@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "@/utils/supabase/admin";
 import { softSkillsAssessmentSchema, SoftSkillsAssessmentType } from "@/types/plano-carreira/soft-skills";
 import { HardSkillsEconoType, HardSkillsEconoSchema, HardSkillsMeioAmbienteType, HardSkillsMeioAmbienteSchema, HardSkillsTIType, HardSkillsTISchema } from "@/types/plano-carreira/hard-skills";
+import { commentSchema, CommentType } from "@/types/plano-carreira/comment";
 
 export async function submitSoftSkillsAssessment(data: SoftSkillsAssessmentType) {
     const parse = softSkillsAssessmentSchema.safeParse(data);
