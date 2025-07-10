@@ -5,6 +5,7 @@ export const projectSchema = z.object({
     id: z.number(),
     name: z.string().min(1, { message: 'Nome é obrigatório' }),
     code: z.string().min(1, { message: 'Código é obrigatório' }),
+    department_name: z.string(),
     description: z.string().optional(),
     department_id: z.number().int().positive({ message: 'Departamento é obrigatório' }),
     status: statusEnum,

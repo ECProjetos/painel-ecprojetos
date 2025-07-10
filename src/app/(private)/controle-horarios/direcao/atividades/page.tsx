@@ -16,7 +16,6 @@ import { Download, PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { getAllAtividades } from "@/app/actions/atividades";
 import { AtividadeTable } from "@/components/atividades/table";
 import { atividadeColumns } from "@/components/atividades/columns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,17 +25,18 @@ import { Macroprocesso } from "@/types/activity-hierarchy/macroprocesso";
 
 export default function ProjetosPage() {
   //datas
-  const [atividades, setAtividaes] = useState<AtividadeView[]>([]);
+  const [atividades] = useState<AtividadeView[]>([]);
   const [macroprocessos, setMacroprocessos] = useState<Macroprocesso[]>([]);
 
   // refresh state to trigger re-fetching
   const [refresehMacroprocessos, setRefresehMacroprocessos] =
     useState<number>(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [refresh, setRefresh] = useState<number>(0);
 
   //loadings
   const [fetchingMacroprocessos, setFetchingMacroprocessos] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading] = useState(true);
 
   // fetch macroprocessos
   useEffect(() => {

@@ -28,6 +28,6 @@ export async function getUser() {
   return {
     ...user,
     role: profile?.role,
-    name: profile?.name,
+    name: profile?.nome,
   };
 }

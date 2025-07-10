@@ -16,9 +16,13 @@ export default function ClientUserProvider({
   const setUser = useUserStore((state) => state.setUser);
 
   useEffect(() => {
-    setUser(user);
-    if (user?.user_metadata?.theme === "dark") {
-      document.querySelector("html")?.classList.add("dark");
+    if (user) {
+      setUser(user);
+      if (user.user_metadata?.theme === "dark") {
+        document.querySelector("html")?.classList.add("dark");
+      } else {
+        document.querySelector("html")?.classList.remove("dark");
+      }
     } else {
       document.querySelector("html")?.classList.remove("dark");
     }

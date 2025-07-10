@@ -13,9 +13,9 @@ export async function fetchDashboardData(startDate: string, endDate: string) {
     const totalHours = data.reduce((sum, row) => sum + row.hours, 0);
     const activeProjects = new Set(data.map(r => r.project_id)).size;
     const deptTotals = data.reduce((acc, r) => { acc[r.department_name] = (acc[r.department_name] || 0) + r.hours; return acc; }, {} as Record<string, number>);
-    const topDepartment = Object.entries(deptTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+    const topDepartment = Object.entries(deptTotals as Record<string, number>).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
     const activityTotals = data.reduce((acc, r) => { acc[r.activity_name] = (acc[r.activity_name] || 0) + r.hours; return acc; }, {} as Record<string, number>);
-    const topActivity = Object.entries(activityTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+    const topActivity = (Object.entries(activityTotals) as [string, number][]).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
     const hoursByProject = Object.entries(
         data.reduce((acc, r) => { acc[r.project_name] = (acc[r.project_name] || 0) + r.hours; return acc; }, {} as Record<string, number>)
     ).map(([name, hours]) => ({ name, hours }));
