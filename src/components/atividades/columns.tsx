@@ -38,7 +38,7 @@ import { AtividadeView } from "@/types/atidades";
 import { deleteAtividade } from "@/app/actions/atividades";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { Label } from "@radix-ui/react-label";
+import { Label } from "@/components/ui/label";
 
 type handleDeleteAtividadeProps = {
   id: number;

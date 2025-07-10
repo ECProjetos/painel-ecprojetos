@@ -88,9 +88,9 @@ export async function getPontoDoDia(userId: string) {
 export async function getInsightsPontoHistorico(userId: string) {
     const supabase = await createClient();
     const { data, error } = await supabase
-        .from("vw_user_month_summary")
+        .from("vw_user_month_balance")
         .select(
-            "user_id, horas_previstas_no_mes, horas_trabalhadas_no_mes, banco_de_horas_inicial, ajuste_de_horas_do_mes, banco_de_horas_atual"
+            "horas_previstas_no_mes, horas_trabalhadas_no_mes, banco_de_horas_inicial, ajuste_de_horas_do_mes, banco_de_horas_atual"
         )
         .eq("user_id", userId)
         .single();
