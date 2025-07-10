@@ -27,7 +27,7 @@ export default function SearchViewColaboradorPage() {
                         Voltar
                     </Button>
                 </Link>
-                <SelectColaborador />
+                <SelectColaborador acao="visualizar" />
             </div>
         </div>
     );

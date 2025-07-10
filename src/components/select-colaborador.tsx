@@ -7,8 +7,11 @@ import { Colaborador } from "@/types/colaboradores";
 import { getDepartamentoByID } from "@/app/actions/colaboradores";
 import { getUser } from "@/hooks/use-user";
 
+interface acaoProps {
+    acao: string
+}
 
-export default function AvaliacaoSelectColaborador() {
+export default function AvaliacaoSelectColaborador({ acao }: acaoProps) {
     const router = useRouter();
     const [colaboradorId] = useState("");
     const [lista, setLista] = useState<Colaborador[]>([]);
@@ -60,7 +63,7 @@ export default function AvaliacaoSelectColaborador() {
     return (
         <div className="max-w-full mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow p-6 h-full">
             <h1 className="text-3xl font-bold mb-4 text-center">
-                Selecione o colaborador para avaliar
+                Selecione o colaborador para {acao}
             </h1>
 
             <div className="mb-6">

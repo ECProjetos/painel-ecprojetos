@@ -41,7 +41,7 @@ export default function AvaliacaoSelectColaborador() {
                                 Ir para Visualização
                             </Button>
                         </Link>
-                        <SelectColaborador />
+                        <SelectColaborador acao="avaliar" />
                     </div>
                 ) : (
                     <FeedbackTable />
