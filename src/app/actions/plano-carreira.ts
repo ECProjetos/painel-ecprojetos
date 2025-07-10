@@ -122,5 +122,24 @@ export async function getHardSkills(colaboradorId: string, tabela: string) {
     }
     return data[0];
 }
+export async function submitComment(data: CommentType) {
+    const parse = commentSchema.safeParse(data);
+    if (!parse.success) {
+        throw new Error(
+            "Dados inválidos para avaliação de soft skills: " +
+            JSON.stringify(parse.error.format())
+        );
+    }
+    const validData = parse.data;
 
+    const { data: inserted, error } = await supabaseAdmin
+        .from('comment_feedback')
+        .insert([validData])
+        .select();
+
+    if (error) {
+        throw new Error(error.message || "Erro ao enviar avaliação");
+    }
+    return inserted;
+}
 
