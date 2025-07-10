@@ -25,6 +25,7 @@ export default function ColaboradoresPage() {
   const [colaboradores, setColaboradores] = useState<ColaboradorView[]>([]);
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState<number>(0);
+  // Fetch colaboradores data when the component mounts or refresh changes
   useEffect(() => {
     async function fetchColaboradores() {
       try {
