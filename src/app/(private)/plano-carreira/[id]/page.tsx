@@ -13,7 +13,8 @@ import { roles } from '@/constants/roles';
 import {
     submitSoftSkillsAssessment, submitHardSkillsEcono,
     submitHardSkillsMg,
-    submitHardSkillsTI
+    submitHardSkillsTI,
+    submitHardSkillsContabeis
 } from '@/app/actions/plano-carreira';
 import { SoftSkillsAssessmentType } from '@/types/plano-carreira/soft-skills';
 import { getAllColaboradores } from '@/app/actions/colaboradores';
@@ -21,6 +22,8 @@ import { Colaborador } from '@/types/colaboradores';
 import { opcoes } from '@/constants/soft-skills';
 
 import { habilidadesDetalhadas } from '@/constants/soft-skills';
+
+import { HardContabeisSkillsTable } from '@/components/plano-carreira/hard-skills-adm';
 
 import { hardSkillsEcono } from '@/constants/hard-skills-econo';
 import { hardSkillsAmbientais } from '@/constants/hard-skills-mg';
@@ -30,6 +33,7 @@ import { getDepartamentoByID } from '@/app/actions/colaboradores';
 import { getUser } from '@/hooks/use-user';
 import { useClientRole } from '@/hooks/use-client-role';
 import { hardSkillsTI } from '@/constants/hard-skills-ti';
+import { hardSkillsFinanceiro } from '@/constants/hard-skills-adm';
 
 
 export default function AvaliacaoColaboradorPage() {
@@ -130,6 +134,15 @@ export default function AvaliacaoColaboradorPage() {
                 alert("Erro ao enviar hard skills de TI. Por favor, tente novamente.");
             });
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleSubmitHardAdm = (res: any) => {
+        submitHardSkillsContabeis(res)
+            .then(() => alert('Hard skills de TI enviadas!'))
+            .catch((error) => {
+                console.error("Erro ao enviar hard skills de TI:", error);
+                alert("Erro ao enviar hard skills de TI. Por favor, tente novamente.");
+            });
+    }
 
     return (
         <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
@@ -180,15 +193,25 @@ export default function AvaliacaoColaboradorPage() {
                                 evaluatorId={userId}
                                 onSubmit={handleSubmitHardTI}
                             />
-                        ) : (
-                            <HardEconoSkillsTable
-                                habilidadesDetalhadas={hardSkillsEcono}
+                        ) : nomeDepartamento === "Departamento Administrativo/RH/Financeiro" ? (
+
+                            <HardContabeisSkillsTable
+                                habilidadesDetalhadas={hardSkillsFinanceiro}
                                 opcoes={opcoes}
                                 colaboradores={[colaborador]}
                                 evaluatorId={userId}
-                                onSubmit={handleSubmitHardEcono}
+                                onSubmit={handleSubmitHardAdm}
                             />
-                        )}
+                        ) :
+                            (
+                                <HardEconoSkillsTable
+                                    habilidadesDetalhadas={hardSkillsEcono}
+                                    opcoes={opcoes}
+                                    colaboradores={[colaborador]}
+                                    evaluatorId={userId}
+                                    onSubmit={handleSubmitHardEcono}
+                                />
+                            )}
                     </div>
                 </TabsContent>
 

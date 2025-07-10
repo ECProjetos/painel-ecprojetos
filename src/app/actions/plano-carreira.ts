@@ -2,7 +2,7 @@
 
 import { supabaseAdmin } from "@/utils/supabase/admin";
 import { softSkillsAssessmentSchema, SoftSkillsAssessmentType } from "@/types/plano-carreira/soft-skills";
-import { HardSkillsEconoType, HardSkillsEconoSchema, HardSkillsMeioAmbienteType, HardSkillsMeioAmbienteSchema, HardSkillsTIType, HardSkillsTISchema } from "@/types/plano-carreira/hard-skills";
+import { HardSkillsEconoType, HardSkillsEconoSchema, HardSkillsMeioAmbienteType, HardSkillsMeioAmbienteSchema, HardSkillsTIType, HardSkillsTISchema, HardSkillsContabeisType, HardSkillsContabeisSchema } from "@/types/plano-carreira/hard-skills";
 import { commentSchema, CommentType } from "@/types/plano-carreira/comment";
 
 export async function submitSoftSkillsAssessment(data: SoftSkillsAssessmentType) {
@@ -104,6 +104,27 @@ export async function submitHardSkillsTI(data: HardSkillsTIType) {
 
     const { data: inserted, error } = await supabaseAdmin
         .from('hardskills_ti')
+        .insert([validData])
+        .select();
+
+    if (error) {
+        throw new Error(error.message || "Erro ao enviar avaliação");
+    }
+    return inserted;
+}
+
+export async function submitHardSkillsContabeis(data: HardSkillsContabeisType) {
+    const parse = HardSkillsContabeisSchema.safeParse(data);
+    if (!parse.success) {
+        throw new Error(
+            "Dados inválidos para avaliação de soft skills: " +
+            JSON.stringify(parse.error.format())
+        );
+    }
+    const validData = parse.data;
+
+    const { data: inserted, error } = await supabaseAdmin
+        .from('hardskills_financeiro')
         .insert([validData])
         .select();
 
