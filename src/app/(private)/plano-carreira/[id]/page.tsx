@@ -12,7 +12,8 @@ import { useUserStore } from '@/stores/userStore';
 import { roles } from '@/constants/roles';
 import {
     submitSoftSkillsAssessment, submitHardSkillsEcono,
-    submitHardSkillsMg
+    submitHardSkillsMg,
+    submitHardSkillsTI
 } from '@/app/actions/plano-carreira';
 import { SoftSkillsAssessmentType } from '@/types/plano-carreira/soft-skills';
 import { getAllColaboradores } from '@/app/actions/colaboradores';
@@ -24,9 +25,11 @@ import { habilidadesDetalhadas } from '@/constants/soft-skills';
 import { hardSkillsEcono } from '@/constants/hard-skills-econo';
 import { hardSkillsAmbientais } from '@/constants/hard-skills-mg';
 import { HardSkillsMgTable } from '@/components/plano-carreira/hard-skills-mg';
+import { HardTISkillsTable } from '@/components/plano-carreira/hard-skills-ti';
 import { getDepartamentoByID } from '@/app/actions/colaboradores';
 import { getUser } from '@/hooks/use-user';
 import { useClientRole } from '@/hooks/use-client-role';
+import { hardSkillsTI } from '@/constants/hard-skills-ti';
 
 
 export default function AvaliacaoColaboradorPage() {
@@ -118,6 +121,16 @@ export default function AvaliacaoColaboradorPage() {
             });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleSubmitHardTI = (res: any) => {
+        submitHardSkillsTI(res)
+            .then(() => alert('Hard skills de TI enviadas!'))
+            .catch((error) => {
+                console.error("Erro ao enviar hard skills de TI:", error);
+                alert("Erro ao enviar hard skills de TI. Por favor, tente novamente.");
+            });
+    }
+
     return (
         <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
             <h1 className="text-3xl font-bold mb-4 text-center bg-blue-50 p-4 rounded-lg">
@@ -134,7 +147,7 @@ export default function AvaliacaoColaboradorPage() {
                 <TabsList className="mb-6 w-full flex justify-center">
                     <TabsTrigger value="soft">Soft Skills</TabsTrigger>
                     <TabsTrigger value="hard">Hard Skills</TabsTrigger>
-                    <TabsTrigger value="feedback">Comentários gerais</TabsTrigger>
+                    <TabsTrigger value="feedback">Comentários e Encaminhamentos</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="soft">
@@ -158,6 +171,14 @@ export default function AvaliacaoColaboradorPage() {
                                 colaboradores={[colaborador]}
                                 evaluatorId={userId}
                                 onSubmit={handleSubmitHardAmbiental}
+                            />
+                        ) : nomeDepartamento === "Departamento de TI" ? (
+                            <HardTISkillsTable
+                                habilidadesDetalhadas={hardSkillsTI}
+                                opcoes={opcoes}
+                                colaboradores={[colaborador]}
+                                evaluatorId={userId}
+                                onSubmit={handleSubmitHardTI}
                             />
                         ) : (
                             <HardEconoSkillsTable

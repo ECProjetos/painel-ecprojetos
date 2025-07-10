@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { getColaboradoresByDepartamento } from "@/app/actions/colaboradores";
 import { Colaborador } from "@/types/colaboradores";
@@ -10,11 +10,12 @@ import { getUser } from "@/hooks/use-user";
 
 export default function AvaliacaoSelectColaborador() {
     const router = useRouter();
-    const [colaboradorId, setColaboradorId] = useState("");
+    const [colaboradorId] = useState("");
     const [lista, setLista] = useState<Colaborador[]>([]);
     const [filtro, setFiltro] = useState("");
     const [loading, setLoading] = useState(true);
     const [nomeDepartamento, setDepartamentoNome] = useState<string>("");
+    const pathname = usePathname();
 
     // Busca o departamento do usuário logado
     useEffect(() => {
@@ -52,8 +53,8 @@ export default function AvaliacaoSelectColaborador() {
     );
 
     const handleCardClick = (id: string) => {
-        setColaboradorId(id);
-        router.push(`/plano-carreira/${id}`);
+        const basePath = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+        router.push(`${basePath}/${id}`);
     };
 
     return (
