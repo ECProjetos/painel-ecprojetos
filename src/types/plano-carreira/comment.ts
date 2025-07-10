@@ -7,3 +7,5 @@ export const commentSchema = z.object({
 });
 
 export type CommentType = z.infer<typeof commentSchema>;
+
+//comentario
