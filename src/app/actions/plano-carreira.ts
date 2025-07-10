@@ -3,7 +3,6 @@
 import { supabaseAdmin } from "@/utils/supabase/admin";
 import { softSkillsAssessmentSchema, SoftSkillsAssessmentType } from "@/types/plano-carreira/soft-skills";
 import { HardSkillsEconoType, HardSkillsEconoSchema, HardSkillsMeioAmbienteType, HardSkillsMeioAmbienteSchema, HardSkillsTIType, HardSkillsTISchema } from "@/types/plano-carreira/hard-skills";
-import { commentSchema, CommentType } from "@/types/plano-carreira/comment";
 
 export async function submitSoftSkillsAssessment(data: SoftSkillsAssessmentType) {
     const parse = softSkillsAssessmentSchema.safeParse(data);
@@ -125,23 +124,3 @@ export async function getHardSkills(colaboradorId: string, tabela: string) {
 }
 
 
-export async function submitComment(data: CommentType) {
-    const parse = commentSchema.safeParse(data);
-    if (!parse.success) {
-        throw new Error(
-            "Dados inválidos para avaliação de soft skills: " +
-            JSON.stringify(parse.error.format())
-        );
-    }
-    const validData = parse.data;
-
-    const { data: inserted, error } = await supabaseAdmin
-        .from('comment_feedback')
-        .insert([validData])
-        .select();
-
-    if (error) {
-        throw new Error(error.message || "Erro ao enviar avaliação");
-    }
-    return inserted;
-}
