@@ -6,7 +6,6 @@ import { FeedbackTable } from "@/components/plano-carreira/feedback-table";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useClientRole } from "@/hooks/use-client-role";
-import Link from "next/link";
 
 export default function AvaliacaoSelectColaborador() {
     const { role, loading } = useClientRole();
