@@ -3,7 +3,7 @@
 
 import { useUserStore } from "@/stores/userStore";
 import { usePathname } from "next/navigation";
-import { ComponentProps, useEffect } from "react";
+import { ComponentProps } from "react";
 
 import {
   Home,
@@ -23,7 +23,6 @@ import { NavGestor } from "./nav-gestor";
 import { NavDiretor } from "./nav-diretor";
 
 import { roles } from "@/constants/roles";
-import { getUser } from "@/hooks/use-user";
 
 const createData = (
   pathname: string,
@@ -149,20 +148,8 @@ const createData = (
 export function TimesheetSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const user = useUserStore((state) => state.user);
-  const setUser = useUserStore((state) => state.setUser);
 
-  // Carrega dados do usuário se não estiverem no store
-  useEffect(() => {
-    const fetchUserIfNeeded = async () => {
-      if (!user) {
-        const userData = await getUser();
-        if (userData) {
-          setUser(userData);
-        }
-      }
-    };
-    fetchUserIfNeeded();
-  }, [user, setUser]);
+
 
   const isGestor = user?.role === roles.gestor;
   const isDiretor = user?.role === roles.diretor;

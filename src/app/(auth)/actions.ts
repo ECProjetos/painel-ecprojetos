@@ -87,13 +87,14 @@ export async function loginWithToken(token: string) {
 
 
 //get user session
-export async function getUserSession() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getUser();
+import { getUser } from "@/hooks/use-user";
 
-  if (error) {
+export async function getUserSession() {
+  const user = await getUser();
+
+  if (!user) {
     return null;
   }
 
-  return { status: 'success', user: data?.user };
+  return { status: 'success', user: user };
 }

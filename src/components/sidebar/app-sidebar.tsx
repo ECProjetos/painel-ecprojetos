@@ -2,7 +2,7 @@
 
 import { useUserStore } from "@/stores/userStore";
 import { usePathname } from "next/navigation";
-import { ComponentProps, useEffect } from "react";
+import { ComponentProps } from "react";
 
 import Image from "next/image";
 
@@ -34,7 +34,6 @@ import { NavDiretor } from "./nav-diretor"; // Importar NavDiretor
 
 import { roles } from "@/constants/roles";
 
-import { getUser } from "@/hooks/use-user";
 import { Button } from "../ui/button";
 
 
@@ -96,6 +95,7 @@ function getRoleLabel(role: string) {
     case roles.diretor:
       return "Diretor";
     case roles.gestor:
+
       return "Gestor";
     case roles.colaborador:
       return "Colaborador";
@@ -108,22 +108,9 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const { open, toggleSidebar } = useSidebar();
   const pathname = usePathname();
   const user = useUserStore((state) => state.user);
-  const setUser = useUserStore((state) => state.setUser);
   const userRole = user?.role;
   const id = user?.id;
-  // Ensure user data is loaded when sidebar mounts
-  useEffect(() => {
-    const fetchUserIfNeeded = async () => {
-      if (!user) {
-        const userData = await getUser();
-        if (userData) {
-          setUser(userData);
-        }
-      }
-    };
 
-    fetchUserIfNeeded();
-  }, [user, setUser]);
 
   const data = createData(pathname, id);
   const navData = {

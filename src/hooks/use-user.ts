@@ -25,9 +25,11 @@ export async function getUser() {
     console.error('Error fetching user profile:', error);
     return null; // Return null if there's an error fetching the profile
   }
-  return {
+  const finalUser = {
     ...user,
     role: profile?.role,
     name: profile?.nome,
   };
+  console.log('getUser returning:', finalUser);
+  return finalUser;
 }
