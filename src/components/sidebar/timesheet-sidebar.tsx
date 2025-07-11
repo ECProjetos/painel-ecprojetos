@@ -3,7 +3,7 @@
 
 import { useUserStore } from "@/stores/userStore";
 import { usePathname } from "next/navigation";
-import { ComponentProps, useEffect, useState } from "react";
+import { ComponentProps, useEffect } from "react";
 
 import {
   Home,
