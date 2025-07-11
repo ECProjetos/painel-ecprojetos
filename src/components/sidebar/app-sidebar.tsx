@@ -80,7 +80,7 @@ const createData = (pathname: string, userId?: string) => ({
         {
           title: "Avaliar",
           url: "/plano-carreira/avaliar",
-          isActive: pathname === "/plano-carreira/avaliar",
+          isActive: pathname.startsWith("/plano-carreira/avaliar"),
         },
       ],
     },

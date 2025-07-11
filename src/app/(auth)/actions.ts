@@ -86,7 +86,6 @@ export async function loginWithToken(token: string) {
 }
 
 
-//get user session
 import { getUser } from "@/hooks/use-user";
 
 export async function getUserSession() {
