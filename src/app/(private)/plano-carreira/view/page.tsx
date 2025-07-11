@@ -1,8 +1,6 @@
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import SelectColaborador from "@/components/select-colaborador";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 export default function SearchViewColaboradorPage() {
     return (
@@ -22,11 +20,7 @@ export default function SearchViewColaboradorPage() {
                 </Breadcrumb>
             </header>
             <div>
-                <Link href="/plano-carreira">
-                    <Button className="mb-4">
-                        Voltar
-                    </Button>
-                </Link>
+
                 <SelectColaborador acao="visualizar" />
             </div>
         </div>

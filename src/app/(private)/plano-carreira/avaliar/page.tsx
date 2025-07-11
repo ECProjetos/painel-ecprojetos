@@ -6,7 +6,6 @@ import { FeedbackTable } from "@/components/plano-carreira/feedback-table";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useClientRole } from "@/hooks/use-client-role";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function AvaliacaoSelectColaborador() {
@@ -36,11 +35,6 @@ export default function AvaliacaoSelectColaborador() {
             <div>
                 {isDiretor ? (
                     <div>
-                        <Link href="/plano-carreira/view">
-                            <Button className="mb-4">
-                                Ir para Visualização
-                            </Button>
-                        </Link>
                         <SelectColaborador acao="avaliar" />
                     </div>
                 ) : (
