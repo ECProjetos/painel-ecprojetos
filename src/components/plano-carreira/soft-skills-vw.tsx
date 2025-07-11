@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { getAllSoftSkillsAssessments } from "@/app/actions/plano-carreira";
 import { useUserStore } from "@/stores/userStore";
 import { SoftSkillsAssessmentType } from "@/types/plano-carreira/soft-skills";
-import { habilidadesDetalhadas } from "@/constants/soft-skills";
 import {
     Card,
     CardHeader,
@@ -33,7 +32,7 @@ export function SoftSkillsDashboard() {
     const [modalAberto, setModalAberto] = useState(false);
     const [habilidadeSelecionada, setHabilidadeSelecionada] = useState<{
         nome: string;
-        descricao: string;
+        comentario: string;
     } | null>(null);
 
     const getBadgeInfo = (nota: number) => {
@@ -53,15 +52,11 @@ export function SoftSkillsDashboard() {
         }
     };
 
-    const getDescricaoDetalhada = (label: string, nota: number): string => {
-        const habilidade = habilidadesDetalhadas.find(h => h.nome === label);
-        if (!habilidade || nota < 1 || nota > 5) return "Descrição não disponível.";
-        return habilidade.descricoes[nota - 1];
-    };
 
-    const abrirModal = (label: string, nota: number) => {
-        const descricao = getDescricaoDetalhada(label, nota);
-        setHabilidadeSelecionada({ nome: label, descricao });
+
+
+    const abrirModal = (label: string, comentario: string) => {
+        setHabilidadeSelecionada({ nome: label, comentario });
         setModalAberto(true);
     };
 
@@ -96,6 +91,13 @@ export function SoftSkillsDashboard() {
         { label: "Engajamento com a missão e visão da empresa", valor: ultimaAvaliacao.engajamento_missao_visao },
     ] : [];
 
+    // Mapeia todos os campos de comentário da última avaliação
+    const comentarios = ultimaAvaliacao
+        ? Object.entries(ultimaAvaliacao)
+            .filter(([key]) => key.endsWith('_comment'))
+            .map(([key, value]) => ({ key, value }))
+        : [];
+
     return (
         <div className="p-6 flex justify-center">
             <Card className="w-full max-w-7xl p-6 shadow-lg">
@@ -125,7 +127,7 @@ export function SoftSkillsDashboard() {
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => abrirModal(skill.label, nota)}
+                                            onClick={() => abrirModal(skill.label, comentarios.find(c => c.key.startsWith(skill.label.toLowerCase().replace(/ /g, '_')))?.value || 'Sem comentário')}
                                             className="w-full mt-3"
                                         >
                                             Ver Detalhes
@@ -138,7 +140,6 @@ export function SoftSkillsDashboard() {
                 </div>
             </Card>
 
-            {/* Modal de Detalhes */}
             <Dialog open={modalAberto} onOpenChange={setModalAberto}>
                 <DialogContent>
                     <DialogHeader>
@@ -146,7 +147,7 @@ export function SoftSkillsDashboard() {
                             {habilidadeSelecionada?.nome}
                         </DialogTitle>
                         <DialogDescription>
-                            <span className="text-black">{habilidadeSelecionada?.descricao}</span>
+                            <span className="text-black">{habilidadeSelecionada?.comentario}</span>
                         </DialogDescription>
                     </DialogHeader>
                 </DialogContent>

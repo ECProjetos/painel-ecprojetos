@@ -30,13 +30,15 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { NavGeneral } from "./nav-general";
+import { NavDiretor } from "./nav-diretor"; // Importar NavDiretor
 
 import { roles } from "@/constants/roles";
 
 import { getUser } from "@/hooks/use-user";
 import { Button } from "../ui/button";
 
-const createData = (pathname: string) => ({
+
+const createData = (pathname: string, userId?: string) => ({
   navGeneral: [
     {
       title: "Controle de Horários",
@@ -49,6 +51,39 @@ const createData = (pathname: string) => ({
       url: "/plano-carreira",
       icon: Briefcase,
       isActive: pathname.startsWith("/plano-carreira"),
+      items: [
+        {
+          title: "Visualizar",
+          url: `/plano-carreira/view/${userId ?? ""}`,
+          isActive: pathname.startsWith("/plano-carreira/view"),
+        },
+      ],
+    },
+  ],
+  navDiretor: [
+    {
+      title: "Controle de Horários",
+      url: "/controle-horarios/inicio",
+      icon: Clock,
+      isActive: pathname.startsWith("/controle-horarios"),
+    },
+    {
+      title: "Plano de Carreira",
+      url: "/plano-carreira",
+      icon: Briefcase,
+      isActive: pathname.startsWith("/plano-carreira"),
+      items: [
+        {
+          title: "Visualizar",
+          url: "/plano-carreira/view",
+          isActive: pathname.startsWith("/plano-carreira/view"),
+        },
+        {
+          title: "Avaliar",
+          url: "/plano-carreira",
+          isActive: pathname.startsWith("/plano-carreira"),
+        },
+      ],
     },
   ],
 });
@@ -75,6 +110,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const user = useUserStore((state) => state.user);
   const setUser = useUserStore((state) => state.setUser);
   const userRole = user?.role;
+  const id = user?.id;
   // Ensure user data is loaded when sidebar mounts
   useEffect(() => {
     const fetchUserIfNeeded = async () => {
@@ -89,10 +125,14 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
     fetchUserIfNeeded();
   }, [user, setUser]);
 
-  const data = createData(pathname);
+  const data = createData(pathname, id);
   const navData = {
     ...data,
     navGeneral: data.navGeneral.map((item) => ({
+      ...item,
+      isActive: item.isActive || pathname.startsWith(item.url),
+    })),
+    navDiretor: data.navDiretor.map((item) => ({
       ...item,
       isActive: item.isActive || pathname.startsWith(item.url),
     })),
@@ -156,7 +196,11 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
 
       {/* Sidebar controle de horario e plano de carreira */}
       <SidebarContent className="h-full">
-        <NavGeneral items={navData.navGeneral} />
+        {userRole === roles.diretor ? (
+          <NavDiretor items={navData.navDiretor} />
+        ) : (
+          <NavGeneral items={navData.navGeneral} />
+        )}
         <Button size="icon" variant="outline" onClick={logout}>
           <LogOut />
         </Button>

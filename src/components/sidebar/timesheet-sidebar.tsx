@@ -150,25 +150,22 @@ export function TimesheetSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const user = useUserStore((state) => state.user);
   const setUser = useUserStore((state) => state.setUser);
-  const [isGestor, setIsGestor] = useState(false);
-  const [isDiretor, setIsDiretor] = useState(false);
 
-  // Carrega dados do usuário e define flags de gestor/diretor
+  // Carrega dados do usuário se não estiverem no store
   useEffect(() => {
     const fetchUserIfNeeded = async () => {
       if (!user) {
         const userData = await getUser();
-        if (!userData) return; // abort if no user
-        setUser(userData);
-        setIsGestor(userData.role === roles.gestor);
-        setIsDiretor(userData.role === roles.diretor);
-      } else {
-        setIsGestor(user.role === roles.gestor);
-        setIsDiretor(user.role === roles.diretor);
+        if (userData) {
+          setUser(userData);
+        }
       }
     };
     fetchUserIfNeeded();
   }, [user, setUser]);
+
+  const isGestor = user?.role === roles.gestor;
+  const isDiretor = user?.role === roles.diretor;
 
   const data = createData(pathname, isGestor, isDiretor);
 
