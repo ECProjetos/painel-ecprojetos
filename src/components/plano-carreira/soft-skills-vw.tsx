@@ -24,10 +24,11 @@ import {
     Star,
     Smile,
 } from "lucide-react";
+import { useParams } from "next/navigation";
 
 export function SoftSkillsDashboard() {
     const [avaliacoes, setAvaliacoes] = useState<SoftSkillsAssessmentType[]>([]);
-    const idColaborador = useUserStore((state) => state.user?.id);
+    const idColaborador = useParams<{ id: string }>();
 
     const [modalAberto, setModalAberto] = useState(false);
     const [habilidadeSelecionada, setHabilidadeSelecionada] = useState<{
