@@ -165,3 +165,14 @@ export async function submitComment(data: CommentType) {
     return inserted;
 }
 
+export async function getCommentById(colaboradorId: string) {
+    const { data, error } = await supabaseAdmin
+        .from('comment_feedback')
+        .select('*')
+        .eq('colaborador_id', colaboradorId);
+    if (error) {
+        throw new Error(error.message || "Erro ao buscar avaliações de soft skills");
+    }
+    return data;
+}
+

@@ -12,7 +12,7 @@ export default function AvaliacaoSelectColaborador() {
     const isDiretor = role === roles.diretor;
 
     if (loading) {
-        return <div>Carregando...</div>; // ou um componente de skeleton
+        return <div>Carregando...</div>;
     }
 
     return (

@@ -38,6 +38,7 @@ export const softSkillsAssessmentSchema = z.object({
     engajamento_missao_visao_meta: z.string(),
     engajamento_missao_visao_comment: z.string(),
     created_at: z.string().optional(),
+    semestre: z.string().optional(),
 });
 
 export type SoftSkillsAssessmentType = z.infer<typeof softSkillsAssessmentSchema>;

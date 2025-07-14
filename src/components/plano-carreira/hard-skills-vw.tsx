@@ -90,40 +90,62 @@ export function HardSkillsVwTable() {
                 key !== "created_at"
         )
         : [];
+
+    const totalAtual = skillKeys.reduce((acc, key) => {
+        const atual = hardSkills![key as keyof typeof hardSkills];
+        return acc + (Number(atual) || 0);
+    }, 0);
+
+    const totalMeta = skillKeys.reduce((acc, key) => {
+        const meta = (hardSkills as any)[`${key}_meta`];
+        return acc + (Number(meta) || 0);
+    }, 0);
     {
         return (
             <Table >
                 <TableHeader>
                     <TableRow>
-                        <TableHead className="w-[70px] px-2 py-1 ">Skill</TableHead>
-                        <TableHead className="w-[70px] text-center px-2 py-1">Atual</TableHead>
-                        <TableHead className="w-[70px] text-center px-2 py-1">Meta</TableHead>
-                        <TableHead className="w-[140px] px-2 py-1">Comentário</TableHead>
+                        <TableHead className="w-[70px] px-5 py-1 ">Skill</TableHead>
+                        <TableHead className="w-[70px] text-center px-5 py-1">Atual</TableHead>
+                        <TableHead className="w-[70px] text-center px-5 py-1">Meta</TableHead>
+                        <TableHead className="w-[140px] px-5 py-1">Comentário</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {skillKeys.length > 0 ? (
-                        skillKeys.map((key) => {
-                            const atual = hardSkills![key as keyof typeof hardSkills];
-                            const meta = (hardSkills as any)[`${key}_meta`];
-                            const comment = (hardSkills as any)[`${key}_comment`];
-                            return (
-                                <TableRow key={key}>
-                                    <TableCell className="font-medium">
-                                        {formatLabel(key)}
-                                    </TableCell>
-                                    <TableCell className="text-red-800 text-center px-2 py-1">
-                                        {atual}
-                                    </TableCell>
-                                    <TableCell className="text-orange-500 text-center px-2 py-1">
-                                        {meta}
-                                    </TableCell>
-                                    <TableCell className="px-2 py-1">
-                                        {comment}
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })
+                        <>
+                            <TableRow>
+                                <TableCell className="font-bold px-5">Total</TableCell>
+                                <TableCell className="text-red-800 text-center px-5 py-1 font-bold">
+                                    {totalAtual}
+                                </TableCell>
+                                <TableCell className="text-orange-500 text-center px-2 py-1 font-bold">
+                                    {totalMeta}
+                                </TableCell>
+                                <TableCell />
+                            </TableRow>
+                            {skillKeys.map((key) => {
+                                const atual = hardSkills![key as keyof typeof hardSkills];
+                                const meta = (hardSkills as any)[`${key}_meta`];
+                                const comment = (hardSkills as any)[`${key}_comment`];
+                                return (
+                                    <TableRow key={key}>
+                                        <TableCell className="font-medium px-5">
+                                            {formatLabel(key)}
+                                        </TableCell>
+                                        <TableCell className="text-red-800 text-center px-2 py-1">
+                                            {atual}
+                                        </TableCell>
+                                        <TableCell className="text-orange-500 text-center px-2 py-1">
+                                            {meta}
+                                        </TableCell>
+                                        <TableCell className="px-2 py-1">
+                                            {comment}
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </>
                     ) : (
                         <TableRow>
                             <TableCell colSpan={4} className="h-24 text-center">

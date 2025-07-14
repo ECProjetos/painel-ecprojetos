@@ -107,6 +107,7 @@ export const HardSkillsEconoSchema = z.object({
     gestao_de_objetivos_indicadores_e_metas_comment: z.string().optional(),
     gestao_da_qualidade_e_processos_de_auditoria_comment: z.string().optional(),
     created_at: z.string().optional(),
+    semestre: z.string().optional(),
 
 
 });
@@ -193,6 +194,7 @@ export const HardSkillsMeioAmbienteSchema = z.object({
     habilidades_em_redacao_cientifica_comment: z.string().optional(),
     conhecimento_em_gestao_de_riscos_ambientais_comment: z.string().optional(),
     created_at: z.string().optional(),
+    semestre: z.string().optional(),
 });
 
 export type HardSkillsMeioAmbienteType = z.infer<typeof HardSkillsMeioAmbienteSchema>;
@@ -351,6 +353,7 @@ export const HardSkillsTISchema = z.object({
     lgpd_aplicada_a_sistemas_comment: z.string(),
     gestao_de_vulnerabilidades_e_correcoes_comment: z.string(),
     created_at: z.string().optional(),
+    semestre: z.string().optional(),
 });
 export type HardSkillsTIType = z.infer<typeof HardSkillsTISchema>;
 
@@ -452,9 +455,9 @@ export const HardSkillsContabeisSchema = z.object({
     auditorias_externas_comment: z.string().optional(),
     relacionamento_clientes_fornecedores_comment: z.string().optional(),
     auditorias_fiscalizacoes_comment: z.string().optional(),
-    relatorios_financeiros_comment: z.string().optional(),
-
+    relatorios_financeiros_comment: z.string().optional(),   
     created_at: z.string().optional(),
+    semestre: z.string().optional(),
 });
 
 export type HardSkillsContabeisType = z.infer<typeof HardSkillsContabeisSchema>;

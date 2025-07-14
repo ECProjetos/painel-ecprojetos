@@ -1,3 +1,5 @@
+'use client';
+
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import Link from "next/link";
 import { Link as LinkIcon } from "lucide-react";
@@ -63,6 +65,7 @@ export function FeedbackTable() {
 
         fetchAvaliadores();
     }, [feedbacks]);
+    console.log("Feedbacks:", feedbacks);
 
     return (
         <div>
@@ -75,20 +78,19 @@ export function FeedbackTable() {
                 <Table className="w-full border rounded-lg shadow-sm bg-white">
                     <TableHeader>
                         <TableRow className="bg-gray-100">
-                            <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Data</TableHead>
+                            <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Semestre</TableHead>
                             <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider text-center">Avaliador</TableHead>
                             <TableHead className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Ver detalhes</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {feedbacks.map((feedback) => {
-                            const formattedDate = feedback.created_at
-                                ? new Date(feedback.created_at).toLocaleDateString("pt-BR")
-                                : "Data inválida";
                             const nomeAvaliador = avaliadores[feedback.evaluator_id] || "Carregando...";
+                            const semestre = feedback.semestre || "Sem semestre definido";
                             return (
                                 <TableRow key={`${feedback.evaluator_id}-${feedback.created_at}`} className="hover:bg-gray-50 transition-colors">
-                                    <TableCell className="font-medium px-6 py-4">{formattedDate}</TableCell>
+
+                                    <TableCell className="font-medium px-6 py-4">{semestre} semestre </TableCell>
                                     <TableCell className="font-medium px-6 py-4 text-center">{nomeAvaliador}</TableCell>
                                     <TableCell className="font-medium px-6 py-4 text-center">
                                         <Link
