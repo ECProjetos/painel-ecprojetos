@@ -3,17 +3,17 @@
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import Link from "next/link";
 import { Link as LinkIcon } from "lucide-react";
-import { useUserStore } from "@/stores/userStore";
 import { getSoftSkillsAssessmentsById } from "@/app/actions/plano-carreira";
 import { useEffect, useState } from "react";
 import { softSkillsAssessmentSchema, SoftSkillsAssessmentType } from "@/types/plano-carreira/soft-skills";
 import { getColaboradorById } from "@/app/actions/colaboradores";
 import { Colaborador } from "@/types/colaboradores";
+import { useParams } from "next/navigation";
 
 
 
 export function FeedbackTable() {
-    const iduser = useUserStore((state) => state?.user?.id);
+    const iduser = useParams<{ id: string }>().id;
     const [feedbacks, setFeedbacks] = useState<SoftSkillsAssessmentType[]>([]);
     const [avaliadores, setAvaliadores] = useState<Record<string, string>>({});
 
