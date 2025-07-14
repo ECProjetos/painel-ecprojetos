@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { getAllSoftSkillsAssessments } from "@/app/actions/plano-carreira";
-import { useUserStore } from "@/stores/userStore";
 import { SoftSkillsAssessmentType } from "@/types/plano-carreira/soft-skills";
 import {
     Card,
