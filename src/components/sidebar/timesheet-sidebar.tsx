@@ -3,7 +3,7 @@
 
 import { useUserStore } from "@/stores/userStore";
 import { usePathname } from "next/navigation";
-import { ComponentProps } from "react";
+import { ComponentProps, useState } from "react";
 
 import {
   Home,
@@ -20,7 +20,7 @@ import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
 
 import { NavColaborador } from "./nav-colaborador";
 import { NavGestor } from "./nav-gestor";
-import { NavDiretor } from "./nav-diretor";
+import { NavDiretorTimesheet } from "./nav-diretor-timesheet";
 
 import { roles } from "@/constants/roles";
 
@@ -148,7 +148,7 @@ const createData = (
 export function TimesheetSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const user = useUserStore((state) => state.user);
-
+  const [openItem, setOpenItem] = useState<string | null>(null);
 
 
   const isGestor = user?.role === roles.gestor;
@@ -163,9 +163,9 @@ export function TimesheetSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
       className="absolute h-full border-none !min-h-[115vh]"
     >
       <SidebarContent className="fixed h-full">
-        <NavColaborador items={data.navColaborador} />
-        {data.navGestor.length > 0 && <NavGestor items={data.navGestor} />}
-        {data.navDiretor.length > 0 && <NavDiretor items={data.navDiretor} />}
+        <NavColaborador items={data.navColaborador} openItem={openItem} setOpenItem={setOpenItem} />
+        {data.navGestor.length > 0 && <NavGestor items={data.navGestor} openItem={openItem} setOpenItem={setOpenItem} />}
+        {data.navDiretor.length > 0 && <NavDiretorTimesheet items={data.navDiretor} openItem={openItem} setOpenItem={setOpenItem} />}
       </SidebarContent>
     </Sidebar>
   );

@@ -30,7 +30,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { NavGeneral } from "./nav-general";
-import { NavDiretor } from "./nav-diretor"; // Importar NavDiretor
+import { NavDiretor } from "./nav-diretor";
 
 import { roles } from "@/constants/roles";
 
