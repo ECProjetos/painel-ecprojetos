@@ -1,28 +1,24 @@
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { useParams } from 'next/navigation';
-import { submitComment } from '@/app/actions/plano-carreira';
 import { useState } from 'react';
-import { CommentType } from '@/types/plano-carreira/comment';
 import { toast } from 'sonner';
 
-export function TextSubmit() {
-    const params = useParams<{ id: string }>();
-    const colaboradorId = params.id as string | undefined;
+interface TextSubmitProps {
+    onSubmit: (comment: string) => void;
+}
+
+export function TextSubmit({ onSubmit }: TextSubmitProps) {
     const [comment, setComment] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (colaboradorId && comment) {
-            const commentData: CommentType = {
-                colaborador_id: colaboradorId,
-                comment: comment,
-            };
+        if (comment) {
             try {
-                await submitComment(commentData);
+                onSubmit(comment);
                 toast.success("Comentário enviado com sucesso!");
             } catch (error) {
                 console.error("Failed to submit comment: ", error);
+                toast.error("Falha ao enviar o comentário.");
             }
         }
     };
