@@ -19,15 +19,20 @@ export default function ViewColaboradorPage() {
                     <TabsTrigger value="soft" className="text-lg font-semibold">
                         Soft Skills
                     </TabsTrigger>
+                    <TabsTrigger value="general" className="text-lg font-semibold">
+                        Comentário Geral
+                    </TabsTrigger>
                 </TabsList>
 
                 <div className="rounded-md border">
-                    <ComentarioGeral />
                     <TabsContent value="hard">
                         <HardSkillsVwTable />
                     </TabsContent>
                     <TabsContent value="soft">
                         <SoftSkillsDashboard />
+                    </TabsContent>
+                    <TabsContent value="general">
+                        <ComentarioGeral />
                     </TabsContent>
                 </div>
             </Tabs>
