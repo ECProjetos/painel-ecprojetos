@@ -176,3 +176,48 @@ export async function getCommentById(colaboradorId: string) {
     return data;
 }
 
+export async function getStatusPlanoCarreira(colaboradorId: string, table: string) {
+    let statusCount = 0;
+    let semestre: string | null = null;
+    let created_at: string | null = null;
+
+    const [soft, hard, comment] = await Promise.all([
+        supabaseAdmin.from('soft_skills_assessment').select('*').eq('colaborador_id', colaboradorId),
+        supabaseAdmin.from(table).select('*').eq('colaborador_id', colaboradorId),
+        supabaseAdmin.from('comment_feedback').select('*').eq('colaborador_id', colaboradorId),
+    ]);
+
+    // Verifica Soft Skills
+    if (soft.data?.length) {
+        statusCount++;
+        semestre ??= soft.data[0]?.semestre ?? null
+        created_at ??= soft.data[0]?.created_at ?? null;
+    }
+
+    // Verifica Hard Skills
+    if (hard.data?.length) {
+        statusCount++;
+        semestre ??= hard.data[0]?.semestre ?? null;
+        created_at ??= hard.data[0]?.created_at ?? null
+    }
+
+    // Verifica Comentários
+    if (comment.data?.length) {
+        statusCount++;
+        semestre ??= comment.data[0]?.semestre ?? null;
+        created_at ??= comment.data[0]?.created_at ?? null
+    }
+
+    const statusLabel =
+        statusCount === 3
+            ? "Concluído"
+            : statusCount >= 1
+                ? "Em andamento"
+                : "Não iniciado";
+
+    return {
+        status: statusLabel,
+        semestre,
+        created_at
+    };
+}
