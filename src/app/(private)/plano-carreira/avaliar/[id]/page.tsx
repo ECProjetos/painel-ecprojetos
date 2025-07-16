@@ -14,7 +14,8 @@ import {
     submitSoftSkillsAssessment, submitHardSkillsEcono,
     submitHardSkillsMg,
     submitHardSkillsTI,
-    submitHardSkillsContabeis
+    submitHardSkillsContabeis,
+    submitComment
 } from '@/app/actions/plano-carreira';
 import { SoftSkillsAssessmentType } from '@/types/plano-carreira/soft-skills';
 import { getAllColaboradores } from '@/app/actions/colaboradores';
@@ -34,6 +35,7 @@ import { getUser } from '@/hooks/use-user';
 import { useClientRole } from '@/hooks/use-client-role';
 import { hardSkillsTI } from '@/constants/hard-skills-ti';
 import { hardSkillsFinanceiro } from '@/constants/hard-skills-adm';
+import { SelectTrigger, Select, SelectItem, SelectContent, SelectValue } from '@/components/ui/select';
 
 
 export default function AvaliacaoColaboradorPage() {
@@ -47,6 +49,7 @@ export default function AvaliacaoColaboradorPage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'soft' | 'hard' | 'feedback'>('soft');
     const [nomeDepartamento, setDepartamentoNome] = useState<string>("");
+    const [semestre, setSemestre] = useState('');
 
     // Busca o departamento do usuário logado
     useEffect(() => {
@@ -101,13 +104,22 @@ export default function AvaliacaoColaboradorPage() {
     }
 
     // Handlers de envio
-    const handleSubmitSoft = (res: SoftSkillsAssessmentType) =>
-        submitSoftSkillsAssessment(res).then(() => alert('Soft skills enviadas!'));
+    const handleSubmitSoft = (res: SoftSkillsAssessmentType) => {
+        if (!semestre) {
+            alert('Por favor, selecione o semestre.');
+            return;
+        }
+        submitSoftSkillsAssessment({ ...res, semestre }).then(() => alert('Soft skills enviadas!'));
+    }
 
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleSubmitHardEcono = (res: any) => {
-        submitHardSkillsEcono(res)
+        if (!semestre) {
+            alert('Por favor, selecione o semestre.');
+            return;
+        }
+        submitHardSkillsEcono({ ...res, semestre })
             .then(() => alert('Hard skills enviadas!'))
             .catch((error) => {
                 console.error("Erro ao enviar hard skills:", error);
@@ -117,7 +129,11 @@ export default function AvaliacaoColaboradorPage() {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleSubmitHardAmbiental = (res: any) => {
-        submitHardSkillsMg(res)
+        if (!semestre) {
+            alert('Por favor, selecione o semestre.');
+            return;
+        }
+        submitHardSkillsMg({ ...res, semestre })
             .then(() => alert('Hard skills ambientais enviadas!'))
             .catch((error) => {
                 console.error("Erro ao enviar hard skills ambientais:", error);
@@ -127,7 +143,11 @@ export default function AvaliacaoColaboradorPage() {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleSubmitHardTI = (res: any) => {
-        submitHardSkillsTI(res)
+        if (!semestre) {
+            alert('Por favor, selecione o semestre.');
+            return;
+        }
+        submitHardSkillsTI({ ...res, semestre })
             .then(() => alert('Hard skills de TI enviadas!'))
             .catch((error) => {
                 console.error("Erro ao enviar hard skills de TI:", error);
@@ -136,7 +156,11 @@ export default function AvaliacaoColaboradorPage() {
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleSubmitHardAdm = (res: any) => {
-        submitHardSkillsContabeis(res)
+        if (!semestre) {
+            alert('Por favor, selecione o semestre.');
+            return;
+        }
+        submitHardSkillsContabeis({ ...res, semestre })
             .then(() => alert('Hard skills de TI enviadas!'))
             .catch((error) => {
                 console.error("Erro ao enviar hard skills de TI:", error);
@@ -144,13 +168,44 @@ export default function AvaliacaoColaboradorPage() {
             });
     }
 
+    const handleGeneralCommentSubmit = (comment: string) => {
+        if (!semestre) {
+            alert('Por favor, selecione o semestre.');
+            return;
+        }
+        if (!colaboradorId) {
+            alert('ID do colaborador não encontrado.');
+            return;
+        }
+
+        const commentData = {
+            colaborador_id: colaboradorId,
+            comment: comment,
+            semestre: semestre,
+        };
+
+        submitComment(commentData)
+            .then(() => alert('Comentário enviado com sucesso!'))
+            .catch((error) => {
+                console.error("Erro ao enviar comentário:", error);
+                alert("Erro ao enviar comentário. Por favor, tente novamente.");
+            });
+    };
+
     return (
         <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
             <h1 className="text-3xl font-bold mb-4 text-center bg-blue-50 p-4 rounded-lg">
                 Avaliação de  <span className="text-blue-700 ">{colaborador.nome}</span>
             </h1>
-
-            {/* --- Tabs --- */}
+            <Select onValueChange={setSemestre}>
+                <SelectTrigger className="mb-4">
+                    <SelectValue placeholder="Semestre" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="primeiro">primeiro semestre</SelectItem>
+                    <SelectItem value="segundo">segundo semestre</SelectItem>
+                </SelectContent>
+            </Select>
             <Tabs
                 value={activeTab}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -217,10 +272,10 @@ export default function AvaliacaoColaboradorPage() {
 
                 <TabsContent value="feedback">
                     <div className="flex flex-col space-y-4">
-                        <TextSubmit />
+                        <TextSubmit onSubmit={handleGeneralCommentSubmit} />
                     </div>
                 </TabsContent>
             </Tabs>
-        </div>
+        </div >
     );
 }
