@@ -79,6 +79,7 @@ export function FeedbackTable() {
                     <TableHeader>
                         <TableRow className="bg-gray-100">
                             <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Semestre</TableHead>
+                            <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Ano</TableHead>
                             <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider text-center">Avaliador</TableHead>
                             <TableHead className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Ver detalhes</TableHead>
                         </TableRow>
@@ -91,6 +92,7 @@ export function FeedbackTable() {
                                 <TableRow key={`${feedback.evaluator_id}-${feedback.created_at}`} className="hover:bg-gray-50 transition-colors">
 
                                     <TableCell className="font-medium px-6 py-4">{semestre} semestre </TableCell>
+                                    <TableCell className="font-medium px-6 py-4">2025</TableCell>
                                     <TableCell className="font-medium px-6 py-4 text-center">{nomeAvaliador}</TableCell>
                                     <TableCell className="font-medium px-6 py-4 text-center">
                                         <Link
