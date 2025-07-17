@@ -202,8 +202,8 @@ export default function AvaliacaoColaboradorPage() {
                     <SelectValue placeholder="Semestre" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="primeiro">Primeiro semestre</SelectItem>
-                    <SelectItem value="segundo">Segundo semestre</SelectItem>
+                    <SelectItem value="Primeiro">Primeiro semestre</SelectItem>
+                    <SelectItem value="Segundo">Segundo semestre</SelectItem>
                 </SelectContent>
             </Select>
             <Tabs
