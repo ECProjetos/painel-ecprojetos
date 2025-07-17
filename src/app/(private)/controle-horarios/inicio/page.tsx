@@ -1,5 +1,6 @@
 "use client";
 
+import PontoForm from "@/components/inicio/ponto";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -29,7 +30,9 @@ export default function Page() {
       </header>
 
       {/* Conteúdo principal */}
-      <div className="px-4"></div>
+      <div className="px-4">
+        <PontoForm />
+      </div>
     </div>
   );
 }

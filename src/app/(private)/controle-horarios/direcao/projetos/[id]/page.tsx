@@ -51,8 +51,15 @@ export default function ProjetosPage() {
   const handleFormSubmit = async (data: NewProject) => {
     try {
       if (projectId) {
-        await updateProject(projectId, data);
-        toast("Projeto atualizado com sucesso!");
+        try {
+          await updateProject(projectId, data);
+          toast.success("Projeto atualizado com sucesso!");
+        } catch (error) {
+          console.error("Erro ao atualizar projeto:", error);
+          toast.error("Erro ao atualizar projeto: ", {
+            description: "Ocorreu um erro ao atualizar o projeto.",
+          });
+        }
       } else {
         throw new Error("ID do projeto não fornecido.");
       }

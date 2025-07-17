@@ -8,8 +8,6 @@ import { ComponentProps, useState } from "react";
 import {
   Home,
   History,
-  ListPlus,
-  Calendar,
   Send,
   LayoutDashboard,
   ChartPie,
@@ -42,18 +40,18 @@ const createData = (
       icon: History,
       isActive: pathname.startsWith("/controle-horarios/historico"),
     },
-    {
-      title: "Alocar Horas",
-      url: "/controle-horarios/alocar-horas",
-      icon: ListPlus,
-      isActive: pathname.startsWith("/controle-horarios/alocar-horas"),
-    },
-    {
-      title: "Calendário",
-      url: "/controle-horarios/calendario",
-      icon: Calendar,
-      isActive: pathname.startsWith("/controle-horarios/calendario"),
-    },
+    // {
+    //   title: "Alocar Horas",
+    //   url: "/controle-horarios/alocar-horas",
+    //   icon: ListPlus,
+    //   isActive: pathname.startsWith("/controle-horarios/alocar-horas"),
+    // },
+    // {
+    //   title: "Calendário",
+    //   url: "/controle-horarios/calendario",
+    //   icon: Calendar,
+    //   isActive: pathname.startsWith("/controle-horarios/calendario"),
+    // },
     {
       title: "Solicitar Ausência",
       url: "#",
@@ -72,76 +70,76 @@ const createData = (
   navGestor:
     isGestor || isDiretor
       ? [
+          {
+            title: "Gestão",
+            url: "/controle-horarios/gestao/painel-equipes",
+            icon: ChartPie,
+            isActive: pathname.startsWith("/controle-horarios/gestao"),
+            items: [
+              {
+                title: "Painel de Equipes",
+                url: "/controle-horarios/gestao/painel-equipes",
+                isActive: pathname.startsWith(
+                  "/controle-horarios/gestao/painel-equipes"
+                ),
+              },
+              {
+                title: "Painel de Projetos",
+                url: "/controle-horarios/gestao/painel-projetos",
+                isActive: pathname.startsWith(
+                  "/controle-horarios/gestao/painel-projetos"
+                ),
+              },
+              {
+                title: "Colaboradores",
+                url: "/controle-horarios/gestao/colaboradores",
+                isActive: pathname.startsWith(
+                  "/controle-horarios/gestao/colaboradores"
+                ),
+              },
+              {
+                title: "Inconsistências",
+                url: "/controle-horarios/gestao/inconsistencias",
+                isActive: pathname.startsWith(
+                  "/controle-horarios/gestao/inconsistencias"
+                ),
+              },
+              {
+                title: "Calendário",
+                url: "/controle-horarios/gestao/calendario",
+                isActive: pathname.startsWith(
+                  "/controle-horarios/gestao/calendario"
+                ),
+              },
+            ],
+          },
+        ]
+      : [],
+  navDiretor: isDiretor
+    ? [
         {
-          title: "Gestão",
-          url: "/controle-horarios/gestao/painel-equipes",
-          icon: ChartPie,
-          isActive: pathname.startsWith("/controle-horarios/gestao"),
+          title: "Direção",
+          url: "/controle-horarios/direcao/projetos",
+          icon: Rocket,
+          isActive: pathname.startsWith("/controle-horarios/direcao"),
           items: [
             {
-              title: "Painel de Equipes",
-              url: "/controle-horarios/gestao/painel-equipes",
+              title: "Atividades",
+              url: "/controle-horarios/direcao/atividades",
               isActive: pathname.startsWith(
-                "/controle-horarios/gestao/painel-equipes"
+                "/controle-horarios/direcao/atividades"
               ),
             },
             {
-              title: "Painel de Projetos",
-              url: "/controle-horarios/gestao/painel-projetos",
+              title: "Projetos",
+              url: "/controle-horarios/direcao/projetos",
               isActive: pathname.startsWith(
-                "/controle-horarios/gestao/painel-projetos"
-              ),
-            },
-            {
-              title: "Colaboradores",
-              url: "/controle-horarios/gestao/colaboradores",
-              isActive: pathname.startsWith(
-                "/controle-horarios/gestao/colaboradores"
-              ),
-            },
-            {
-              title: "Inconsistências",
-              url: "/controle-horarios/gestao/inconsistencias",
-              isActive: pathname.startsWith(
-                "/controle-horarios/gestao/inconsistencias"
-              ),
-            },
-            {
-              title: "Calendário",
-              url: "/controle-horarios/gestao/calendario",
-              isActive: pathname.startsWith(
-                "/controle-horarios/gestao/calendario"
+                "/controle-horarios/direcao/projetos"
               ),
             },
           ],
         },
       ]
-      : [],
-  navDiretor: isDiretor
-    ? [
-      {
-        title: "Direção",
-        url: "/controle-horarios/direcao/projetos",
-        icon: Rocket,
-        isActive: pathname.startsWith("/controle-horarios/direcao"),
-        items: [
-          {
-            title: "Projetos",
-            url: "/controle-horarios/direcao/projetos",
-            isActive: pathname.startsWith(
-              "/controle-horarios/direcao/projetos"
-            ),
-          },
-          {
-            title: "Atividades",
-            url: "/controle-horarios/direcao/atividades",
-            isActive: pathname.startsWith(
-              "/controle-horarios/direcao/atividades"
-            ),
-          },
-        ],
-      },
-    ]
     : [],
 });
 
@@ -149,7 +147,6 @@ export function TimesheetSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const user = useUserStore((state) => state.user);
   const [openItem, setOpenItem] = useState<string | null>(null);
-
 
   const isGestor = user?.role === roles.gestor;
   const isDiretor = user?.role === roles.diretor;
@@ -163,9 +160,25 @@ export function TimesheetSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
       className="absolute h-full border-none !min-h-[115vh]"
     >
       <SidebarContent className="fixed h-full">
-        <NavColaborador items={data.navColaborador} openItem={openItem} setOpenItem={setOpenItem} />
-        {data.navGestor.length > 0 && <NavGestor items={data.navGestor} openItem={openItem} setOpenItem={setOpenItem} />}
-        {data.navDiretor.length > 0 && <NavDiretorTimesheet items={data.navDiretor} openItem={openItem} setOpenItem={setOpenItem} />}
+        <NavColaborador
+          items={data.navColaborador}
+          openItem={openItem}
+          setOpenItem={setOpenItem}
+        />
+        {data.navGestor.length > 0 && (
+          <NavGestor
+            items={data.navGestor}
+            openItem={openItem}
+            setOpenItem={setOpenItem}
+          />
+        )}
+        {data.navDiretor.length > 0 && (
+          <NavDiretorTimesheet
+            items={data.navDiretor}
+            openItem={openItem}
+            setOpenItem={setOpenItem}
+          />
+        )}
       </SidebarContent>
     </Sidebar>
   );
