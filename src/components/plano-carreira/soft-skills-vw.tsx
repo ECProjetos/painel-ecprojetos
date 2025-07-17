@@ -74,17 +74,17 @@ export function SoftSkillsDashboard() {
 
     const ultimaAvaliacao = avaliacoes[0];
     const softSkills = ultimaAvaliacao ? [
-        { label: "Comunicação", valor: ultimaAvaliacao.comunicacao, comment: ultimaAvaliacao.comunicacao_comment },
-        { label: "Trabalho em equipe", valor: ultimaAvaliacao.trabalho_em_equipe, comment: ultimaAvaliacao.trabalho_em_equipe_comment },
-        { label: "Proatividade", valor: ultimaAvaliacao.proatividade, comment: ultimaAvaliacao.proatividade_comment },
-        { label: "Resolução de problemas", valor: ultimaAvaliacao.resolucao_de_problemas, comment: ultimaAvaliacao.resolucao_de_problemas_comment },
-        { label: "Organização de tempo", valor: ultimaAvaliacao.organizacao_de_tempo, comment: ultimaAvaliacao.organizacao_de_tempo_comment },
-        { label: "Pensamento crítico", valor: ultimaAvaliacao.pensamento_critico, comment: ultimaAvaliacao.pensamento_critico_comment },
-        { label: "Capricho", valor: ultimaAvaliacao.capricho, comment: ultimaAvaliacao.capricho_comment },
-        { label: "Não ter medo de encarar desafios", valor: ultimaAvaliacao.encarar_desafios, comment: ultimaAvaliacao.encarar_desafios_comment },
-        { label: "Postura profissional", valor: ultimaAvaliacao.postura_profissional, comment: ultimaAvaliacao.postura_profissional_comment },
-        { label: "Gentileza e educação", valor: ultimaAvaliacao.gentileza_e_educacao, comment: ultimaAvaliacao.gentileza_e_educacao_comment },
-        { label: "Engajamento com a missão e visão da empresa", valor: ultimaAvaliacao.engajamento_missao_visao, comment: ultimaAvaliacao.engajamento_missao_visao_comment },
+        { label: "Comunicação", valor: ultimaAvaliacao.comunicacao, meta: ultimaAvaliacao.comunicacao_meta, comment: ultimaAvaliacao.comunicacao_comment },
+        { label: "Trabalho em equipe", valor: ultimaAvaliacao.trabalho_em_equipe, meta: ultimaAvaliacao.trabalho_em_equipe_meta, comment: ultimaAvaliacao.trabalho_em_equipe_comment },
+        { label: "Proatividade", valor: ultimaAvaliacao.proatividade, meta: ultimaAvaliacao.proatividade_meta, comment: ultimaAvaliacao.proatividade_comment },
+        { label: "Resolução de problemas", valor: ultimaAvaliacao.resolucao_de_problemas, meta: ultimaAvaliacao.resolucao_de_problemas_meta, comment: ultimaAvaliacao.resolucao_de_problemas_comment },
+        { label: "Organização de tempo", valor: ultimaAvaliacao.organizacao_de_tempo, meta: ultimaAvaliacao.organizacao_de_tempo_meta, comment: ultimaAvaliacao.organizacao_de_tempo_comment },
+        { label: "Pensamento crítico", valor: ultimaAvaliacao.pensamento_critico, meta: ultimaAvaliacao.pensamento_critico_meta, comment: ultimaAvaliacao.pensamento_critico_comment },
+        { label: "Capricho", valor: ultimaAvaliacao.capricho, meta: ultimaAvaliacao.capricho_meta, comment: ultimaAvaliacao.capricho_comment },
+        { label: "Não ter medo de encarar desafios", valor: ultimaAvaliacao.encarar_desafios, meta: ultimaAvaliacao.encarar_desafios_meta, comment: ultimaAvaliacao.encarar_desafios_comment },
+        { label: "Postura profissional", valor: ultimaAvaliacao.postura_profissional, meta: ultimaAvaliacao.postura_profissional_meta, comment: ultimaAvaliacao.postura_profissional_comment },
+        { label: "Gentileza e educação", valor: ultimaAvaliacao.gentileza_e_educacao, meta: ultimaAvaliacao.gentileza_e_educacao_meta, comment: ultimaAvaliacao.gentileza_e_educacao_comment },
+        { label: "Engajamento com a missão e visão da empresa", valor: ultimaAvaliacao.engajamento_missao_visao, meta: ultimaAvaliacao.engajamento_missao_visao_meta, comment: ultimaAvaliacao.engajamento_missao_visao_comment },
     ] : [];
 
     return (
@@ -142,15 +142,17 @@ export function SoftSkillsDashboard() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Skill</TableHead>
-                                    <TableHead>Nota</TableHead>
+                                    <TableHead className="text-center">Nota</TableHead>
+                                    <TableHead className="text-center">Meta</TableHead>
                                     <TableHead>Comentário</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {softSkills.map((skill) => (
                                     <TableRow key={skill.label}>
-                                        <TableCell>{skill.label}</TableCell>
-                                        <TableCell>{skill.valor}</TableCell>
+                                        <TableCell className="font-medium">{skill.label}</TableCell>
+                                        <TableCell className="text-red-800 text-center">{skill.valor}</TableCell>
+                                        <TableCell className="text-orange-500 text-center">{skill.meta}</TableCell>
                                         <TableCell>{skill.comment}</TableCell>
                                     </TableRow>
                                 ))}
