@@ -28,12 +28,13 @@ import { useParams } from "next/navigation";
 export function SoftSkillsDashboard() {
     const [avaliacoes, setAvaliacoes] = useState<SoftSkillsAssessmentType[]>([]);
     const idColaborador = useParams<{ id: string }>();
-
     const [modalAberto, setModalAberto] = useState(false);
     const [habilidadeSelecionada, setHabilidadeSelecionada] = useState<{
         nome: string;
         comentario: string;
     } | null>(null);
+    console.log("ID do colaborador:", idColaborador);
+    console.log("Avaliações:", avaliacoes);
 
     const getBadgeInfo = (nota: number) => {
         switch (nota) {
@@ -64,16 +65,14 @@ export function SoftSkillsDashboard() {
         async function fetchSoftSkills() {
             try {
                 const all = await getAllSoftSkillsAssessments();
-                const minhasAvaliacoes = all.filter(a => a.colaborador_id === idColaborador);
+                const minhasAvaliacoes = all.filter(a => a.colaborador_id === idColaborador.id);
                 setAvaliacoes(minhasAvaliacoes);
             } catch (error) {
                 console.error(error);
             }
         }
 
-        if (idColaborador) {
-            fetchSoftSkills();
-        }
+        fetchSoftSkills();
     }, [idColaborador]);
 
     const ultimaAvaliacao = avaliacoes[0];
