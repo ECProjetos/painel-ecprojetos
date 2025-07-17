@@ -21,9 +21,11 @@ import {
     ThumbsDown,
     ThumbsUp,
     Star,
-    Smile,
+    Meh,
 } from "lucide-react";
 import { useParams } from "next/navigation";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export function SoftSkillsDashboard() {
     const [avaliacoes, setAvaliacoes] = useState<SoftSkillsAssessmentType[]>([]);
@@ -33,8 +35,6 @@ export function SoftSkillsDashboard() {
         nome: string;
         comentario: string;
     } | null>(null);
-    console.log("ID do colaborador:", idColaborador);
-    console.log("Avaliações:", avaliacoes);
 
     const getBadgeInfo = (nota: number) => {
         switch (nota) {
@@ -43,7 +43,7 @@ export function SoftSkillsDashboard() {
             case 2:
                 return { label: 'Abaixo do esperado', color: 'bg-orange-100 text-orange-800', icon: <ThumbsDown className="w-5 h-5 mr-2" /> };
             case 3:
-                return { label: 'Dentro do esperado', color: 'bg-yellow-100 text-yellow-800', icon: <Smile className="w-5 h-5 mr-2" /> };
+                return { label: 'Na média', color: 'bg-yellow-100 text-yellow-800', icon: <Meh className="w-5 h-5 mr-2" /> };
             case 4:
                 return { label: 'Acima do esperado', color: 'bg-green-100 text-green-800', icon: <ThumbsUp className="w-5 h-5 mr-2" /> };
             case 5:
@@ -52,9 +52,6 @@ export function SoftSkillsDashboard() {
                 return { label: 'Sem avaliação', color: 'bg-gray-100 text-gray-800', icon: <AlertCircle className="w-5 h-5 mr-2" /> };
         }
     };
-
-
-
 
     const abrirModal = (label: string, comentario: string) => {
         setHabilidadeSelecionada({ nome: label, comentario });
@@ -77,66 +74,90 @@ export function SoftSkillsDashboard() {
 
     const ultimaAvaliacao = avaliacoes[0];
     const softSkills = ultimaAvaliacao ? [
-        { label: "Comunicação", valor: ultimaAvaliacao.comunicacao },
-        { label: "Trabalho em equipe", valor: ultimaAvaliacao.trabalho_em_equipe },
-        { label: "Proatividade", valor: ultimaAvaliacao.proatividade },
-        { label: "Resolução de problemas", valor: ultimaAvaliacao.resolucao_de_problemas },
-        { label: "Organização de tempo", valor: ultimaAvaliacao.organizacao_de_tempo },
-        { label: "Pensamento crítico", valor: ultimaAvaliacao.pensamento_critico },
-        { label: "Capricho", valor: ultimaAvaliacao.capricho },
-        { label: "Não ter medo de encarar desafios", valor: ultimaAvaliacao.encarar_desafios },
-        { label: "Postura profissional", valor: ultimaAvaliacao.postura_profissional },
-        { label: "Gentileza e educação", valor: ultimaAvaliacao.gentileza_e_educacao },
-        { label: "Engajamento com a missão e visão da empresa", valor: ultimaAvaliacao.engajamento_missao_visao },
+        { label: "Comunicação", valor: ultimaAvaliacao.comunicacao, comment: ultimaAvaliacao.comunicacao_comment },
+        { label: "Trabalho em equipe", valor: ultimaAvaliacao.trabalho_em_equipe, comment: ultimaAvaliacao.trabalho_em_equipe_comment },
+        { label: "Proatividade", valor: ultimaAvaliacao.proatividade, comment: ultimaAvaliacao.proatividade_comment },
+        { label: "Resolução de problemas", valor: ultimaAvaliacao.resolucao_de_problemas, comment: ultimaAvaliacao.resolucao_de_problemas_comment },
+        { label: "Organização de tempo", valor: ultimaAvaliacao.organizacao_de_tempo, comment: ultimaAvaliacao.organizacao_de_tempo_comment },
+        { label: "Pensamento crítico", valor: ultimaAvaliacao.pensamento_critico, comment: ultimaAvaliacao.pensamento_critico_comment },
+        { label: "Capricho", valor: ultimaAvaliacao.capricho, comment: ultimaAvaliacao.capricho_comment },
+        { label: "Não ter medo de encarar desafios", valor: ultimaAvaliacao.encarar_desafios, comment: ultimaAvaliacao.encarar_desafios_comment },
+        { label: "Postura profissional", valor: ultimaAvaliacao.postura_profissional, comment: ultimaAvaliacao.postura_profissional_comment },
+        { label: "Gentileza e educação", valor: ultimaAvaliacao.gentileza_e_educacao, comment: ultimaAvaliacao.gentileza_e_educacao_comment },
+        { label: "Engajamento com a missão e visão da empresa", valor: ultimaAvaliacao.engajamento_missao_visao, comment: ultimaAvaliacao.engajamento_missao_visao_comment },
     ] : [];
-
-    // Mapeia todos os campos de comentário da última avaliação
-    const comentarios = ultimaAvaliacao
-        ? Object.entries(ultimaAvaliacao)
-            .filter(([key]) => key.endsWith('_comment'))
-            .map(([key, value]) => ({ key, value }))
-        : [];
 
     return (
         <div className="p-6 flex justify-center">
             <Card className="w-full max-w-7xl p-6 shadow-lg">
-                <div className="text-center mb-6">
-                    <h2 className="text-3xl font-bold">Avaliação de Soft Skills</h2>
-                    <p className="text-muted-foreground text-sm">
-                        Última avaliação do colaborador
-                    </p>
-                </div>
+                <Tabs defaultValue='tabela'>
+                    <TabsList className="mb-6 flex gap-4">
+                        <TabsTrigger value="dash" className="text-lg font-semibold">
+                            Dashboard
+                        </TabsTrigger>
+                        <TabsTrigger value="tabela" className="text-lg font-semibold">
+                            Tabela
+                        </TabsTrigger>
+                    </TabsList>
+                    <div className="text-center mb-6">
+                        <h2 className="text-3xl font-bold">Avaliação de Soft Skills</h2>
+                        <p className="text-muted-foreground text-sm">
+                            Última avaliação do colaborador
+                        </p>
+                    </div>
+                    <TabsContent value="dash">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {softSkills.map((skill) => {
+                                const nota = Number(skill.valor);
+                                const { label, color, icon } = getBadgeInfo(nota);
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {softSkills.map((skill) => {
-                        const nota = Number(skill.valor);
-                        const { label, color, icon } = getBadgeInfo(nota);
-
-                        return (
-                            <Card key={skill.label} className={`shadow-sm ${color}`}>
-                                <CardHeader className="text-base font-semibold text-center text-black py-2 px-2">
-                                    {skill.label}
-                                </CardHeader>
-                                <CardContent className="py-4 px-3 space-y-3">
-                                    <div className="flex items-center justify-center text-sm font-medium text-center">
-                                        {icon}
-                                        {label}
-                                    </div>
-                                    <div className="flex justify-center mt-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => abrirModal(skill.label, comentarios.find(c => c.key.startsWith(skill.label.toLowerCase().replace(/ /g, '_')))?.value || 'Sem comentário')}
-                                            className="w-full mt-3"
-                                        >
-                                            Ver Detalhes
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-                </div>
+                                return (
+                                    <Card key={skill.label} className={`shadow-sm ${color}`}>
+                                        <CardHeader className="text-base font-semibold text-center text-black py-2 px-2">
+                                            {skill.label}
+                                        </CardHeader>
+                                        <CardContent className="py-4 px-3 space-y-3">
+                                            <div className="flex items-center justify-center text-sm font-medium text-center">
+                                                {icon}
+                                                {label}
+                                            </div>
+                                            <div className="flex justify-center mt-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => abrirModal(skill.label, skill.comment || 'Sem comentário')}
+                                                    className="w-full mt-3"
+                                                >
+                                                    Ver Detalhes
+                                                </Button>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    </TabsContent >
+                    <TabsContent value="tabela">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Skill</TableHead>
+                                    <TableHead>Nota</TableHead>
+                                    <TableHead>Comentário</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {softSkills.map((skill) => (
+                                    <TableRow key={skill.label}>
+                                        <TableCell>{skill.label}</TableCell>
+                                        <TableCell>{skill.valor}</TableCell>
+                                        <TableCell>{skill.comment}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TabsContent>
+                </Tabs>
             </Card>
 
             <Dialog open={modalAberto} onOpenChange={setModalAberto}>
