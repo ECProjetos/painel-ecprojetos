@@ -1,8 +1,5 @@
 "use client";
 
-
-import { AlocacapPainel } from "@/components/historico/alocacao/painel-alocacao";
-import { MarcacaoPainel } from "@/components/historico/marcacao/painel-marcacao";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Breadcrumb,
@@ -12,10 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, Folder } from "lucide-react";
-
+import TimeSheetList from "@/components/historico/time-sheet-list";
 
 export default function ControleHorariosHistoricoPage() {
   return (
@@ -45,28 +39,7 @@ export default function ControleHorariosHistoricoPage() {
             Acomponhe suas marcações e como você alocou seu tempo por projeto
           </p>
         </div>
-        <Tabs defaultValue="marcacao" className="w-full">
-          <TabsList>
-            <TabsTrigger
-              className="flex justify-between items-center"
-              value="marcacao"
-            >
-              <Clock /> Marcação do Ponto
-            </TabsTrigger>
-            <TabsTrigger
-              className="flex justify-between items-center"
-              value="alocacao"
-            >
-              <Folder /> Alocação de Tempo
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="marcacao">
-            <MarcacaoPainel />
-          </TabsContent>
-          <TabsContent value="alocacao">
-            <AlocacapPainel />
-          </TabsContent>
-        </Tabs>
+        <TimeSheetList />
       </div>
     </div>
   );
