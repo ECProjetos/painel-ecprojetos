@@ -45,9 +45,9 @@ export function SoftSkillsDashboard() {
             case 3:
                 return { label: 'Dentro do esperado', color: 'bg-yellow-100 text-yellow-800', icon: <Smile className="w-5 h-5 mr-2" /> };
             case 4:
-                return { label: 'Acima do esperado', color: 'bg-blue-100 text-blue-800', icon: <ThumbsUp className="w-5 h-5 mr-2" /> };
+                return { label: 'Acima do esperado', color: 'bg-green-100 text-green-800', icon: <ThumbsUp className="w-5 h-5 mr-2" /> };
             case 5:
-                return { label: 'Excelente', color: 'bg-green-100 text-green-800', icon: <Star className="w-5 h-5 mr-2" /> };
+                return { label: 'Excelente', color: 'bg-green-300 text-green-800', icon: <Star className="w-5 h-5 mr-2" /> };
             default:
                 return { label: 'Sem avaliação', color: 'bg-gray-100 text-gray-800', icon: <AlertCircle className="w-5 h-5 mr-2" /> };
         }
