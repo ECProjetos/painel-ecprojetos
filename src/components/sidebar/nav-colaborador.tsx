@@ -24,6 +24,8 @@ const activeItemStyles =
 
 export function NavColaborador({
   items,
+  openItem,
+  setOpenItem,
 }: {
   items: {
     title: string;
@@ -38,6 +40,8 @@ export function NavColaborador({
       subTitle?: string;
     }[];
   }[];
+  openItem: string | null;
+  setOpenItem: (item: string | null) => void;
 }) {
   const router = useRouter();
 
@@ -48,7 +52,8 @@ export function NavColaborador({
           <Collapsible
             key={item.title}
             asChild
-            defaultOpen={item.isActive}
+            open={openItem === item.title || item.isActive}
+            onOpenChange={(isOpen) => setOpenItem(isOpen ? item.title : null)}
             className="group/collapsible"
           >
             <SidebarMenuItem>
