@@ -1,11 +1,12 @@
 'use client';
 
-import SelectColaborador from "@/components/select-colaborador";
 import { roles } from "@/constants/roles";
 import { FeedbackTable } from "@/components/plano-carreira/feedback-table";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useClientRole } from "@/hooks/use-client-role";
+import AvaliacaoSelectColaboradorTable from "@/components/plano-carreira/select-colaborador-table";
+
 
 export default function AvaliacaoSelectColaborador() {
     const { role, loading } = useClientRole();
@@ -34,7 +35,7 @@ export default function AvaliacaoSelectColaborador() {
             <div>
                 {isDiretor ? (
                     <div>
-                        <SelectColaborador acao="avaliar" />
+                        <AvaliacaoSelectColaboradorTable />
                     </div>
                 ) : (
                     <FeedbackTable />
