@@ -1,7 +1,8 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useEffect, useState } from "react"
 import { SendEnpsForm } from "@/app/actions/enps-form"
+import { getAllDepartments } from "@/app/actions/get-departamentos"
 import {
   Card,
   CardContent,
@@ -21,10 +22,32 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Button } from "@/components/ui/button"
+import SubmitButton from "@/components/submit-button"
+
+type Department = {
+  id: string
+  name: string
+}
 
 export default function FormEnps() {
-  const [, formAction] = useActionState(SendEnpsForm, undefined)
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [state, formAction] = useActionState(SendEnpsForm, {
+    message: "",
+  })
+
+  useEffect(() => {
+    async function fetchDepartments() {
+      const fetchedDepartments = await getAllDepartments()
+      setDepartments(fetchedDepartments)
+    }
+    fetchDepartments()
+  }, [])
+
+  useEffect(() => {
+    if (state?.message) {
+      alert(state.message)
+    }
+  }, [state])
 
   const linearScaleOptions = [1, 2, 3, 4, 5]
 
@@ -42,12 +65,14 @@ export default function FormEnps() {
     </div>
   )
 
+
   return (
-    <Card className="w-full min-h-screen">
+    <Card className="w-full max-w-4xl mx-auto my-8">
       <CardHeader>
         <CardTitle>Formulário eNPS</CardTitle>
         <CardDescription>
-          Sua opinião é muito importante para nós.
+          Este questionário é totalmente anônimo e será utilizado exclusivamente para entender o nível de satisfação e engajamento com a empresa, por meio da metodologia eNPS (Employee Net Promoter Score).
+          Pedimos que responda com sinceridade. Sua participação contribui diretamente para a melhoria contínua do nosso ambiente de trabalho.
         </CardDescription>
       </CardHeader>
       <form action={formAction}>
@@ -59,16 +84,11 @@ export default function FormEnps() {
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Administrativo">Administrativo</SelectItem>
-                <SelectItem value="Financeiro">Financeiro</SelectItem>
-                <SelectItem value="Marketing">Marketing</SelectItem>
-                <SelectItem value="Comercial">Comercial</SelectItem>
-                <SelectItem value="Engenharia">Engenharia</SelectItem>
-                <SelectItem value="Meio Ambiente">Meio Ambiente</SelectItem>
-                <SelectItem value="Economia">Economia</SelectItem>
-                <SelectItem value="Desenvolvimento de Tecnologias">
-                  Desenvolvimento de Tecnologias
-                </SelectItem>
+                {departments.map((dept) => (
+                  <SelectItem key={dept.id} value={dept.name}>
+                    {dept.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -99,6 +119,10 @@ export default function FormEnps() {
               required
             />
           </div>
+          <h2 className="font-bold"> Pensando no seu trabalho na EC, como você percebe que estes valores são vividos e praticados por você e pelo seu time?</h2>
+          <p className="text-sm text-muted-foreground">
+            (Selecione a opção que mais representa sua experiência.)
+          </p>
 
           <div className="space-y-4 gap-3">
             {renderLinearScale("centradoCliente", "Centrado no Cliente")}
@@ -125,10 +149,11 @@ export default function FormEnps() {
             {renderLinearScale("visaoFuturo", "Visão de futuro na empresa")}
           </div>
         </CardContent>
-        <CardFooter>
-          <Button type="submit">Enviar</Button>
+        <CardFooter className="flex justify-end">
+          <SubmitButton className="w-30px mt-6 bg-blue-800">Enviar Resposta</SubmitButton>
         </CardFooter>
       </form>
+
     </Card>
   )
 }
