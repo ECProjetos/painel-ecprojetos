@@ -30,6 +30,5 @@ export async function getUser() {
     role: profile?.role,
     name: profile?.nome,
   };
-  console.log('getUser returning:', finalUser);
   return finalUser;
 }

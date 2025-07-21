@@ -22,7 +22,7 @@ import {
 const activeItemStyles =
   "text-blue-600 [&_svg]:text-blue-600 bg-white shadow-sm border dark:bg-blue-950 dark:text-blue-400";
 
-export function NavGestor({
+export function NavDiretorTimesheet({
   items,
   openItem,
   setOpenItem,
@@ -85,7 +85,7 @@ export function NavGestor({
                             <button
                               onClick={() => router.push(subItem.url)}
                               className={cn(
-                                "flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
+                                "flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
                                 subItem.isActive && activeItemStyles
                               )}
                             >
