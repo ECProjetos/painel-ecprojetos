@@ -39,7 +39,9 @@ export default function CriarNpsPage() {
                 </CardContent>
                 {state?.success && (
                     <div className="text-green-600 text-center mb-2">
-                        Cadastro realizado com sucesso!
+                        <p>Cadastro realizado com sucesso!</p>
+                        <p className="font-bold text-black">https://painel-ecprojetos.vercel.app/enps/{state.cliente}/{state.projeto}</p>
+
                     </div>
                 )}
                 {state?.error && (

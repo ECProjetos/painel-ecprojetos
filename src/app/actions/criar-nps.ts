@@ -25,6 +25,6 @@ export async function criarNps(
         return { error: error.message };
     }
 
-    return { success: true };
+    return { success: true, cliente: parsedData.data.cliente, projeto: parsedData.data.projeto };
 }
 
