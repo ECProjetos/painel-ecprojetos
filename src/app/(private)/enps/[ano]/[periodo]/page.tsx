@@ -23,6 +23,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import SubmitButton from "@/components/submit-button"
+import { useParams } from "next/navigation"
 
 type Department = {
   id: string
@@ -31,9 +32,16 @@ type Department = {
 
 export default function FormEnps() {
   const [departments, setDepartments] = useState<Department[]>([])
-  const [state, formAction] = useActionState(SendEnpsForm, {
+  const params = useParams();
+  const ano = params.ano;
+  const periodo = params.periodo;
+  console.log("Params:", params);
+  const sendEnpsFormWithParams = SendEnpsForm.bind(null, ano as string, periodo as string)
+  const [state, formAction] = useActionState(sendEnpsFormWithParams, {
     message: "",
   })
+
+
 
   useEffect(() => {
     async function fetchDepartments() {
