@@ -25,5 +25,14 @@ export async function criarEnps(
         return { error: error.message };
     }
 
-    return { success: true };
+    return { success: true, ano: parsedData.data.ano, periodo: parsedData.data.periodo };
+}
+
+
+export async function fetchAllEnps() {
+    const supabase = await createClient()
+
+    const data = await supabase.from('enps').select('*')
+    
+    return data
 }
