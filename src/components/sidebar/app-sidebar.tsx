@@ -10,10 +10,12 @@ import { logout } from "@/hooks/use-logout";
 
 import {
   Briefcase,
+  ClipboardList,
   Clock,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  ThumbsUpIcon,
 } from "lucide-react";
 
 import {
@@ -35,6 +37,7 @@ import { NavDiretor } from "./nav-diretor";
 import { roles } from "@/constants/roles";
 
 import { Button } from "../ui/button";
+import { NavGestor } from "./nav-gestor";
 
 
 const createData = (pathname: string, userId?: string) => ({
@@ -58,6 +61,33 @@ const createData = (pathname: string, userId?: string) => ({
         },
       ],
     },
+  ],
+  navGestor: [
+    {
+      title: "Controle de Horários",
+      url: "/controle-horarios/inicio",
+      icon: Clock,
+      isActive: pathname.startsWith("/controle-horarios"),
+    },
+    {
+      title: "Plano de Carreira",
+      url: "/plano-carreira",
+      icon: Briefcase,
+      isActive: pathname.startsWith("/plano-carreira"),
+      items: [
+        {
+          title: "Visualizar",
+          url: `/plano-carreira/view/${userId ?? ""}`,
+          isActive: pathname.startsWith("/plano-carreira/view"),
+        },
+      ],
+    },
+    {
+      title: "Feedback interno",
+      url: "/enps",
+      icon: ClipboardList,
+      isActive: pathname.startsWith("/enps"),
+    }
   ],
   navDiretor: [
     {
@@ -83,6 +113,13 @@ const createData = (pathname: string, userId?: string) => ({
           isActive: pathname.startsWith("/plano-carreira/avaliar"),
         },
       ],
+
+    },
+    {
+      title: "Satisfação do cliente",
+      url: "/satisfacao",
+      icon: ThumbsUpIcon,
+      isActive: pathname.startsWith("/satisfacao"),
     },
   ],
 });
@@ -185,6 +222,8 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
       <SidebarContent className="h-full">
         {userRole === roles.diretor ? (
           <NavDiretor items={navData.navDiretor} />
+        ) : userRole === roles.gestor ? (
+          <NavGestor items={navData.navGestor} />
         ) : (
           <NavGeneral items={navData.navGeneral} />
         )}

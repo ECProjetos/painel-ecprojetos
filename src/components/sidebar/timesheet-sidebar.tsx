@@ -17,10 +17,10 @@ import {
 import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
 
 import { NavColaborador } from "./nav-colaborador";
-import { NavGestor } from "./nav-gestor";
 import { NavDiretorTimesheet } from "./nav-diretor-timesheet";
 
 import { roles } from "@/constants/roles";
+import { NavGestorTimesheet } from "./nav-gestor-timesheet";
 
 const createData = (
   pathname: string,
@@ -70,76 +70,76 @@ const createData = (
   navGestor:
     isGestor || isDiretor
       ? [
-          {
-            title: "Gestão",
-            url: "/controle-horarios/gestao/painel-equipes",
-            icon: ChartPie,
-            isActive: pathname.startsWith("/controle-horarios/gestao"),
-            items: [
-              {
-                title: "Painel de Equipes",
-                url: "/controle-horarios/gestao/painel-equipes",
-                isActive: pathname.startsWith(
-                  "/controle-horarios/gestao/painel-equipes"
-                ),
-              },
-              {
-                title: "Painel de Projetos",
-                url: "/controle-horarios/gestao/painel-projetos",
-                isActive: pathname.startsWith(
-                  "/controle-horarios/gestao/painel-projetos"
-                ),
-              },
-              {
-                title: "Colaboradores",
-                url: "/controle-horarios/gestao/colaboradores",
-                isActive: pathname.startsWith(
-                  "/controle-horarios/gestao/colaboradores"
-                ),
-              },
-              {
-                title: "Inconsistências",
-                url: "/controle-horarios/gestao/inconsistencias",
-                isActive: pathname.startsWith(
-                  "/controle-horarios/gestao/inconsistencias"
-                ),
-              },
-              {
-                title: "Calendário",
-                url: "/controle-horarios/gestao/calendario",
-                isActive: pathname.startsWith(
-                  "/controle-horarios/gestao/calendario"
-                ),
-              },
-            ],
-          },
-        ]
-      : [],
-  navDiretor: isDiretor
-    ? [
         {
-          title: "Direção",
-          url: "/controle-horarios/direcao/projetos",
-          icon: Rocket,
-          isActive: pathname.startsWith("/controle-horarios/direcao"),
+          title: "Gestão",
+          url: "/controle-horarios/gestao/painel-equipes",
+          icon: ChartPie,
+          isActive: pathname.startsWith("/controle-horarios/gestao"),
           items: [
             {
-              title: "Atividades",
-              url: "/controle-horarios/direcao/atividades",
+              title: "Painel de Equipes",
+              url: "/controle-horarios/gestao/painel-equipes",
               isActive: pathname.startsWith(
-                "/controle-horarios/direcao/atividades"
+                "/controle-horarios/gestao/painel-equipes"
               ),
             },
             {
-              title: "Projetos",
-              url: "/controle-horarios/direcao/projetos",
+              title: "Painel de Projetos",
+              url: "/controle-horarios/gestao/painel-projetos",
               isActive: pathname.startsWith(
-                "/controle-horarios/direcao/projetos"
+                "/controle-horarios/gestao/painel-projetos"
+              ),
+            },
+            {
+              title: "Colaboradores",
+              url: "/controle-horarios/gestao/colaboradores",
+              isActive: pathname.startsWith(
+                "/controle-horarios/gestao/colaboradores"
+              ),
+            },
+            {
+              title: "Inconsistências",
+              url: "/controle-horarios/gestao/inconsistencias",
+              isActive: pathname.startsWith(
+                "/controle-horarios/gestao/inconsistencias"
+              ),
+            },
+            {
+              title: "Calendário",
+              url: "/controle-horarios/gestao/calendario",
+              isActive: pathname.startsWith(
+                "/controle-horarios/gestao/calendario"
               ),
             },
           ],
         },
       ]
+      : [],
+  navDiretor: isDiretor
+    ? [
+      {
+        title: "Direção",
+        url: "/controle-horarios/direcao/projetos",
+        icon: Rocket,
+        isActive: pathname.startsWith("/controle-horarios/direcao"),
+        items: [
+          {
+            title: "Atividades",
+            url: "/controle-horarios/direcao/atividades",
+            isActive: pathname.startsWith(
+              "/controle-horarios/direcao/atividades"
+            ),
+          },
+          {
+            title: "Projetos",
+            url: "/controle-horarios/direcao/projetos",
+            isActive: pathname.startsWith(
+              "/controle-horarios/direcao/projetos"
+            ),
+          },
+        ],
+      },
+    ]
     : [],
 });
 
@@ -166,7 +166,7 @@ export function TimesheetSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
           setOpenItem={setOpenItem}
         />
         {data.navGestor.length > 0 && (
-          <NavGestor
+          <NavGestorTimesheet
             items={data.navGestor}
             openItem={openItem}
             setOpenItem={setOpenItem}

@@ -24,8 +24,6 @@ const activeItemStyles =
 
 export function NavGestor({
   items,
-  openItem,
-  setOpenItem,
 }: {
   items: {
     title: string;
@@ -40,8 +38,6 @@ export function NavGestor({
       subTitle?: string;
     }[];
   }[];
-  openItem: string | null;
-  setOpenItem: (item: string | null) => void;
 }) {
   const router = useRouter();
 
@@ -52,8 +48,7 @@ export function NavGestor({
           <Collapsible
             key={item.title}
             asChild
-            open={openItem === item.title || item.isActive}
-            onOpenChange={(isOpen) => setOpenItem(isOpen ? item.title : null)}
+            defaultOpen={item.isActive}
             className="group/collapsible"
           >
             <SidebarMenuItem>
@@ -85,7 +80,7 @@ export function NavGestor({
                             <button
                               onClick={() => router.push(subItem.url)}
                               className={cn(
-                                "flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
+                                "flex w-full items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
                                 subItem.isActive && activeItemStyles
                               )}
                             >
