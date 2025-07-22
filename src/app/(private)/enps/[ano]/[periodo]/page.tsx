@@ -59,14 +59,23 @@ export default function FormEnps() {
 
   const linearScaleOptions = [1, 2, 3, 4, 5]
 
+  const linearScaleLabels = [
+    "Nunca",
+    "Raramente",
+    "Às vezes",
+    "Frequentemente",
+    "Sempre",
+  ];
+
   const renderLinearScale = (name: string, label: string) => (
     <div className="space-y-2">
       <Label>{label}</Label>
       <RadioGroup name={name} required className="flex gap-4">
-        {linearScaleOptions.map((val) => (
-          <div key={`${name}-${val}`} className="flex items-center space-x-2">
+        {linearScaleOptions.map((val, idx) => (
+          <div key={`${name}-${val}`} className="flex flex-col items-center space-y-1">
             <RadioGroupItem value={String(val)} id={`${name}-${val}`} />
             <Label htmlFor={`${name}-${val}`}>{val}</Label>
+            <span className="text-xs text-muted-foreground">{linearScaleLabels[idx]}</span>
           </div>
         ))}
       </RadioGroup>

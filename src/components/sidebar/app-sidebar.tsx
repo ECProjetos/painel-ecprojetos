@@ -227,8 +227,8 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
         ) : (
           <NavGeneral items={navData.navGeneral} />
         )}
-        <Button size="icon" variant="outline" onClick={logout}>
-          <LogOut />
+        <Button className="mx-auto w-full mt-10" size="icon" variant="outline" onClick={logout}>
+          <LogOut />Logout
         </Button>
       </SidebarContent>
 
