@@ -33,6 +33,6 @@ export async function fetchAllEnps() {
     const supabase = await createClient()
 
     const data = await supabase.from('enps').select('*')
-    
+
     return data
 }

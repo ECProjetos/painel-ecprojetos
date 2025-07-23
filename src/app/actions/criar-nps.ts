@@ -28,3 +28,10 @@ export async function criarNps(
     return { success: true };
 }
 
+export async function fetchAllNps() {
+    const supabase = await createClient()
+
+    const data = await supabase.from('satisfacao_clientes').select('*')
+
+    return data
+}
