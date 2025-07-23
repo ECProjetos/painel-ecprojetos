@@ -1,6 +1,7 @@
 import { fetchAllEnps } from '@/app/actions/criar-enps'
 import CriarEnpsForm from '@/components/satisfacao/form-enps'
 import AllEnps from '@/components/satisfacao/all-enps'
+import ParaCsv from '@/components/satisfacao/csv'
 
 export default async function createEnpsPage() {
     const allEnps = await fetchAllEnps()
@@ -8,6 +9,7 @@ export default async function createEnpsPage() {
         <>
             <CriarEnpsForm />
             {allEnps.data && allEnps.data.length > 0 && <AllEnps />}
+            <ParaCsv />
         </>
     )
 

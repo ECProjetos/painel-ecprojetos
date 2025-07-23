@@ -10,7 +10,7 @@ import AvaliacaoSelectColaboradorTable from "@/components/plano-carreira/select-
 
 export default function AvaliacaoSelectColaborador() {
     const { role, loading } = useClientRole();
-    const isDiretor = role === roles.diretor;
+    const isDiretor = role === roles.diretor || role === roles.gestor;
 
     if (loading) {
         return <div>Carregando...</div>;

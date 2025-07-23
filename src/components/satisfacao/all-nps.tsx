@@ -31,7 +31,7 @@ export default function AllNps() {
                             <Card className="text-center" key={idx}>
                                 <div className="p-6 flex flex-col items-center">
                                     <div className="text-xl font-semibold mb-2">
-                                        {process.env.NEXT_PUBLIC_FRONTEND_URL}{item.cliente}/{item.projeto}
+                                        {process.env.NEXT_PUBLIC_FRONTEND_URL}satisfacao/{item.cliente}/{item.projeto}
                                     </div>
                                     <div className="mb-2">
                                         Status: <span className="font-medium">{getStatusLabel(item.status)}</span>

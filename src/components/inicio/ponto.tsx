@@ -23,7 +23,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -35,6 +34,7 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { ChevronsUpDown } from "lucide-react";
+import { Card } from "../ui/card";
 
 interface PontoFormProps {
   /** Se informado, popula o form para edição */
@@ -72,7 +72,7 @@ export default function PontoForm({
     }
   }, [initialData, form]);
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, remove } = useFieldArray({
     control: form.control,
     name: "allocations",
   });
@@ -103,115 +103,87 @@ export default function PontoForm({
   const handleSubmit = form.handleSubmit(onSubmit);
 
   return (
-    <Form {...form}>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Data (fixa) */}
-        <FormField
-          control={form.control}
-          name="entry_date"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Data</FormLabel>
-              <FormControl>
-                <Input
-                  type="date"
-                  disabled
-                  {...field}
-                  className="cursor-not-allowed bg-gray-100"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Período */}
-        <FormField
-          control={form.control}
-          name="period"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Período</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  min={1}
-                  max={3}
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Horários de Entrada/Saída */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="entry_time"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Hora de Entrada</FormLabel>
-                <FormControl>
-                  <Input type="time" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="exit_time"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Hora de Saída</FormLabel>
-                <FormControl>
-                  <Input type="time" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Alocações */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Alocações</h3>
-          {fields.map((fieldItem, idx) => (
-            <AllocationItem
-              key={fieldItem.id}
-              index={idx}
-              remove={() => remove(idx)}
-              form={form}
-              projects={projects}
-              atividades={atividades}
+    <>
+      <Card className="h-[70vh] mx-6">
+        <Form {...form} >
+          <form onSubmit={handleSubmit} className="space-y-6 m-5">
+            {/* Data (fixa) */}
+            <FormField
+              control={form.control}
+              name="entry_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Data</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="date"
+                      max={today}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          ))}
 
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() =>
-              append({ project_id: 0, activity_id: 0, hours: 0, comment: "" })
-            }
-          >
-            Adicionar Alocação
-          </Button>
-        </div>
+            {/* Horários de Entrada/Saída */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="entry_time"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hora de Entrada</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="exit_time"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hora de Saída</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-        <Button type="submit" className="w-full mt-6">
-          {initialData ? "Atualizar Ponto" : "Registrar Ponto"}
-        </Button>
-      </form>
-    </Form>
+            {/* Alocações */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Alocações</h3>
+              {fields.map((fieldItem, idx) => (
+                <AllocationItem
+                  key={fieldItem.id}
+                  index={idx}
+                  remove={() => remove(idx)}
+                  form={form}
+                  projects={projects}
+                  atividades={atividades}
+                />
+              ))}
+            </div>
+
+            <Button type="submit" className="w-full mt-6">
+              {initialData ? "Atualizar Ponto" : "Registrar Ponto"}
+            </Button>
+          </form>
+        </Form>
+      </Card>
+    </>
   );
 }
 
 /** Componente interno para cada linha de alocação */
 function AllocationItem({
   index,
-  remove,
   form,
   projects,
   atividades,
@@ -227,7 +199,7 @@ function AllocationItem({
 
   return (
     <div className="p-4 border rounded space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols gap-y-4">
         {/* Projeto */}
         <FormField
           control={form.control}
@@ -330,53 +302,6 @@ function AllocationItem({
           }}
         />
 
-        {/* Horas */}
-        <FormField
-          control={form.control}
-          name={`allocations.${index}.hours`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Horas</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={field.value?.toString() ?? ""}
-                  onChange={(e) => {
-                    const num = parseFloat(e.target.value);
-                    field.onChange(isNaN(num) ? 0 : num);
-                  }}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
-
-      {/* Comentário */}
-      <FormField
-        control={form.control}
-        name={`allocations.${index}.comment`}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Comentário</FormLabel>
-            <FormControl>
-              <Textarea placeholder="Opcional" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="destructive"
-          onClick={remove}
-        >
-          Remover
-        </Button>
       </div>
     </div>
   );

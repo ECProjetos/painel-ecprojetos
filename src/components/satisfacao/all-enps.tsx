@@ -31,7 +31,7 @@ export default function AllEnps() {
                             <Card className="text-center" key={idx}>
                                 <div className="p-6 flex flex-col items-center">
                                     <div className="text-xl font-semibold mb-2">
-                                        {process.env.NEXT_PUBLIC_FRONTEND_URL}{item.ano}/{item.periodo}
+                                        {process.env.NEXT_PUBLIC_FRONTEND_URL}enps/{item.ano}/{item.periodo}
                                     </div>
                                     <div className="mb-2">
                                         Status: <span className="font-medium">{getStatusLabel(item.status)}</span>

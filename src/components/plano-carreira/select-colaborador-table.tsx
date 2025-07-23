@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { getColaboradoresByDepartamento } from "@/app/actions/colaboradores";
+import { getAllColaboradores, getColaboradoresByDepartamento } from "@/app/actions/colaboradores";
 import { Colaborador } from "@/types/colaboradores";
 import { getDepartamentoByID } from "@/app/actions/colaboradores";
 import { getUser } from "@/hooks/use-user";
@@ -37,7 +37,9 @@ export default function AvaliacaoSelectColaboradorTable() {
             try {
                 const user = await getUser();
                 if (user) {
+
                     const departamento = await getDepartamentoByID(user.id);
+
                     setDepartamentoNome(departamento.nome_departamento);
                 }
             } catch (err) {
@@ -54,7 +56,12 @@ export default function AvaliacaoSelectColaboradorTable() {
 
             setLoading(true);
             try {
-                const colaboradores = await getColaboradoresByDepartamento(nomeDepartamento);
+                let colaboradores: Colaborador[] = [];
+                if (nomeDepartamento === 'Todos') {
+                    colaboradores = await getAllColaboradores();
+                } else {
+                    colaboradores = await getColaboradoresByDepartamento(nomeDepartamento);
+                }
                 setLista(colaboradores);
 
                 const statusPromises = colaboradores.map((colaborador) =>

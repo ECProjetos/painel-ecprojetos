@@ -9,6 +9,7 @@ import { useActionState } from "react";
 
 export default function CriarEnpsForm() {
     const [state, formAction] = useActionState(criarEnps, undefined);
+    
 
 
     return (
@@ -24,15 +25,35 @@ export default function CriarEnpsForm() {
                     <div className="flex container mx-auto p-4 flex-col gap-6">
                         <div className="flex flex-col gap-2 max-w-2xl">
                             <label htmlFor="ano" className="text-lg font-semibold">
-                                Ano do feedback:
+                                Ano:
                             </label>
-                            <Input className="placeholder:text-gray-400" placeholder="2025" id="ano" name="ano" />
+                            <Input
+                                className="placeholder:text-gray-400"
+                                placeholder="Insira o ano de referencia"
+                                id="ano"
+                                name="ano"
+                                onChange={e => {
+                                    e.target.value = e.target.value
+                                        .toLowerCase()
+                                        .replace(/\s+/g, "-");
+                                }}
+                            />
                         </div>
                         <div className="flex flex-col gap-2 max-w-2xl">
                             <label htmlFor="periodo" className="text-lg font-semibold">
-                                Período do feedback:
+                                Periodo:
                             </label>
-                            <Input className="placeholder:text-gray-400" placeholder="Insira o periodo" id="periodo" name="periodo" />
+                            <Input
+                                className="placeholder:text-gray-400"
+                                placeholder="Insira o periodo"
+                                id="periodo"
+                                name="periodo"
+                                onChange={e => {
+                                    e.target.value = e.target.value
+                                        .toLowerCase()
+                                        .replace(/\s+/g, "-");
+                                }}
+                            />
                         </div>
                     </div>
                 </CardContent>

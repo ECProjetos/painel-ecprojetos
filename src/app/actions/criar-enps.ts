@@ -36,3 +36,11 @@ export async function fetchAllEnps() {
 
     return data
 }
+
+export async function fetchEnpsAtivo() {
+    const supabase = await createClient()
+
+    const data = await supabase.from('enps').select('*').eq('status', 'TRUE').not('periodo', 'is', null)
+
+    return data
+}

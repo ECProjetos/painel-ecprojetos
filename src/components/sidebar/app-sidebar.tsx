@@ -77,8 +77,13 @@ const createData = (pathname: string, userId?: string) => ({
       items: [
         {
           title: "Visualizar",
-          url: `/plano-carreira/view/${userId ?? ""}`,
+          url: "/plano-carreira/view ",
           isActive: pathname.startsWith("/plano-carreira/view"),
+        },
+        {
+          title: "Avaliar",
+          url: "/plano-carreira/avaliar",
+          isActive: pathname.startsWith("/plano-carreira/avaliar"),
         },
       ],
     },
@@ -87,6 +92,12 @@ const createData = (pathname: string, userId?: string) => ({
       url: "/enps",
       icon: ClipboardList,
       isActive: pathname.startsWith("/enps"),
+    },
+    {
+      title: "Satisfação do cliente",
+      url: "/satisfacao",
+      icon: ThumbsUpIcon,
+      isActive: pathname.startsWith("/satisfacao"),
     }
   ],
   navDiretor: [
@@ -137,7 +148,7 @@ function getRoleLabel(role: string) {
     case roles.colaborador:
       return "Colaborador";
     default:
-      return role; // fallback
+      return role; // 
   }
 }
 

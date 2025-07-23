@@ -20,7 +20,6 @@ export default function SearchViewColaboradorPage() {
                 </Breadcrumb>
             </header>
             <div>
-
                 <SelectColaborador acao="visualizar" />
             </div>
         </div>
