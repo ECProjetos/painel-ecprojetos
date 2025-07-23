@@ -44,7 +44,7 @@ export default function Page() {
       </header>
 
       {/* Conteúdo principal */}
-      <div className="mt-15">
+      <div className="mt-10">
         <Tabs >
           <TabsList className="flex border-gray-200 bg-white gap-1 px-4 pt-2 mx-4">
             <TabsTrigger
