@@ -17,6 +17,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { PontoType } from "@/types/inicio/ponto";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 import { toast } from "sonner";
+import RelatorioColaborador from '@/components/inicio/relatorio-colaborador'
 
 export default function Page() {
   const onSubmit = async (data: PontoType) => {
@@ -130,10 +131,7 @@ export default function Page() {
             </div>
           </TabsContent>
           <TabsContent value="relatorio">
-            <div className="p-4">
-              <h2 className="text-2xl font-semibold mb-4">Meu Relatório</h2>
-              <p>Em desenvolvimento...</p>
-            </div>
+            <RelatorioColaborador />
           </TabsContent>
           <TabsContent value="configuracoes">
             <ColaboradoresPage />

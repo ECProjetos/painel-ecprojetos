@@ -186,7 +186,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <div className="flex items-center p-2">
           <div className="flex items-center gap-2">
-            <Image src="/images/logo.png" alt="logo" width={32} height={32} />
+            <Image src="/images/logo.png" alt="logo" width={64} height={72 } />
             {open && (
               <div className="flex flex-col">
                 <h1 className="text-sm font-bold">EC Projetos</h1>
@@ -239,7 +239,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
           <NavGeneral items={navData.navGeneral} />
         )}
         <Button className="mx-auto w-full mt-10" size="icon" variant="outline" onClick={logout}>
-          <LogOut />Logout
+          <LogOut />
         </Button>
       </SidebarContent>
 
