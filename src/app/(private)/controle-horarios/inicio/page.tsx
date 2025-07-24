@@ -1,7 +1,10 @@
 "use client";
 
 import { sendTimeEntry } from "@/app/actions/time-sheet/send-time-entry";
+import BancoHorasPage from "@/components/inicio/banco-horas";
+import { ColaboradoresPage } from "@/components/inicio/colaboradores_page";
 import PontoForm from "@/components/inicio/ponto";
+import { UserHoursChart } from "@/components/projects-dashboard/user-hours-chart";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -118,10 +121,7 @@ export default function Page() {
             <PontoForm onSubmit={onSubmit} />
           </TabsContent>
           <TabsContent value="banco">
-            <div className="p-4">
-              <h2 className="text-2xl font-semibold mb-4">Banco de Horas</h2>
-              <p>Em desenvolvimento...</p>
-            </div>
+            <BancoHorasPage />
           </TabsContent>
           <TabsContent value="relatorios">
             <div className="p-4">
@@ -136,10 +136,7 @@ export default function Page() {
             </div>
           </TabsContent>
           <TabsContent value="configuracoes">
-            <div className="p-4">
-              <h2 className="text-2xl font-semibold mb-4">Configurações</h2>
-              <p>Em desenvolvimento...</p>
-            </div>
+            <ColaboradoresPage />
           </TabsContent>
         </Tabs>
 

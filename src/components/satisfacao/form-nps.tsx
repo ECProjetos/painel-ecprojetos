@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
-import { criarNps } from "@/app/actions/criar-nps";
+import { criarNps } from "@/app/actions/satisfacao/criar-nps";
 import { useActionState } from "react";
 
 

@@ -21,7 +21,7 @@ import { colaboradoresColumns } from "@/components/colaboradores/columns";
 import { toast } from "sonner";
 import { SkeletonTable } from "@/components/skeleton-table";
 
-export default function ColaboradoresPage() {
+export function ColaboradoresPage() {
   const [colaboradores, setColaboradores] = useState<ColaboradorView[]>([]);
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState<number>(0);

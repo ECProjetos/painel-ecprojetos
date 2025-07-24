@@ -1,7 +1,7 @@
 'use client';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { fetchAllNps } from "@/app/actions/criar-nps"
+import { fetchAllNps } from "@/app/actions/satisfacao/criar-nps"
 import { Card } from "../ui/card";
 
 

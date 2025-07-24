@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useEffect, useState } from "react"
-import { SendEnpsForm } from "@/app/actions/enps-form"
+import { SendEnpsForm } from "@/app/actions/satisfacao/enps-form"
 import { getAllDepartments } from "@/app/actions/get-departamentos"
 import {
   Card,

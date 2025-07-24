@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
-import { criarEnps } from "@/app/actions/criar-enps";
+import { criarEnps } from "@/app/actions/satisfacao/criar-enps";
 import { useActionState } from "react";
 
 export default function CriarEnpsForm() {
@@ -57,10 +57,11 @@ export default function CriarEnpsForm() {
                         </div>
                     </div>
                 </CardContent>
-                {/* Mensagens de feedback opcionais */}
+                
                 {state?.success && (
                     <div className="text-green-600 text-center mb-2">
                         Cadastro realizado com sucesso!{" "}
+                        
                     </div>
                 )}
                 {state?.error && (

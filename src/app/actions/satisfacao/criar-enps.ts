@@ -32,15 +32,25 @@ export async function criarEnps(
 export async function fetchAllEnps() {
     const supabase = await createClient()
 
-    const data = await supabase.from('enps').select('*')
+    const data = await supabase.from('enps').select('*').is('department', null)
 
     return data
 }
 
-export async function fetchEnpsAtivo() {
+export async function fetchEnpsAtivo(ano: string, periodo: string) {
     const supabase = await createClient()
 
-    const data = await supabase.from('enps').select('*').eq('status', 'TRUE').not('periodo', 'is', null)
+    const { data, error } = await supabase
+        .from('enps')
+        .select('*')
+        .eq('status', 'TRUE')
+        .not('department', 'is', null)
+        .eq('ano', ano)
+        .eq('periodo', periodo)
+
+    if (error) {
+        throw new Error(error.message)
+    }
 
     return data
-}
+    }

@@ -1,11 +1,12 @@
 'use client';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { fetchAllEnps } from "@/app/actions/criar-enps"
+import { fetchAllEnps } from "@/app/actions/satisfacao/criar-enps"
 import { Card } from "../ui/card";
 
 
 import { useEffect, useState } from "react";
+import DownloadEnpsButton from "./csv";
 
 export default function AllEnps() {
     const [allEnpsResult, setAllEnpsResult] = useState<any>(null);
@@ -33,7 +34,11 @@ export default function AllEnps() {
                                     <div className="text-xl font-semibold mb-2">
                                         {process.env.NEXT_PUBLIC_FRONTEND_URL}enps/{item.ano}/{item.periodo}
                                     </div>
-                                    <div className="mb-2">
+                                    <div className="mt-2">
+                                        <DownloadEnpsButton ano={item.ano} periodo={item.periodo} />
+                                    </div>
+
+                                    <div className="mt-2">
                                         Status: <span className="font-medium">{getStatusLabel(item.status)}</span>
                                     </div>
                                 </div>

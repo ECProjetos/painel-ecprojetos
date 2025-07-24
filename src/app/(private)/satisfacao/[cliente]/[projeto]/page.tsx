@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useEffect, useState } from "react"
-import { SendNpsForm, checkExists } from "@/app/actions/nps-form"
+import { SendNpsForm, checkExists } from "@/app/actions/satisfacao/nps-form"
 import {
     Card,
     CardContent,
