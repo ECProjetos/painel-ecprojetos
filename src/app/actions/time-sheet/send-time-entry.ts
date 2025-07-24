@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { TimeEntryFormValues } from "@/types/time-sheet/time-entrys-alocation";
+import { TimeEntryFormValues } from "@/types/inicio/ponto";
 
 type SendTimeEntryResult =
     | { success: true }

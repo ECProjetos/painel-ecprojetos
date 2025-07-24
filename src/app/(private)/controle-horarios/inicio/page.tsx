@@ -14,12 +14,12 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { TimeEntryFormValues } from "@/types/time-sheet/time-entrys-alocation";
+import { PontoType } from "@/types/inicio/ponto";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 import { toast } from "sonner";
 
 export default function Page() {
-  const onSubmit = async (data: TimeEntryFormValues) => {
+  const onSubmit = async (data: PontoType) => {
     const result = await sendTimeEntry(data);
     if (result.success) {
       toast.success("Ponto registrado com sucesso!");
@@ -48,7 +48,7 @@ export default function Page() {
 
       {/* Conteúdo principal */}
       <div className="mt-10">
-        <Tabs >
+        <Tabs defaultValue="ponto">
           <TabsList className="flex border-gray-200 bg-white gap-1 px-4 pt-2 mx-4">
             <TabsTrigger
               value="ponto"
@@ -118,7 +118,7 @@ export default function Page() {
           </TabsList>
 
           <TabsContent value="ponto">
-            <PontoForm onSubmit={onSubmit} />
+            <PontoForm />
           </TabsContent>
           <TabsContent value="banco">
             <BancoHorasPage />

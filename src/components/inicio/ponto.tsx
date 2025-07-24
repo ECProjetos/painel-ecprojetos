@@ -1,307 +1,275 @@
-// app/components/PontoForm.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-
-import {
-  TimeEntryFormValues,
-  timeEntryFormSchema,
-} from "@/types/time-sheet/time-entrys-alocation";
-import { Project } from "@/types/projects";
-import { AtividadeView } from "@/types/activity-hierarchy/atividades";
-import { fetchProjects } from "@/app/actions/fetchProjects";
-import { fetchAtividades } from "@/app/actions/fetchAtividades";
-
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import {
-  Command,
-  CommandInput,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-} from "@/components/ui/command";
-import { ChevronsUpDown } from "lucide-react";
 import { Card } from "../ui/card";
+import { Input } from "@/components/ui/input";
+import { savePonto } from "@/app/actions/inicio/send-form-ponto";
+import { getAtividades } from "@/app/actions/inicio/get-atividades";
+import {
+  activitiesArraySchema,
+  ActivitiesType,
+} from "@/types/inicio/atividades";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import {
+  projectsArraySchema,
+  ProjectsType,
+} from "@/types/inicio/projetos";
+import { getProjetos } from "@/app/actions/inicio/get-projetos";
+import { getUserSession } from "@/app/(auth)/actions";
+import Loading from "@/app/loading";
+import { nestedPontoType, PontoType } from "@/types/inicio/ponto";
+import { deletePonto } from "@/app/actions/inicio/get-ponto";
 
-interface PontoFormProps {
-  /** Se informado, popula o form para edição */
-  initialData?: TimeEntryFormValues;
-  /** Função a ser chamada no submit (criar ou atualizar) */
-  onSubmit: (data: TimeEntryFormValues) => Promise<void>;
+const initialState = { success: false, error: null as string | null };
+
+interface GetByIdDateType {
+  payload: {
+    user_id: string;
+    entry_date: string;
+  };
 }
 
-export default function PontoForm({
-  initialData,
-  onSubmit,
-}: PontoFormProps) {
-  // 1. Data de hoje yyyy-MM-dd
-  const today = new Date().toISOString().split("T")[0];
+export default function PontoForm() {
+  const formRef = useRef<HTMLFormElement | null>(null);
 
-  // 2. Configura RHF com defaults ou initialData
-  const form = useForm<TimeEntryFormValues>({
-    resolver: zodResolver(timeEntryFormSchema),
-    defaultValues:
-      initialData ?? {
-        entry_date: today,
-        period: 1,
-        entry_time: "",
-        exit_time: "",
-        allocations: [
-          { project_id: 0, activity_id: 0, hours: 0, comment: "" },
-        ],
-      },
-  });
+  const [state, formAction, isPending] = useActionState(
+    async (prevState: any, formData: FormData) => {
+      return await savePonto(formData);
+    },
+    initialState
+  );
 
-  // Se initialData mudar, reseta o form
+  const [userId, setUserId] = useState<string | null>(null);
+  const [atividades, setAtividades] = useState<ActivitiesType>();
+  const [projetos, setProjetos] = useState<ProjectsType>();
+  const [selectedProjeto, setSelectedProjeto] = useState<string>("");
+  const [selectedAtividade, setSelectedAtividade] = useState<string>("");
+  const [periodos, setPeriodos] = useState<nestedPontoType[]>([]);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [date, setDate] = useState<any>(today);
   useEffect(() => {
-    if (initialData) {
-      form.reset(initialData);
-    }
-  }, [initialData, form]);
+    if (!userId || !date) return;
 
-  const { fields, remove } = useFieldArray({
-    control: form.control,
-    name: "allocations",
-  });
+    const fetchPeriodos = async () => {
+      try {
+        const res = await fetch("/api/ponto", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ user_id: userId, entry_date: date }),
+        });
 
-  // 3. Busca projetos e atividades
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [atividades, setAtividades] = useState<AtividadeView[]>([]);
+        if (!res.ok) throw new Error("Erro ao buscar dados do ponto");
+
+        const data = await res.json();
+        setPeriodos(data); // data é um array
+      } catch (err) {
+        console.error("Erro ao buscar períodos:", err);
+      }
+    };
+
+    fetchPeriodos();
+  }, [userId, date, state]);
 
   useEffect(() => {
-    fetchProjects().then(setProjects);
-    fetchAtividades().then((atvs) =>
-      setAtividades(
-        atvs.map((a) => ({
-          ...a,
-          // adaptações do seu mapping
-          macroprocesso_id: 0,
-          processo_id: 0,
-          macroprocesso_nome: a.department_name,
-          processo_nome: "",
-          sub_processo_id: undefined,
-          sub_processo_nome: undefined,
-        }))
-      )
-    );
+    const fetchUser = async () => {
+      const session = await getUserSession();
+      setUserId(session?.user.id || null);
+    };
+    fetchUser();
   }, []);
 
-  // 4. Submit handler
-  const handleSubmit = form.handleSubmit(onSubmit);
+  useEffect(() => {
+    const fetchAtividades = async () => {
+      const atividades = await getAtividades();
+      const parsed = activitiesArraySchema.safeParse(atividades);
+      if (parsed.success) setAtividades(parsed.data);
+    };
+    fetchAtividades();
+  }, []);
+
+  useEffect(() => {
+    const fetchProjetos = async () => {
+      const projetos = await getProjetos();
+      const parsed = projectsArraySchema.safeParse(projetos);
+      if (parsed.success) setProjetos(parsed.data);
+    };
+    fetchProjetos();
+  }, []);
+
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset(); // resetar inputs
+      setSelectedProjeto("");
+      setSelectedAtividade("");
+    }
+  }, [state.success]);
+
+
+  if (!userId) return <Loading />;
 
   return (
-    <>
-      <Card className="h-[70vh] mx-6">
-        <Form {...form} >
-          <form onSubmit={handleSubmit} className="space-y-6 m-5">
-            {/* Data (fixa) */}
-            <FormField
-              control={form.control}
-              name="entry_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="date"
-                      max={today}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Horários de Entrada/Saída */}
+    <Card className="h-[70vh] mx-6 overflow-y-auto ">
+      <div className="grid grid-cols-2">
+        <div className="h-full bg-[#fafbfc] m-4">
+          <form ref={formRef} action={formAction} className="space-y-6 m-5">
+            <div>
+              <label className="block mb-5 font-medium">Data</label>
+              <Input name="entry_date" className="bg-white" type="date"defaultValue={today} max={today} required onChange={(e) => setDate(e.target.value)}/>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="entry_time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hora de Entrada</FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="exit_time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hora de Saída</FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div>
+                <label className="block mb-5 font-medium">Hora de Entrada</label>
+                <Input name="entry_time" className="bg-white" type="time" required />
+              </div>
+              <div>
+                <label className="block mb-5 font-medium">Hora de Saída</label>
+                <Input name="exit_time" className="bg-white" type="time" required />
+              </div>
+            </div>
+            <div>
+              <label className="block mb-5 font-medium">Projeto</label>
+              <Select
+                name="projeto"
+                value={selectedProjeto}
+                onValueChange={setSelectedProjeto}
+              >
+                <SelectTrigger className="w-full bg-white">
+                  <SelectValue placeholder="Selecione um projeto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projetos && projetos.length > 0 ? (
+                    projetos.map((projeto) => (
+                      <SelectItem key={projeto.id} value={projeto.id.toString()}>
+                        {projeto.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="p-2 text-gray-400">Nenhum projeto encontrado</div>
+                  )}
+                </SelectContent>
+              </Select>
+
+              <label className="block mb-5 mt-5 font-medium">Atividade</label>
+              <Select
+                name="atividade"
+                value={selectedAtividade}
+                onValueChange={setSelectedAtividade}
+              >
+                <SelectTrigger className="w-full bg-white">
+                  <SelectValue placeholder="Selecione uma atividade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {atividades && atividades.length > 0 ? (
+                    atividades.map((atividade) => (
+                      <SelectItem
+                        key={atividade.id}
+                        value={atividade.id.toString()}
+                      >
+                        {atividade.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="p-2 text-gray-400">Nenhuma atividade encontrada</div>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Alocações */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Alocações</h3>
-              {fields.map((fieldItem, idx) => (
-                <AllocationItem
-                  key={fieldItem.id}
-                  index={idx}
-                  remove={() => remove(idx)}
-                  form={form}
-                  projects={projects}
-                  atividades={atividades}
-                />
-              ))}
-            </div>
+            <input type="hidden" name="user_id" value={userId} />
 
-            <Button type="submit" className="w-full mt-6">
-              {initialData ? "Atualizar Ponto" : "Registrar Ponto"}
+            <Button
+              type="submit"
+              className="w-full mt-10 py-1"
+              disabled={isPending || !selectedProjeto || !selectedAtividade}
+            >
+              {isPending ? "Salvando..." : "Registrar Ponto"}
             </Button>
           </form>
-        </Form>
-      </Card>
-    </>
+
+          {state.success && (
+            <p className="text-green-600 mt-2 mx-10">Ponto registrado com sucesso!</p>
+          )}
+          {state.error && (
+            <p className="text-red-600 mt-2 mx-10">{state.error}</p>
+          )}
+        </div>
+        <PeriodosDoDia periodos={periodos} />
+
+      </div>
+    </Card>
   );
 }
 
-/** Componente interno para cada linha de alocação */
-function AllocationItem({
-  index,
-  form,
-  projects,
-  atividades,
-}: {
-  index: number;
-  remove: () => void;
-  form: ReturnType<typeof useForm<TimeEntryFormValues>>;
-  projects: Project[];
-  atividades: AtividadeView[];
-}) {
-  const [openProj, setOpenProj] = useState(false);
-  const [openAtv, setOpenAtv] = useState(false);
+
+type Props = {
+  periodos: nestedPontoType[];
+};
+
+function formatTime(time: string): string {
+  return time.slice(0, 5); // hh:mm:ss → hh:mm
+}
+
+function calcularDuracao(entry: string, exit: string): string {
+  const [eh, em] = entry.split(":").map(Number);
+  const [xh, xm] = exit.split(":").map(Number);
+  let totalMin = (xh * 60 + xm) - (eh * 60 + em);
+  if (totalMin < 0) totalMin = 0;
+  const horas = Math.floor(totalMin / 60);
+  const minutos = totalMin % 60;
+  return `${horas}h ${minutos}min`;
+}
+
+export  function PeriodosDoDia({ periodos }: Props) {
+  const totalMinutos = periodos.reduce((acc, p) => {
+    const [eh, em] = p.entry_time.split(":").map(Number);
+    const [xh, xm] = p.exit_time.split(":").map(Number);
+    return acc + ((xh * 60 + xm) - (eh * 60 + em));
+  }, 0);
+
+  const totalHoras = Math.floor(totalMinutos / 60);
+  const totalMin = totalMinutos % 60;
 
   return (
-    <div className="p-4 border rounded space-y-4">
-      <div className="grid grid-cols gap-y-4">
-        {/* Projeto */}
-        <FormField
-          control={form.control}
-          name={`allocations.${index}.project_id`}
-          render={({ field }) => {
-            const sel = projects.find((p) => p.id === field.value);
-            return (
-              <FormItem>
-                <FormLabel>Projeto</FormLabel>
-                <FormControl>
-                  <Popover open={openProj} onOpenChange={setOpenProj}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="w-full justify-between"
-                      >
-                        <span className="block truncate">
-                          {sel?.name ?? "Selecione"}
-                        </span>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Buscar projeto..." />
-                        <CommandEmpty>Nenhum projeto.</CommandEmpty>
-                        <CommandGroup>
-                          {projects.map((proj) => (
-                            <CommandItem
-                              key={proj.id}
-                              value={proj.id.toString()}
-                              onSelect={(val) => {
-                                field.onChange(Number(val));
-                                setOpenProj(false);
-                              }}
-                            >
-                              {proj.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            );
-          }}
-        />
+    <div className=" h-full bg-[#fafbfc] m-4 p-10">
+      <h3 className="text-lg font-semibold mb-4">Períodos do Dia Selecionado</h3>
+      <div className="space-y-4 ">
+        {periodos.map((p, index) => (
+          <div
+            key={`${p.user_id}-${p.entry_date}-${p.entry_time}`}
+            className="border-l-4 border-blue-500 bg-white p-3 rounded-md shadow-sm flex justify-between items-start"
+          >
+            <div>
+              <p className="font-medium text-sm text-gray-800">Você</p>
+              <p className="text-sm text-gray-600">
+                {formatTime(p.entry_time)} - {formatTime(p.exit_time)} (
+                {calcularDuracao(p.entry_time, p.exit_time)})
+              </p>
+              <p className="text-sm text-gray-500">
+                {p.projeto?.name || "Sem projeto"} • {p.atividade?.name || "Sem atividade"}
+              </p>
+            </div>
+            <button
+              className="text-red-500 hover:text-red-700 text-sm font-bold"
+              aria-label="Remover período"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
 
-        {/* Atividade */}
-        <FormField
-          control={form.control}
-          name={`allocations.${index}.activity_id`}
-          render={({ field }) => {
-            const sel = atividades.find((a) => a.id === field.value);
-            return (
-              <FormItem>
-                <FormLabel>Atividade</FormLabel>
-                <FormControl>
-                  <Popover open={openAtv} onOpenChange={setOpenAtv}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="w-full justify-between"
-                      >
-                        <span className="block truncate">
-                          {sel?.name ?? "Selecione"}
-                        </span>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Buscar atividade..." />
-                        <CommandEmpty>Nenhuma atividade.</CommandEmpty>
-                        <CommandGroup>
-                          {atividades.map((ativ) => (
-                            <CommandItem
-                              key={ativ.id}
-                              value={ativ.id.toString()}
-                              onSelect={(val) => {
-                                field.onChange(Number(val));
-                                setOpenAtv(false);
-                              }}
-                            >
-                              {ativ.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            );
-          }}
-        />
-
+      <div className="mt-4 text-right text-sm text-gray-700 font-semibold">
+        Total do dia: {totalHoras}h {totalMin}min
       </div>
     </div>
   );

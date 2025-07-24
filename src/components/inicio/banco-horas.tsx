@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getHours } from "@/app/actions/time-sheet/get-hours";
+import { getHours } from "@/app/actions/inicio/get-hours";
 import { BancoHorasType, BancoHorasResponseSchema } from "@/types/inicio/banco-horas";
 import { Card } from "../ui/card";
+import Loading from "@/app/loading";
 
 export default function BancoHorasPage() {
   const [timeData, setTimeData] = useState<BancoHorasType >();
@@ -30,7 +31,7 @@ export default function BancoHorasPage() {
     return timeData.data.reduce((acc, curr) => acc + (Number(curr[field] || 0)), 0);
   }
 
-  if (!timeData) return <div>Carregando...</div>;
+  if (!timeData) return <Loading></Loading>;
 
   // Calculando totais corretamente:
   const totalHoras = sum("actual_hours");
@@ -98,3 +99,5 @@ export default function BancoHorasPage() {
     </>
   );
 }
+
+
