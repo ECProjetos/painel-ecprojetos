@@ -18,4 +18,6 @@ export async function  getHoursById(user_id:string) {
     .from('vw_user_month_balance')
     .select("*")
     .eq('user_id', user_id)
+
+    return data
 }

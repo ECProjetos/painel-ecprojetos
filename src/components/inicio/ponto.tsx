@@ -24,23 +24,18 @@ import {
 import { getProjetos } from "@/app/actions/inicio/get-projetos";
 import { getUserSession } from "@/app/(auth)/actions";
 import Loading from "@/app/loading";
-import { nestedPontoType, PontoType } from "@/types/inicio/ponto";
-import { deletePonto } from "@/app/actions/inicio/get-ponto";
+import { nestedPontoType } from "@/types/inicio/ponto";
+
 
 const initialState = { success: false, error: null as string | null };
 
-interface GetByIdDateType {
-  payload: {
-    user_id: string;
-    entry_date: string;
-  };
-}
+
 
 export default function PontoForm() {
   const formRef = useRef<HTMLFormElement | null>(null);
 
   const [state, formAction, isPending] = useActionState(
-    async (prevState: any, formData: FormData) => {
+    async (prevState: { success: boolean; error: string | null }, formData: FormData) => {
       return await savePonto(formData);
     },
     initialState
@@ -54,7 +49,7 @@ export default function PontoForm() {
   const [periodos, setPeriodos] = useState<nestedPontoType[]>([]);
   const today = new Date().toISOString().slice(0, 10);
 
-  const [date, setDate] = useState<any>(today);
+  const [date, setDate] = useState<string>(today);
   useEffect(() => {
     if (!userId || !date) return;
 
@@ -243,7 +238,7 @@ export  function PeriodosDoDia({ periodos }: Props) {
     <div className=" h-full bg-[#fafbfc] m-4 p-10">
       <h3 className="text-lg font-semibold mb-4">Períodos do Dia Selecionado</h3>
       <div className="space-y-4 ">
-        {periodos.map((p, index) => (
+        {periodos.map((p) => (
           <div
             key={`${p.user_id}-${p.entry_date}-${p.entry_time}`}
             className="border-l-4 border-blue-500 bg-white p-3 rounded-md shadow-sm flex justify-between items-start"

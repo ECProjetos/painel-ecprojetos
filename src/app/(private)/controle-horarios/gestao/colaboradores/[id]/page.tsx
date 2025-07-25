@@ -48,13 +48,34 @@ export default function EditColaboradorPage() {
         setDepartamentos(departamentosData);
         const mapped = {
           id: colaboradorData.id,
-          nome: colaboradorData.name, // name → nome
+          nome: colaboradorData.name,
           email: colaboradorData.email,
           role: colaboradorData.role,
-          cargoId: colaboradorData.cargo_id, // cargo_id → cargoId
+          cargoId: colaboradorData.cargo_id,
           status: colaboradorData.status,
           working_hours_per_day: colaboradorData.working_hours_per_day,
-          departamentoId: colaboradorData.departamentoId, // já está correto
+          departamentoId: colaboradorData.departamentoId,
+          endereco: colaboradorData.endereco,
+          cep: colaboradorData.cep,
+          cidade: colaboradorData.cidade,
+          estado: colaboradorData.estado,
+          telefone: colaboradorData.telefone,
+          data_admissao: colaboradorData.data_admissao,
+          data_demissao: colaboradorData.data_demissao,
+          supervisor_id: colaboradorData.supervisor_id,
+          observacoes: colaboradorData.observacoes,
+          horario: colaboradorData.horario,
+          data_nascimento: colaboradorData.data_nascimento,
+          naturalidade: colaboradorData.naturalidade,
+          grau_escolaridade: colaboradorData.grau_escolaridade,
+          pis: colaboradorData.pis,
+          ctps: colaboradorData.ctps,
+          serie_ctps: colaboradorData.serie_ctps,
+          uf_ctps: colaboradorData.uf_ctps,
+          rg: colaboradorData.rg,
+          cpf: colaboradorData.cpf,
+          orgao_emissor: colaboradorData.orgao_emissor,
+          uf_rg: colaboradorData.uf_rg,
         };
         setColaborador(mapped);
       } catch (err) {

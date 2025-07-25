@@ -1,10 +1,8 @@
-"use client";
+"use client"
 
-import { sendTimeEntry } from "@/app/actions/time-sheet/send-time-entry";
-import BancoHorasPage from "@/components/inicio/banco-horas";
-import { ColaboradoresPage } from "@/components/inicio/colaboradores_page";
-import PontoForm from "@/components/inicio/ponto";
-import { UserHoursChart } from "@/components/projects-dashboard/user-hours-chart";
+import BancoHorasPage from "@/components/inicio/banco-horas"
+import { ColaboradoresPage } from "@/components/inicio/colaboradores_page"
+import PontoForm from "@/components/inicio/ponto"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,24 +10,12 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { PontoType } from "@/types/inicio/ponto";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
-import { toast } from "sonner";
-import RelatorioColaborador from '@/components/inicio/relatorio-colaborador'
+} from "@/components/ui/breadcrumb"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
+import RelatorioColaborador from "@/components/inicio/relatorio-colaborador"
 
 export default function Page() {
-  const onSubmit = async (data: PontoType) => {
-    const result = await sendTimeEntry(data);
-    if (result.success) {
-      toast.success("Ponto registrado com sucesso!");
-    } else {
-      toast.error("Erro ao registrar ponto: " + result.error, {
-        description: "Verifique os dados e tente novamente.",
-      });
-    }
-  };
   return (
     <div className="flex flex-col bg-white shadow-lg rounded-2xl p-2 sm:p-4 sm:px-6 lg:px-8 flex-1 min-h-[125vh] border dark:bg-[#1c1c20]">
       <header className="flex h-16 shrink-0 items-center gap-2">
@@ -137,8 +123,7 @@ export default function Page() {
             <ColaboradoresPage />
           </TabsContent>
         </Tabs>
-
       </div>
-    </div >
-  );
+    </div>
+  )
 }
