@@ -32,7 +32,7 @@ export const ColaboradorSchema = z.object({
   grau_escolaridade: z
     .string()
     .min(1, { message: "Escolaridade é obrigatória" }),
-  pis: z.string().min(1, { message: "PIS é obrigatório" }),
+  pis: z.string().optional().nullable(),
   cpf: z.string().min(11, { message: "CPF inválido" }),
   rg: z.string().min(1, { message: "RG é obrigatório" }),
   orgao_emissor: z.string().min(1, { message: "Órgão emissor é obrigatório" }),
