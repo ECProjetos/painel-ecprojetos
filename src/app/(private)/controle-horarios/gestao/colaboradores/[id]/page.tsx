@@ -1,6 +1,6 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from "react"
 import {
   Breadcrumb,
   BreadcrumbEllipsis,
@@ -9,30 +9,30 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { getAllCargos } from "@/app/actions/get-cargos";
-import { getAllDepartments } from "@/app/actions/get-departamentos";
-import { Colaborador, ColaboradorUpdate } from "@/types/colaboradores";
+} from "@/components/ui/breadcrumb"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import { getAllCargos } from "@/app/actions/get-cargos"
+import { getAllDepartments } from "@/app/actions/get-departamentos"
+import { Colaborador, ColaboradorUpdate } from "@/types/colaboradores"
 import {
   getColaboradorById,
   updateColaborador,
-} from "@/app/actions/colaboradores";
-import { toast } from "sonner";
-import { EditColaboradorForm } from "@/components/colaboradores/user-form";
-import { useParams } from "next/navigation";
-import { Skeleton } from "@/components/ui/skeleton";
-import { SkeletonTable } from "@/components/skeleton-table";
-import Link from "next/link";
+} from "@/app/actions/colaboradores"
+import { toast } from "sonner"
+import { EditColaboradorForm } from "@/components/colaboradores/user-form"
+import { useParams } from "next/navigation"
+import { Skeleton } from "@/components/ui/skeleton"
+import { SkeletonTable } from "@/components/skeleton-table"
+import Link from "next/link"
 
 export default function EditColaboradorPage() {
-  const params = useParams();
-  const [cargos, setCargos] = useState<{ id: number; nome: string }[]>([]);
+  const params = useParams()
+  const [cargos, setCargos] = useState<{ id: number; nome: string }[]>([])
   const [departamentos, setDepartamentos] = useState<
     { id: number; name: string }[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [colaborador, setColaborador] = useState<Colaborador | null>(null);
+  >([])
+  const [loading, setLoading] = useState(true)
+  const [colaborador, setColaborador] = useState<Colaborador | null>(null)
 
   useEffect(() => {
     async function fetchData() {
@@ -42,10 +42,10 @@ export default function EditColaboradorPage() {
             getAllCargos(),
             getAllDepartments(),
             getColaboradorById(params.id as string),
-          ]);
+          ])
 
-        setCargos(cargosData);
-        setDepartamentos(departamentosData);
+        setCargos(cargosData)
+        setDepartamentos(departamentosData)
         const mapped = {
           id: colaboradorData.id,
           nome: colaboradorData.name,
@@ -76,30 +76,30 @@ export default function EditColaboradorPage() {
           cpf: colaboradorData.cpf,
           orgao_emissor: colaboradorData.orgao_emissor,
           uf_rg: colaboradorData.uf_rg,
-        };
-        setColaborador(mapped);
+        }
+        setColaborador(mapped)
       } catch (err) {
-        console.error("Erro ao carregar dados:", err);
+        console.error("Erro ao carregar dados:", err)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
     }
 
-    fetchData();
-  }, [params.id]);
+    fetchData()
+  }, [params.id])
 
   const handleFormSubmit = async (values: ColaboradorUpdate) => {
     try {
-      await updateColaborador(params.id as string, values);
-      toast.success("Colaborador atualizado com sucesso!");
+      await updateColaborador(params.id as string, values)
+      toast.success("Colaborador atualizado com sucesso!")
       setTimeout(() => {
-        window.location.href = "/controle-horarios/gestao/colaboradores";
-      }, 2000); // Redireciona após 2 segundos
+        window.location.href = "/controle-horarios/inicio"
+      }, 2000) // Redireciona após 2 segundos
     } catch (error) {
-      toast.error("Erro ao atualizar colaborador.");
-      console.error("Erro ao atualizar colaborador:", error);
+      toast.error("Erro ao atualizar colaborador.")
+      console.error("Erro ao atualizar colaborador:", error)
     }
-  };
+  }
 
   return (
     <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
@@ -151,5 +151,5 @@ export default function EditColaboradorPage() {
         )}
       </div>
     </div>
-  );
+  )
 }
