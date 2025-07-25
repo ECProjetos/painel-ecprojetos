@@ -28,7 +28,7 @@ export default async function Page() {
       return
     }
 
-    redirect("/controle-horarios/gestao/colaboradores")
+    redirect("/controle-horarios/inicio")
   }
 
   return (
