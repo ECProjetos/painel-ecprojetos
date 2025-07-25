@@ -249,7 +249,7 @@ export default function NewColaboradorForm({
                 <FormItem>
                   <FormLabel>Cidade</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -263,7 +263,7 @@ export default function NewColaboradorForm({
                 <FormItem>
                   <FormLabel>Estado</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -305,7 +305,7 @@ export default function NewColaboradorForm({
                 <FormItem>
                   <FormLabel>Naturalidade/UF</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -319,7 +319,7 @@ export default function NewColaboradorForm({
                 <FormItem>
                   <FormLabel>Escolaridade</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -333,7 +333,7 @@ export default function NewColaboradorForm({
                 <FormItem>
                   <FormLabel>PIS</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

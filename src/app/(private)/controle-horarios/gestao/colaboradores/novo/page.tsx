@@ -4,7 +4,6 @@ import NewColaboradorForm from "@/components/colaboradores/new-user-form"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 
-
 export default async function Page() {
   const cargos = await getAllCargos()
   const departamentos = await getAllDepartments()
@@ -25,6 +24,7 @@ export default async function Page() {
     })
     if (error) {
       console.error(error)
+      alert("colaborador incluido com sucesso!")
       return
     }
 
