@@ -16,17 +16,14 @@ export default function ClientUserProvider({
   const setUser = useUserStore((state) => state.setUser);
 
   useEffect(() => {
-    console.log('ClientUserProvider received user:', user);
     if (user) {
       setUser(user);
-      console.log('ClientUserProvider setting user in store:', user);
       if (user.user_metadata?.theme === "dark") {
         document.querySelector("html")?.classList.add("dark");
       } else {
         document.querySelector("html")?.classList.remove("dark");
       }
     } else {
-      console.log('ClientUserProvider user is null, removing dark class.');
       document.querySelector("html")?.classList.remove("dark");
     }
   }, [user, setUser]);

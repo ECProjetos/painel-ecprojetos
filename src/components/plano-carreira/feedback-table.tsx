@@ -42,7 +42,6 @@ export function FeedbackTable() {
     useEffect(() => {
         async function fetchAvaliadores() {
             if (feedbacks.length === 0) return;
-            console.log("Buscando avaliadores para os feedbacks:", feedbacks);
             const uniqueEvaluatorIds = [...new Set(feedbacks.map(fb => fb.evaluator_id))];
             const avaliadoresMap: Record<string, string> = {};
 
@@ -51,8 +50,6 @@ export function FeedbackTable() {
                     try {
                         const colaborador = await getColaboradorById(evaluatorId) as Colaborador;
                         avaliadoresMap[evaluatorId] = colaborador.nome;
-                        console.log(avaliadoresMap);
-                        console.log(`Avaliador ${evaluatorId} encontrado:`, colaborador.nome);
                     } catch (error) {
                         console.error(`Erro ao buscar avaliador ${evaluatorId}`, error);
                         avaliadoresMap[evaluatorId] = 'Desconhecido';
@@ -65,7 +62,6 @@ export function FeedbackTable() {
 
         fetchAvaliadores();
     }, [feedbacks]);
-    console.log("Feedbacks:", feedbacks);
 
     return (
         <div>

@@ -46,7 +46,6 @@ export default function AvaliacaoSelectColaborador({ acao }: acaoProps) {
                     colaboradores = await getColaboradoresByDepartamento(nomeDepartamento);
                 }
                 setLista(colaboradores);
-                console.log("Colaboradores:", colaboradores);
             } catch (err) {
                 console.error(err);
             } finally {

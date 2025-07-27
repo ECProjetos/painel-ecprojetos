@@ -34,7 +34,6 @@ export default function FormEnps() {
   const params = useParams()
   const ano = params.ano
   const periodo = params.periodo
-  console.log("Params:", params)
   const sendEnpsFormWithParams = SendEnpsForm.bind(
     null,
     ano as string,

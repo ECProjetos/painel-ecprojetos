@@ -203,8 +203,6 @@ export async function getColaboradorById(id: string) {
             departamentoId: userDepartament ? userDepartament.department_id : null,
         };
 
-        console.log("Colaborador encontrado:", data);
-
         return data;
     } catch (error) {
         console.error("Erro ao buscar colaborador:", error);
