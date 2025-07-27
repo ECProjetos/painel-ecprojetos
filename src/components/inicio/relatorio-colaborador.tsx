@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Card } from "@/components/ui/card"
 import ResumoCard from "./resumo-card"
 import { useEffect, useState } from "react"
 import { getUserSession } from "@/app/(auth)/actions"
