@@ -14,6 +14,7 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
 import RelatorioColaborador from "@/components/inicio/relatorio-colaborador"
+import RelatorioRh from "@/components/inicio/relatorio-rh"
 
 export default function Page() {
   return (
@@ -111,10 +112,7 @@ export default function Page() {
             <BancoHorasPage />
           </TabsContent>
           <TabsContent value="relatorios">
-            <div className="p-4">
-              <h2 className="text-2xl font-semibold mb-4">Relatórios</h2>
-              <p>Em desenvolvimento...</p>
-            </div>
+            <RelatorioRh/>
           </TabsContent>
           <TabsContent value="relatorio">
             <RelatorioColaborador />

@@ -28,6 +28,7 @@ export const historicoItemSchema = z.object({
   horas: z.number(),
 })
 
+
 export const historicoDetalhadoSchema = z.array(historicoItemSchema)
 
 export type HistoricoDetalhado = z.infer<typeof historicoItemSchema>

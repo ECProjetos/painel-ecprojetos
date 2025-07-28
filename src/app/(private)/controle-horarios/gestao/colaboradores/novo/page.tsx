@@ -13,22 +13,26 @@ export default async function Page() {
     "use server"
     const supabase = await createClient()
 
-    const { error } = await supabase.auth.signUp({
-      email: values.email,
-      password: values.password,
-      options: {
-        data: {
-          ...values,
+    try {
+      const { error, data } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            ...values,
+          },
         },
-      },
-    })
-    if (error) {
-      console.error(error)
-      alert("colaborador incluido com sucesso!")
-      return
-    }
+      })
 
-    redirect("/controle-horarios/inicio")
+      if (error) {
+        console.error("SignUp Error:", error)
+        return
+      }
+
+      console.log("SignUp Success:", data)
+    } catch (err) {
+      console.error("Unexpected Error:", err)
+    }
   }
 
   return (
