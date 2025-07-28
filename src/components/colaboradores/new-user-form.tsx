@@ -77,7 +77,7 @@ export default function NewColaboradorForm({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   return (
-    <Card className="h-screen p-20">
+    <Card className="p-20">
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
