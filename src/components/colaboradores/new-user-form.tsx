@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react" // ✅ incluiu useEffect
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
@@ -32,16 +32,19 @@ import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
 import { Card } from "../ui/card"
 
+// ✅ Interface atualizada
 interface NewColaboradorFormProps {
   cargos: { id: number; nome: string }[]
   departamentos: { id: number; name: string }[]
   onSubmit: (values: NewColaborador) => void
+  alertMessage?: string // ✅ renomeado e opcional
 }
 
 export default function NewColaboradorForm({
   cargos,
   departamentos,
   onSubmit,
+  alertMessage,
 }: NewColaboradorFormProps) {
   const form = useForm<NewColaborador>({
     resolver: zodResolver(NewColaboradorSchema),
@@ -75,6 +78,13 @@ export default function NewColaboradorForm({
 
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  // ✅ Exibir alerta se for fornecido
+  useEffect(() => {
+    if (alertMessage) {
+      alert(alertMessage)
+    }
+  }, [alertMessage])
 
   return (
     <Card className="p-20">

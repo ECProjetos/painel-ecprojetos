@@ -9,10 +9,10 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Button, buttonVariants } from "@/components/ui/button";
+import {  buttonVariants } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Download, PlusCircle } from "lucide-react";
+import {  PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { getAllProjects } from "@/app/actions/projects";
@@ -67,16 +67,8 @@ export default function ProjetosPage() {
         <div className="flex items-center align-center justify-between">
           <h1 className="text-2xl font-bold">Painel de Gestão de Projetos</h1>
           <div className="flex items-center space-x-2">
-            <Button
-              variant="default"
-              onClick={() => {
-                toast.success("Funcionalidade em desenvolvimento");
-              }}
-            >
-              <Download className="mr-2 h-4 w-4" /> Exportar
-            </Button>
             <Link
-              href="/controle-horarios/direcao/projetos/novo"
+              href="/projetos/novo"
               className={cn(buttonVariants({ variant: "default" }))}
             >
               <PlusCircle className="mr-2 h-4 w-4" />

@@ -44,7 +44,7 @@ export default function ProjetosPage() {
       await createProject(data);
       toast("Projeto criado com sucesso!");
       setTimeout(() => {
-        window.location.href = "/controle-horarios/direcao/projetos";
+        window.location.href = "/direcao/projetos";
       }, 2000); // Redireciona após 1 segundo
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {

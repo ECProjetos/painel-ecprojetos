@@ -3,22 +3,26 @@ import { getAllDepartments } from "@/app/actions/get-departamentos"
 import NewColaboradorForm from "@/components/colaboradores/new-user-form"
 import { createClient } from "@/utils/supabase/server"
 
+import { NewColaborador } from "@/types/colaboradores"
+
 export default async function Page() {
   const cargos = await getAllCargos()
   const departamentos = await getAllDepartments()
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: NewColaborador) => {
     "use server"
     const supabase = await createClient()
 
     try {
+      const { email, password, ...rest } = values
+      console.log("Valores recebidos:", values)
+
       const { error, data } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
+        email,
+        password,
         options: {
           data: {
-            ...values,
+            ...rest,
           },
         },
       })
@@ -39,6 +43,8 @@ export default async function Page() {
       cargos={cargos ?? []}
       departamentos={departamentos ?? []}
       onSubmit={handleSubmit}
+      alertMessage="Colaborador criado com sucesso!"
+      
     />
   )
 }

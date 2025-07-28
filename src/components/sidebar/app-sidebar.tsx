@@ -16,6 +16,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ThumbsUpIcon,
+  NotebookPen
 } from "lucide-react";
 
 import {
@@ -131,6 +132,12 @@ const createData = (pathname: string, userId?: string) => ({
       url: "/satisfacao",
       icon: ThumbsUpIcon,
       isActive: pathname.startsWith("/satisfacao"),
+    },
+    {
+      title: "Projetos",
+      url: "/projetos",
+      icon: NotebookPen,
+      isActive: pathname.startsWith("/projetos"),
     },
   ],
 });
