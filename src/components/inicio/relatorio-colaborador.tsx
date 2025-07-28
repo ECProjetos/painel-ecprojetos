@@ -3,14 +3,15 @@
 import ResumoCard from "./resumo-card"
 import { useEffect, useState } from "react"
 import { getUserSession } from "@/app/(auth)/actions"
-import { getHoursById, getHoursProAct } from "@/app/actions/inicio/get-hours"
+import { getHistoricoDetalhado, getHoursById, getHoursProAct } from "@/app/actions/inicio/get-hours"
 import Loading from "@/app/loading"
 import {
   relatorioColaborador,
   relatorioColaboradorSchema,
 } from "@/types/inicio/relatorio-colaborador"
-import { horaProjeto } from "@/types/inicio/hora-projeto"
+import { HistoricoDetalhado, horaProjeto } from "@/types/inicio/hora-projeto"
 import { MinhasHorasPorProjeto } from "@/components/hora-projeto"
+
 
 export default function RelatorioColaborador() {
   const [userId, setUserId] = useState<any>()
@@ -20,6 +21,18 @@ export default function RelatorioColaborador() {
     atividades: [],
   })
   console.log(hourProject)
+  const [historico, setHistorico] = useState<HistoricoDetalhado[]>([])
+  
+  useEffect(() => {
+    const fetchHistorico = async () => {
+      if (!userId) return
+      const result = await getHistoricoDetalhado(userId)
+      if (result.success) {
+        setHistorico(result.data)
+      }
+    }
+    fetchHistorico()
+  }, [userId])
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -63,7 +76,7 @@ export default function RelatorioColaborador() {
   return userId ? (
     <div className="p-6 space-y-6">
       {/* 🔹 Top Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 mb-10">
         <ResumoCard
           title="Total Trabalhado"
           value={
@@ -115,6 +128,37 @@ export default function RelatorioColaborador() {
           cor="green"
         />
       </div>
+      <div>
+      </div>
+      <div className="bg-white rounded-xl shadow p-6 mt-10">
+  <h2 className="text-lg font-semibold mb-4">Meu Histórico Detalhado</h2>
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200 text-sm">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="px-4 py-2 text-left font-semibold text-gray-700">Data</th>
+          <th className="px-4 py-2 text-left font-semibold text-gray-700">Período</th>
+          <th className="px-4 py-2 text-left font-semibold text-gray-700">Projeto</th>
+          <th className="px-4 py-2 text-left font-semibold text-gray-700">Atividade</th>
+          <th className="px-4 py-2 text-left font-semibold text-gray-700">Horas</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-gray-100">
+        {historico.map((item, idx) => (
+          <tr key={idx}>
+            <td className="px-4 py-2">{item.entry_date}</td>
+            <td className="px-4 py-2">
+              {item.entry_time.slice(0, 5)} - {item.fim_time.slice(0, 5)}
+            </td>
+            <td className="px-4 py-2">{item.projeto}</td>
+            <td className="px-4 py-2">{item.atividade}</td>
+            <td className="px-4 py-2 font-semibold">{item.horas.toFixed(2)}h</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
     </div>
   ) : (
     <Loading />
