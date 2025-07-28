@@ -1,7 +1,7 @@
 "use server"
 import { BancoHorasType, FuncionarioSchema } from "@/types/inicio/banco-horas";
 import { HistoricoDetalhado, historicoDetalhadoSchema, horaProjetoSchema } from "@/types/inicio/hora-projeto"
-import { relatorioColaboradorSchema, RelatorioRh, RelatorioRh2, relatorioRhSchema, relatorioRhSchema2, relatorioRhSchema3 } from "@/types/inicio/relatorio-colaborador"
+import { relatorioColaboradorSchema, RelatorioRh, RelatorioRh2, relatorioRhSchema, relatorioRhSchema2 } from "@/types/inicio/relatorio-colaborador"
 
 import { createClient } from "@/utils/supabase/server"
 
@@ -93,7 +93,7 @@ export async function getHistoricoDetalhado(user_id: string): Promise<{
 export async function getHoursRh(): Promise<RelatorioRh | null> {
   const supabase = await createClient();
 
-  const { data, error, status, statusText } = await supabase
+  const { data, error } = await supabase
     .from("vw_rh_horas_agrupadas")
     .select("*");
 
