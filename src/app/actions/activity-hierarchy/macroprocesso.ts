@@ -27,6 +27,7 @@ export async function createMacroprocesso(
 }
 
 export async function getMacroprocessos() {
+    console.log("ENTREI")
     try {
         const supabase = await createClient();
 
@@ -40,8 +41,8 @@ export async function getMacroprocessos() {
             console.error("Erro ao buscar macroprocessos:", error);
             throw new Error("Erro ao buscar macroprocessos: " + error.message);
         }
-
-        return data;
+        console.log(data)
+        return data;   
     } catch (error) {
         console.error("Erro ao obter macroprocessos:", error);
         throw new Error("Erro desconhecido ao obter macroprocessos. Entrar em contato com o suporte.");

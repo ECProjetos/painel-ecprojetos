@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useState } from "react" // ✅ incluiu useEffect
+import React, { useState } from "react" // ✅ incluiu useEffect
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
@@ -44,7 +44,6 @@ export default function NewColaboradorForm({
   cargos,
   departamentos,
   onSubmit,
-  alertMessage,
 }: NewColaboradorFormProps) {
   const form = useForm<NewColaborador>({
     resolver: zodResolver(NewColaboradorSchema),
@@ -78,13 +77,6 @@ export default function NewColaboradorForm({
 
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
-  // ✅ Exibir alerta se for fornecido
-  useEffect(() => {
-    if (alertMessage) {
-      alert(alertMessage)
-    }
-  }, [alertMessage])
 
   return (
     <Card className="p-20">

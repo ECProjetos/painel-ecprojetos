@@ -8,11 +8,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Button, buttonVariants } from "@/components/ui/button";
+import {  buttonVariants } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { AtividadeView } from "@/types/atidades";
-import { Download, PlusCircle } from "lucide-react";
+import {  PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -25,12 +25,17 @@ import { getProcessos } from "@/app/actions/activity-hierarchy/processos";
 import { Macroprocesso } from "@/types/activity-hierarchy/macroprocesso";
 import { PainelProcessos } from "@/components/atividades/processos/painel-processos";
 import { Processo } from "@/types/activity-hierarchy/processo";
+import { PainelSubProcessos } from "@/components/atividades/subprocessos/painel-processos";
+import { SubProcesso } from "@/types/activity-hierarchy/sub-processo";
+import { getSubProcessos } from "@/app/actions/activity-hierarchy/subprocesso";
 
 export default function ProjetosPage() {
+  
   //datas
   const [atividades] = useState<AtividadeView[]>([]);
   const [macroprocessos, setMacroprocessos] = useState<Macroprocesso[]>([]);
   const [processos, setProcessos] = useState<Processo[]>([]);
+  const [subprocessos, setSubprocessos] = useState<SubProcesso[]>([]);
 
   // refresh state to trigger re-fetching
   const [refresehMacroprocessos, setRefresehMacroprocessos] =
@@ -76,6 +81,24 @@ export default function ProjetosPage() {
       }
     };
     fetchProcessos();
+  }, [refresehMacroprocessos]);
+  
+  useEffect(() => {
+    setFetchingMacroprocessos(true);
+    const fetchSubProcessos = async () => {
+      try {
+        const data = await getSubProcessos();
+        setSubprocessos(data);
+      } catch (error) {
+        console.error("Erro ao buscar subprocessos:", error);
+        toast.error(
+          "Erro ao buscar subprocessos. Tente novamente mais tarde."
+        );
+      } finally {
+        setFetchingMacroprocessos(false);
+      }
+    };
+    fetchSubProcessos();
   }, [refresehMacroprocessos]);
 
   return (
@@ -133,24 +156,16 @@ export default function ProjetosPage() {
             />
           </TabsContent>
           <TabsContent value="subprocessos">
-            {/* Aqui você pode adicionar o conteúdo específico para Subprocessos */}
+            <PainelSubProcessos
+              loading={fetchingMacroprocessos}
+              onUpdate={() => setRefresehMacroprocessos((prev) => prev + 1)}
+              data={subprocessos}
+            />
           </TabsContent>
 
           <TabsContent value="atividades">
             <div className="flex items-center align-center justify-between">
-              <h1 className="text-xl font-semibold">
-                Painel de Gestão de Atividades
-              </h1>
               <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    toast.success("Funcionalidade em desenvolvimento");
-                  }}
-                >
-                  <Download className="mr-2 h-4 w-4" /> Exportar
-                </Button>
                 <Link
                   href="/controle-horarios/direcao/atividades/novo"
                   className={cn(

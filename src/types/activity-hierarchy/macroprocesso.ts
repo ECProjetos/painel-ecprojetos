@@ -7,6 +7,7 @@ export const macroprocessoSchema = z.object({
     status: activetSatatusEnum,
 });
 
+export const macroprocessosSchema = z.array(macroprocessoSchema)
 export const newMacroprocessoSchema = macroprocessoSchema.omit({ id: true });
 
 export type Macroprocesso = z.infer<typeof macroprocessoSchema>;

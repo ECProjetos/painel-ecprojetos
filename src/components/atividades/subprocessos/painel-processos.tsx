@@ -1,25 +1,25 @@
 'use client';
 
-import { ProcessoDialog } from "@/components/atividades/processos/dialog";
 import { MacroprocessoTable } from "@/components/atividades/macroprocessos/table";
 import { macroprocessoColumns } from "@/components/atividades/macroprocessos/columns";
 import { SkeletonTable } from "@/components/skeleton-table";
-import { Processo } from "@/types/activity-hierarchy/processo";
+import { SubProcesso } from "@/types/activity-hierarchy/sub-processo";
+import { SubProcessoDialog } from "./dialog";
 
 type Props = {
   loading: boolean;
   onUpdate: () => void;
-  data: Processo[];
+  data: SubProcesso[];
 };
 
-export function PainelProcessos({ loading, onUpdate, data }: Props) {
+export function PainelSubProcessos({ loading, onUpdate, data }: Props) {
 
 
   return (
     <div className="flex flex-col space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <ProcessoDialog onSuccess={onUpdate} />
+          <SubProcessoDialog onSuccess={onUpdate} />
         </div>
       </div>
       {loading ? (

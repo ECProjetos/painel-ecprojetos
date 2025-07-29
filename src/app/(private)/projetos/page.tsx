@@ -65,7 +65,6 @@ export default function ProjetosPage() {
       </div>
       <div className="space-y-4 mt-4">
         <div className="flex items-center align-center justify-between">
-          <h1 className="text-2xl font-bold">Painel de Gestão de Projetos</h1>
           <div className="flex items-center space-x-2">
             <Link
               href="/projetos/novo"

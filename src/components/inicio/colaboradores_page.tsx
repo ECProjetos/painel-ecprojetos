@@ -8,17 +8,16 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Button, buttonVariants } from "@/components/ui/button";
+import {  buttonVariants } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Download, PlusCircle } from "lucide-react";
+import {  PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { getAllColaboradores } from "@/app/actions/colaboradores";
 import { useEffect, useState } from "react";
 import { ColaboradorView } from "@/types/colaboradores";
 import { ColaboradorTable } from "@/components/colaboradores/table";
 import { colaboradoresColumns } from "@/components/colaboradores/columns";
-import { toast } from "sonner";
 import { SkeletonTable } from "@/components/skeleton-table";
 
 export function ColaboradoresPage() {
@@ -70,15 +69,6 @@ export function ColaboradoresPage() {
         <div className="flex items-center align-center justify-between px-4">
           <h1 className="text-2xl font-bold">Gestão de Colaboradores</h1>
           <div className="flex items-center space-x-2">
-            <Button
-              variant="default"
-              onClick={() => {
-                toast.success("Funcionalidade em desenvolvimento");
-              }}
-              disabled={loading}
-            >
-              <Download className="mr-2 h-4 w-4" /> Exportar
-            </Button>
             <Link
               href="/controle-horarios/gestao/colaboradores/novo"
               className={cn(buttonVariants({ variant: "default" }))}

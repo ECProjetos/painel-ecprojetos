@@ -43,7 +43,6 @@ export default async function Page() {
       cargos={cargos ?? []}
       departamentos={departamentos ?? []}
       onSubmit={handleSubmit}
-      alertMessage="Colaborador criado com sucesso!"
       
     />
   )

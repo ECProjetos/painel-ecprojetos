@@ -1,17 +1,17 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { NewProcesso } from "@/types/activity-hierarchy/processo";
+import { NewSubProcesso } from "@/types/activity-hierarchy/sub-processo";
 
-export async function createProcesso(
-    processo: NewProcesso
+export async function createSubProcesso(
+    subprocesso: NewSubProcesso
 ) {
     try {
         const supabase = await createClient();
 
         const { data, error } = await supabase
-            .from("processo")
-            .insert([processo])
+            .from("sub_processo")
+            .insert([subprocesso])
             .select("*");
 
         if (error) {
@@ -26,25 +26,25 @@ export async function createProcesso(
     }
 }
 
-export async function getProcessos() {
+export async function getSubProcessos() {
     try {
         const supabase = await createClient();
 
         const { data, error } = await supabase
-            .from("processo")
+            .from("sub_processo")
             .select("*")
             .order("nome", { ascending: true });
 
-
+        console.log("SUBPROCESSOS", data)
         if (error) {
-            console.error("Erro ao buscar macroprocessos:", error);
-            throw new Error("Erro ao buscar macroprocessos: " + error.message);
+            console.error("Erro ao buscar sub-processo:", error);
+            throw new Error("Erro ao buscar sub-processo: " + error.message);
         }
 
         return data;
     } catch (error) {
-        console.error("Erro ao obter macroprocessos:", error);
-        throw new Error("Erro desconhecido ao obter macroprocessos. Entrar em contato com o suporte.");
+        console.error("Erro ao obter sub-processo:", error);
+        throw new Error("Erro desconhecido ao obter sub-processo. Entrar em contato com o suporte.");
     }
 }
 

@@ -10,6 +10,9 @@ export const processoSchema = z.object({
 
 export const newProcessoSchema = processoSchema.omit({ id: true });
 
+export const processosSchema = z.array(processoSchema)
+
+
 export const processoViewSchema = processoSchema.extend({
     macroprocesso_nome: z.string(),
 });

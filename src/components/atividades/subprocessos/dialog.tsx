@@ -15,9 +15,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useEffect, useState } from "react";
 import {
-  NewProcesso,
-  newProcessoSchema,
-  Processo,
+    Processo,
+  processosSchema,
 } from "@/types/activity-hierarchy/processo";
 import { toast } from "sonner";
 import {
@@ -28,50 +27,49 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Edit, PlusCircle } from "lucide-react";
-import { createProcesso } from "@/app/actions/activity-hierarchy/processos";
-import { Macroprocesso,  macroprocessosSchema } from "@/types/activity-hierarchy/macroprocesso";
-import { getMacroprocessos } from "@/app/actions/activity-hierarchy/macroprocesso";
+import {  getProcessos } from "@/app/actions/activity-hierarchy/processos";
+import { createSubProcesso } from "@/app/actions/activity-hierarchy/subprocesso";
+import { NewSubProcesso, newSubProcessoSchema } from "@/types/activity-hierarchy/sub-processo";
 
 type MacroprocessDialogProps = {
   processo?: Processo;
   onSuccess: () => void;
 };
 
-export function ProcessoDialog({
+export function SubProcessoDialog({
   processo,
   onSuccess,
 }: MacroprocessDialogProps) {
-    const [macroprocessos, setMacroprocessos] = useState<Macroprocesso[]>([]);
+    const [processos, setProcessos] = useState<Processo[]>([]);
   
 
   const [open, setOpen] = useState(false);
 
     useEffect(() => {
     async function fetchMacroprocessos() {
-      const result = await getMacroprocessos();
-      const parsedResult = macroprocessosSchema.safeParse(result);
+      const result = await getProcessos();
+      const parsedResult = processosSchema.safeParse(result);
       console.log("SEM PARSE", result)
       console.log("COM PARSE", parsedResult)
       if (parsedResult.success) {
-        setMacroprocessos(Array.isArray(parsedResult.data) ? parsedResult.data : [parsedResult.data]);
+        setProcessos(Array.isArray(parsedResult.data) ? parsedResult.data : [parsedResult.data]);
       } else {
-        setMacroprocessos([]);
+        setProcessos([]);
       }
     }
     fetchMacroprocessos();
   }, []);
 
-  console.log("MACROPROCESSOS", macroprocessos)
 
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
-  } = useForm<NewProcesso>({
-    resolver: zodResolver(newProcessoSchema),
+  } = useForm<NewSubProcesso>({
+    resolver: zodResolver(newSubProcessoSchema),
     defaultValues: processo
       ? {
           nome: processo.nome,
@@ -85,9 +83,9 @@ export function ProcessoDialog({
 
   const isEditing = !!processo;
 
-  const onSubmit = async (data: NewProcesso) => {
+  const onSubmit = async (data: NewSubProcesso) => {
     try {
-      await createProcesso(data);
+      await createSubProcesso(data);
       toast.success(
         isEditing
           ? "Processo atualizado com sucesso!"
@@ -120,7 +118,7 @@ export function ProcessoDialog({
           ) : (
             <>
               <PlusCircle className="w-4 h-4" />
-              <span>Processos</span>
+              <span>Subprocessos</span>
             </>
           )}
         </Button>
@@ -162,24 +160,24 @@ export function ProcessoDialog({
                 <SelectItem value="inativo">Inativo</SelectItem>
               </SelectContent>
             </Select>
-            <Label htmlFor="macroprocesso_id" className="mt-5">Macroprocesso</Label>
-            <Select
-              value={watch("macroprocesso_id")?.toString() ?? ""}
-              onValueChange={(value) => setValue("macroprocesso_id", Number(value))}
+            <Label htmlFor="processo_id" className="mt-5">Processo</Label>
+             <Select
+              value={watch("processo_id")?.toString() ?? ""}
+              onValueChange={(value) => setValue("processo_id", Number(value))}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione o macroprocesso" />
+                <SelectValue placeholder="Selecione o subprocesso" />
               </SelectTrigger>
               <SelectContent>
-                {macroprocessos.map((macro) => (
+                {processos.map((macro) => (
                   <SelectItem key={macro.id} value={macro.id.toString()}>
                     {macro.nome}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.macroprocesso_id && (
-              <p className="text-red-500 text-sm">{errors.macroprocesso_id.message}</p>
+            {errors.processo_id && (
+              <p className="text-red-500 text-sm">{errors.processo_id.message}</p>
             )}
           </div>
           <div className="flex justify-end space-x-2">
