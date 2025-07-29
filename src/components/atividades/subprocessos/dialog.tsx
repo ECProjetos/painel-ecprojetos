@@ -166,7 +166,7 @@ export function SubProcessoDialog({
               onValueChange={(value) => setValue("processo_id", Number(value))}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione o subprocesso" />
+                <SelectValue placeholder="Selecione o processo" />
               </SelectTrigger>
               <SelectContent>
                 {processos.map((macro) => (

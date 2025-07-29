@@ -8,6 +8,8 @@ export const subProcessoSchema = z.object({
     status: activetSatatusEnum,
 });
 
+export const subProcessosSchema = z.array(subProcessoSchema)
+
 export const newSubProcessoSchema = subProcessoSchema.omit({ id: true });
 
 export const subProcessoViewSchema = subProcessoSchema.extend({

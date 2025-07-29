@@ -12,10 +12,8 @@ import {
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getAllDepartments } from "@/app/actions/get-departamentos";
-import { NewAtividadeForm } from "@/components/atividades/new-atividades-form";
-import { NewAtividade, Atividade } from "@/types/atidades";
-import { toast } from "sonner";
-import { getAtividadeById, updateAtividade } from "@/app/actions/atividades";
+import {  Atividade } from "@/types/atidades";
+import { getAtividadeById } from "@/app/actions/atividades";
 import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SkeletonTable } from "@/components/skeleton-table";
@@ -48,26 +46,6 @@ export default function AtividadePage() {
 
     fetchData();
   }, [atividadeId]);
-
-  const handleFormSubmit = async (data: NewAtividade) => {
-    try {
-      if (atividadeId) {
-        await updateAtividade(atividadeId, data);
-        toast("Atividade atualizado com sucesso!");
-      } else {
-        throw new Error("ID do atividade não fornecido.");
-      }
-      setTimeout(() => {
-        window.location.href = "/controle-horarios/direcao/atividades";
-      }, 2000); // Redireciona após 2 segundos
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      console.error("Erro ao atualizar atividade:", error);
-      toast.error("Erro ao atualizar atividade: ", {
-        description: error.message,
-      });
-    }
-  };
 
   return (
     <div className="bg-white shadow-lg rounded-2xl p-6 w-full min-h-full border dark:bg-[#1c1c20]">
@@ -112,11 +90,7 @@ export default function AtividadePage() {
         {loading ? (
           <SkeletonTable />
         ) : (
-          <NewAtividadeForm
-            departments={departamentos}
-            onSubmit={handleFormSubmit}
-            atividade={atividade}
-          />
+       <>Nada</>
         )}
       </div>
     </div>

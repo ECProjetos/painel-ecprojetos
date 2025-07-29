@@ -1,169 +1,115 @@
-"use clietn";
+'use client';
 
-import React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import {  useActionState, useEffect, useState } from "react"
+import { Processo, processosSchema } from "@/types/activity-hierarchy/processo";
+import { getProcessos } from "@/app/actions/activity-hierarchy/processos";
+import { Label } from "../ui/label";
+import { Card } from "../ui/card";
+import { getSubProcessos } from "@/app/actions/activity-hierarchy/subprocesso";
+import { SubProcesso, subProcessosSchema } from "@/types/activity-hierarchy/sub-processo";
+import { getAllDepartments } from "@/app/actions/get-departamentos";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { createAtividade } from "@/app/actions/atividades";
 
-import { NewAtividade, newAtividadeSchema } from "@/types/atidades";
-
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import {
-  ACTIVITY_STATUS_OPTIONS,
-  ActivityStatusValue,
-} from "@/constants/status";
-import Link from "next/link";
-
-interface NewAtividadeFormProps {
-  departments: { id: number; name: string }[];
-  onSubmit: (data: NewAtividade) => void;
-  atividade?: NewAtividade | null;
+interface DepartamentsType {
+  name: string,
+  id:string
 }
 
-export function NewAtividadeForm({
-  departments,
-  onSubmit,
-  atividade,
-}: NewAtividadeFormProps) {
-  const form = useForm<NewAtividade>({
-    resolver: zodResolver(newAtividadeSchema),
-    defaultValues: {
-      name: atividade?.name || "",
-      description: atividade?.description || "",
-      department_id:
-        atividade?.department_id || (undefined as unknown as number),
-      status: atividade?.status || "ativo",
-    },
-  });
+export default function NewAtividadeForm(){
+  const[processos, setProcessos] = useState<Processo[]>([]);
+  const[subprocessos, setSubProcessos] = useState<SubProcesso[]>([]);
+  const[departamentos, setDepartamentos] = useState<DepartamentsType[]>([]);
+  const [formState, formAction] = useActionState(createAtividade, { success: false, message: "" })
 
-  return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6"
-        noValidate
-      >
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nome</FormLabel>
-              <FormControl>
-                <Input placeholder="Nome da atividade" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Descrição</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Descrição da atividade" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+  useEffect(() => {
+    async function fetchMacroprocessos() {
+      const result = await getProcessos();
+      const parsedResult = processosSchema.safeParse(result);
+      console.log("SEM PARSE", result)
+      console.log("COM PARSE", parsedResult)
+      if (parsedResult.success) {
+        setProcessos(Array.isArray(parsedResult.data) ? parsedResult.data : [parsedResult.data]);
+      } else {
+        setProcessos([]);
+      }
+    }
+    fetchMacroprocessos();
+  }, []);
 
-        {/* Departamento */}
-        <FormField
-          control={form.control}
-          name="department_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Departamento</FormLabel>
-              <FormControl>
-                <Select
-                  onValueChange={(v) => field.onChange(parseInt(v, 10))}
-                  value={field.value?.toString()}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione o departamento" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map((d) => (
-                      <SelectItem key={d.id} value={d.id.toString()}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+  useEffect(() => {
+    async function fetchMacroprocessos() {
+      const result = await getSubProcessos();
+      const parsedResult = subProcessosSchema.safeParse(result);
+      console.log("SEM PARSE", result)
+      console.log("COM PARSE", parsedResult)
+      if (parsedResult.success) {
+        setSubProcessos(Array.isArray(parsedResult.data) ? parsedResult.data : [parsedResult.data]);
+      } else {
+        setSubProcessos([]);
+      }
+    }
+    fetchMacroprocessos();
+  }, []);
 
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value as string}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione um status" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {ACTIVITY_STATUS_OPTIONS.map(
-                    (s: { value: ActivityStatusValue; label: string }) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
+  useEffect(() => {
+    async function fetchDepartamentos() {
+      const result = await getAllDepartments();
+      setDepartamentos(result);
+    }
+    fetchDepartamentos();
+  }, []);
+
+
+      return(
+       <Card className="flex flex-col items-center justify-center gap-4 w-full max-w-md mx-auto p-6 bg-white shadow-md rounded-lg">
+      <form action={formAction}>
+        <h1 className="mb-5 text-2xl font-bold">Nova atividade</h1>
+
+        <div className="w-full flex flex-col gap-4">
+          <Label htmlFor="nome" className="text-xl">Nome</Label>
+          <Input id="nome" name="nome" required />
+
+          <Label htmlFor="processo" className="text-xl">Processo</Label>
+          <select name="processo" id="processo" className="w-full border p-2 rounded">
+            {processos.map(p => (
+              <option key={p.id} value={p.id}>{p.nome}</option>
+            ))}
+          </select>
+
+          <Label htmlFor="subprocesso" className="text-xl">Subprocesso</Label>
+          <select name="subprocesso" id="subprocesso" className="w-full border p-2 rounded">
+            {subprocessos.map(s => (
+              <option key={s.id} value={s.id}>{s.nome}</option>
+            ))}
+          </select>
+
+          <Label className="text-xl mt-4">Departamentos</Label>
+          <div className="flex flex-col gap-3">
+            {departamentos.map(dep => (
+              <label key={dep.id} className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  name="departamentos"
+                  value={dep.id}
+                  className="w-4 h-4 text-primary"
+                />
+                <span>{dep.name}</span>
+              </label>
+            ))}
+          </div>
+
+          <Button type="submit" className="mt-6">Criar Atividade</Button>
+
+          {formState.message && (
+            <p className={`mt-2 text-sm ${formState.success ? 'text-green-600' : 'text-red-600'}`}>
+              {formState.message}
+            </p>
           )}
-        />
-        <div className="flex justify-between">
-          <Link href="/atividades">
-            <Button
-              type="button"
-              variant="outline"
-              className={cn(buttonVariants({ variant: "secondary" }))}
-            >
-              Cancelar
-            </Button>
-          </Link>
-          <Button
-            type="submit"
-            className={cn(buttonVariants({ variant: "default" }))}
-          >
-            {atividade ? "Atualizar Atividade" : "Criar Atividade"}
-          </Button>
         </div>
       </form>
-    </Form>
-  );
+    </Card>
+  )
 }

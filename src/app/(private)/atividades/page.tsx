@@ -167,7 +167,7 @@ export default function ProjetosPage() {
             <div className="flex items-center align-center justify-between">
               <div className="flex items-center space-x-2">
                 <Link
-                  href="/controle-horarios/direcao/atividades/novo"
+                  href="/atividades/novo"
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" })
                   )}
