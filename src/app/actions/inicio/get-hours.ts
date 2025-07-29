@@ -40,7 +40,6 @@ export async function getHoursById(user_id: string) {
     ? relatorioColaboradorSchema.safeParse(data.data[0])
     : null
 
-
   return parsedData
 }
 
@@ -53,15 +52,11 @@ export async function getHoursProAct(user_id: string) {
     .eq("user_id", user_id)
 
   if (error || !data) return { success: false, data: null }
-
-  // transforma o array plano em objeto agrupado
   const grouped = {
     projetos: data.filter((d) => d.tipo_agrupamento === "projeto"),
     atividades: data.filter((d) => d.tipo_agrupamento === "atividade"),
   }
-
   const parsed = horaProjetoSchema.safeParse(grouped)
-
   return { success: true, data: parsed.data }
 }
 
@@ -98,11 +93,9 @@ export async function getHoursRh(): Promise<RelatorioRh | null> {
     .select("*");
 
   if (error || !data) return null;
-  console.log(data)
 
   const parsed = relatorioRhSchema.safeParse(data);
 
-  console.log("Parsed", parsed)
 
   if (!parsed.success) {
     console.error("Erro de validação:", parsed.error.format());
@@ -119,11 +112,9 @@ export async function getHoursRhByAttProj(): Promise<RelatorioRh2 | null> {
     .select("*");
 
   if (error || !data) return null;
-  console.log(data)
 
   const parsed = relatorioRhSchema2.safeParse(data);
 
-  console.log("Parsed", parsed)
 
   if (!parsed.success) {
     console.error("Erro de validação:", parsed.error.format());

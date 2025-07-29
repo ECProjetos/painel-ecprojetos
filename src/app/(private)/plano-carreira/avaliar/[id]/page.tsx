@@ -44,7 +44,7 @@ export default function AvaliacaoColaboradorPage() {
 
     const userId = useUserStore((s) => s.user?.id)!;
     const { role } = useClientRole();
-    const isDiretor = role === roles.diretor;
+    const isDiretor = role === roles.diretor || role=== roles.gestor;
     const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'soft' | 'hard' | 'feedback'>('soft');

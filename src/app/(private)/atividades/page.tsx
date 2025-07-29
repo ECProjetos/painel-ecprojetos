@@ -21,12 +21,16 @@ import { atividadeColumns } from "@/components/atividades/columns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PainelMacroprocessos } from "@/components/atividades/macroprocessos/painel-macroprocessos";
 import { getMacroprocessos } from "@/app/actions/activity-hierarchy/macroprocesso";
+import { getProcessos } from "@/app/actions/activity-hierarchy/processos";
 import { Macroprocesso } from "@/types/activity-hierarchy/macroprocesso";
+import { PainelProcessos } from "@/components/atividades/processos/painel-processos";
+import { Processo } from "@/types/activity-hierarchy/processo";
 
 export default function ProjetosPage() {
   //datas
   const [atividades] = useState<AtividadeView[]>([]);
   const [macroprocessos, setMacroprocessos] = useState<Macroprocesso[]>([]);
+  const [processos, setProcessos] = useState<Processo[]>([]);
 
   // refresh state to trigger re-fetching
   const [refresehMacroprocessos, setRefresehMacroprocessos] =
@@ -36,7 +40,6 @@ export default function ProjetosPage() {
 
   //loadings
   const [fetchingMacroprocessos, setFetchingMacroprocessos] = useState(false);
-  const [loading] = useState(true);
 
   // fetch macroprocessos
   useEffect(() => {
@@ -55,6 +58,24 @@ export default function ProjetosPage() {
       }
     };
     fetchMacroprocessos();
+  }, [refresehMacroprocessos]);
+
+  useEffect(() => {
+    setFetchingMacroprocessos(true);
+    const fetchProcessos = async () => {
+      try {
+        const data = await getProcessos();
+        setProcessos(data);
+      } catch (error) {
+        console.error("Erro ao buscar macroprocessos:", error);
+        toast.error(
+          "Erro ao buscar macroprocessos. Tente novamente mais tarde."
+        );
+      } finally {
+        setFetchingMacroprocessos(false);
+      }
+    };
+    fetchProcessos();
   }, [refresehMacroprocessos]);
 
   return (
@@ -105,7 +126,11 @@ export default function ProjetosPage() {
             />
           </TabsContent>
           <TabsContent value="processos">
-            {/* Aqui você pode adicionar o conteúdo específico para Processos */}
+            <PainelProcessos
+              loading={fetchingMacroprocessos}
+              onUpdate={() => setRefresehMacroprocessos((prev) => prev + 1)}
+              data={processos}
+            />
           </TabsContent>
           <TabsContent value="subprocessos">
             {/* Aqui você pode adicionar o conteúdo específico para Subprocessos */}
@@ -137,18 +162,12 @@ export default function ProjetosPage() {
                 </Link>
               </div>
             </div>
-            {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <p>Carregando atividades...</p>
-              </div>
-            ) : (
               <AtividadeTable
                 data={atividades}
                 columns={atividadeColumns({
                   onUpdate: () => setRefresh((prev) => prev + 1),
                 })}
               />
-            )}
           </TabsContent>
         </Tabs>
       </div>

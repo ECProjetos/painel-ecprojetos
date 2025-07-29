@@ -20,13 +20,14 @@ export default function RelatorioColaborador() {
     projetos: [],
     atividades: [],
   })
-  console.log(hourProject)
+  console.log("AQUI",hourProject)
   const [historico, setHistorico] = useState<HistoricoDetalhado[]>([])
   
   useEffect(() => {
     const fetchHistorico = async () => {
       if (!userId) return
       const result = await getHistoricoDetalhado(userId)
+      console.log("HISTORICO", result)
       if (result.success) {
         setHistorico(result.data)
       }
@@ -38,6 +39,7 @@ export default function RelatorioColaborador() {
     const fetchUser = async () => {
       const session = await getUserSession()
       setUserId(session?.user.id || null)
+      console.log(session)
     }
     fetchUser()
   }, [])
