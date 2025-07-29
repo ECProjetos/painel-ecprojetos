@@ -139,6 +139,7 @@ export function ProcessoDialog({
                 <SelectItem value="inativo">Inativo</SelectItem>
               </SelectContent>
             </Select>
+            <Label htmlFor="Macroprocesso" className="mt-5">Macroprocesso</Label>
             <Select
               value={processo?.status}
               onValueChange={(value) =>
@@ -153,6 +154,7 @@ export function ProcessoDialog({
                 <SelectItem value="inativo">Inativo</SelectItem>
               </SelectContent>
             </Select>
+         
             {errors.status && (
               <p className="text-red-500 text-sm">{errors.status.message}</p>
             )}
