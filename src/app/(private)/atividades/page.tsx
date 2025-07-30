@@ -11,7 +11,6 @@ import {
 import {  buttonVariants } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { AtividadeView } from "@/types/atidades";
 import {  PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -29,11 +28,12 @@ import { PainelSubProcessos } from "@/components/atividades/subprocessos/painel-
 import { SubProcesso } from "@/types/activity-hierarchy/sub-processo";
 import { getSubProcessos } from "@/app/actions/activity-hierarchy/subprocesso";
 import { getAllAtividades } from "@/app/actions/atividades";
+import { Atividade } from "@/types/atidades";
 
 export default function ProjetosPage() {
   
   //datas
-  const [atividades, setAtividades] = useState<AtividadeView[]>([]);
+  const [atividades, setAtividades] = useState<Atividade[]>([]);
   const [macroprocessos, setMacroprocessos] = useState<Macroprocesso[]>([]);
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [subprocessos, setSubprocessos] = useState<SubProcesso[]>([]);

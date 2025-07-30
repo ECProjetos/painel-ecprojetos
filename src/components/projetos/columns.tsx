@@ -123,11 +123,6 @@ export const projectColumns = ({
       );
     },
   },
-
-  {
-    accessorKey: "department_name",
-    header: "Departamento",
-  },
   {
     accessorKey: "estimated_hours",
     header: ({ column }) => (

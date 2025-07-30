@@ -32,12 +32,12 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 
-import { AtividadeView } from "@/types/atidades";
 
 import { deleteAtividade } from "@/app/actions/atividades";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
+import { Atividade } from "@/types/atidades";
 
 type handleDeleteAtividadeProps = {
   id: number;
@@ -63,7 +63,7 @@ type atividadeColumnsProps = {
 
 export const atividadeColumns = ({
   onUpdate,
-}: atividadeColumnsProps): ColumnDef<AtividadeView>[] => [
+}: atividadeColumnsProps): ColumnDef<Atividade>[] => [
   {
     accessorKey: "name",
     header: ({ column }) => (

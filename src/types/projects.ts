@@ -6,7 +6,6 @@ export const projectSchema = z.object({
   id: z.number(),
   name: z.string().min(1, { message: "Nome é obrigatório" }),
   code: z.string().min(1, { message: "Código é obrigatório" }),
-  department_name: z.string(),
   description: z.string().optional(),
   department_id: z.number().int().positive({ message: "Departamento é obrigatório" }),
   status: statusEnum,
@@ -19,7 +18,6 @@ export const projectSchema = z.object({
 // Novo schema para criação de projeto (N:N com departamentos)
 export const newProjectSchema = projectSchema.omit({
   id: true,
-  department_name: true,
   department_id: true, // 👈 Removemos esse campo
 }).extend({
   department_ids: z

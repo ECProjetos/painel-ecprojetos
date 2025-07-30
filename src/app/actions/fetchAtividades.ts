@@ -1,9 +1,9 @@
 'use server';
 
-import { AtividadeView } from "@/types/atidades";
+import { Atividade } from "@/types/atidades";
 import { createClient } from "@/utils/supabase/server";
 
-export async function fetchAtividades(): Promise<AtividadeView[]> {
+export async function fetchAtividades(): Promise<Atividade[]> {
     const supabase = await createClient();
     const { data, error } = await supabase
         .from('activities')
@@ -29,9 +29,9 @@ export async function fetchAtividades(): Promise<AtividadeView[]> {
     return data.map((a: any) => ({
         id: a.id,
         name: a.name,
-        department_name: a.processo?.nome ?? '',
         description: a.description,
         status: a.status,
+        department_id: a.department_id, // Added department_id
         macroprocesso_id: a.macroprocesso_id,
         processo_id: a.processo_id,
         sub_processo_id: a.sub_processo_id ?? null,

@@ -14,12 +14,6 @@ export const atividadeSchema = z.object({
 
 export const newAtividadeSchema = atividadeSchema.omit({ id: true });
 
-export const atividadeViewSchema = atividadeSchema.omit({
-    department_id: true,
-}).extend({
-    department_name: z.string(),
-});
 
 export type Atividade = z.infer<typeof atividadeSchema>;
 export type NewAtividade = z.infer<typeof newAtividadeSchema>;
-export type AtividadeView = z.infer<typeof atividadeViewSchema>;

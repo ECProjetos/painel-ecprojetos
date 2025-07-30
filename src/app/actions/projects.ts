@@ -63,9 +63,8 @@ export async function getAllProjects() {
     }
 
     return data;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
-    throw new Error("Erro desconhecido ao obter projetos.");
+    console.log(error);
   }
 }
 

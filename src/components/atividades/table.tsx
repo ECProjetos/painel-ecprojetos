@@ -35,7 +35,7 @@ interface AtividadeTableProps<TData, TValue> {
 }
 
 export function AtividadeTable<
-  TData extends { department_name: string; status: string },
+  TData extends {  status: string },
   TValue
 >({ columns, data }: AtividadeTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);

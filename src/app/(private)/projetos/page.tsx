@@ -30,7 +30,7 @@ export default function ProjetosPage() {
     async function fetchProjects() {
       try {
         const data = await getAllProjects();
-        setProjects(data);
+        setProjects(data ?? []);
       } catch (error) {
         console.error("Erro ao buscar projetos:", error);
         toast.error("Erro ao buscar projetos. Tente novamente mais tarde.");

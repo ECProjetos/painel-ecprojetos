@@ -41,19 +41,12 @@ interface ProjectTableProps<TData, TValue> {
 }
 
 export function ProjectTable<
-  TData extends { department_name: string; status: string },
+  TData extends { status: string },
   TValue
 >({ columns, data }: ProjectTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  // extrai lista única de departamentos e statuses
-  const departmentOptions = useMemo(() => {
-    const setDeps = new Set<string>();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data.forEach((row) => setDeps.add((row as any).department_name));
-    return Array.from(setDeps).sort();
-  }, [data]);
 
   const statusOptions = useMemo(() => {
     const setSts = new Set<string>();
@@ -93,30 +86,7 @@ export function ProjectTable<
           className="max-w-sm"
         />
 
-        {/* Filtro por Departamento */}
-        <Select
-          value={
-            (table.getColumn("department_name")?.getFilterValue() as string) ??
-            "all"
-          }
-          onValueChange={(value) =>
-            table
-              .getColumn("department_name")
-              ?.setFilterValue(value === "all" ? undefined : value)
-          }
-        >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Departamento" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {departmentOptions.map((dep) => (
-              <SelectItem key={dep} value={dep}>
-                {dep}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+  
 
         {/* Filtro por Status */}
         <Select
