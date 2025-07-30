@@ -240,7 +240,7 @@ export default function AvaliacaoColaboradorPage() {
                                 evaluatorId={userId}
                                 onSubmit={handleSubmitHardAmbiental}
                             />
-                        ) : nomeDepartamento === "Departamento de TI" ? (
+                        ) : nomeDepartamento === "Departamento de Desenvolvimento de Software" ? (
                             <HardTISkillsTable
                                 habilidadesDetalhadas={hardSkillsTI}
                                 opcoes={opcoes}
@@ -248,7 +248,7 @@ export default function AvaliacaoColaboradorPage() {
                                 evaluatorId={userId}
                                 onSubmit={handleSubmitHardTI}
                             />
-                        ) : nomeDepartamento === "Departamento Administrativo/RH/Financeiro" ? (
+                        ) : nomeDepartamento === "Departamento Administrativo" ? (
 
                             <HardContabeisSkillsTable
                                 habilidadesDetalhadas={hardSkillsFinanceiro}
