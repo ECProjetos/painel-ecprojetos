@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   Breadcrumb,
@@ -7,12 +7,13 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { TabGestor } from "@/components/tab-gestor"
+} from "@/components/ui/breadcrumb";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { TabGestor } from "@/components/tab-gestor";
 import { useClientRole } from "@/hooks/use-client-role";
-import { roles } from '@/constants/roles';
+import { roles } from "@/constants/roles";
 import { TabGeneral } from "@/components/tab-general";
+import Loading from "@/app/loading";
 
 export default function Page() {
   const { role } = useClientRole();
@@ -34,11 +35,12 @@ export default function Page() {
           </BreadcrumbList>
         </Breadcrumb>
       </header>
-      {isGestor ? (
-        <TabGestor />
+
+      {role ? (
+        isGestor ? <TabGestor /> : <TabGeneral />
       ) : (
-        <TabGeneral />
+        <Loading />
       )}
     </div>
-  )
+  );
 }
