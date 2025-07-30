@@ -28,8 +28,6 @@ export default function NewAtividadeForm(){
     async function fetchMacroprocessos() {
       const result = await getProcessos();
       const parsedResult = processosSchema.safeParse(result);
-      console.log("SEM PARSE", result)
-      console.log("COM PARSE", parsedResult)
       if (parsedResult.success) {
         setProcessos(Array.isArray(parsedResult.data) ? parsedResult.data : [parsedResult.data]);
       } else {
@@ -73,14 +71,16 @@ export default function NewAtividadeForm(){
           <Input id="nome" name="nome" required />
 
           <Label htmlFor="processo" className="text-xl">Processo</Label>
-          <select name="processo" id="processo" className="w-full border p-2 rounded">
+            <select name="processo" id="processo" className="w-full border p-2 rounded">
+            <option value="">Selecione um processo</option>
             {processos.map(p => (
               <option key={p.id} value={p.id}>{p.nome}</option>
             ))}
-          </select>
+            </select>
 
           <Label htmlFor="subprocesso" className="text-xl">Subprocesso</Label>
           <select name="subprocesso" id="subprocesso" className="w-full border p-2 rounded">
+            <option value="">Selecione um subprocesso</option>
             {subprocessos.map(s => (
               <option key={s.id} value={s.id}>{s.nome}</option>
             ))}

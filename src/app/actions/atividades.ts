@@ -7,29 +7,47 @@ import { NewAtividade } from "@/types/atidades";
 
 export async function createAtividade(prevState: any, formData: FormData) {
   try {
-    const supabase = await createClient()
+    const supabase = await createClient();
 
-    const nome = formData.get("nome") as string
-    const processoId = parseInt(formData.get("processo") as string)
-    const subProcessoIdRaw = formData.get("subprocesso")
-    const subProcessoId = subProcessoIdRaw ? parseInt(subProcessoIdRaw as string) : null
-    const departamentos = formData.getAll("departamentos") as string[]
-    const departamentoIds = departamentos.map((id) => parseInt(id))
+    const nome = formData.get("nome") as string;
+    const processoIdRaw = formData.get("processo");
+    const subProcessoIdRaw = formData.get("subprocesso");
+    let processoId: number | null = processoIdRaw ? parseInt(processoIdRaw as string) : null;
+    const subProcessoId = subProcessoIdRaw ? parseInt(subProcessoIdRaw as string) : null;
+    const departamentos = formData.getAll("departamentos") as string[];
+    const departamentoIds = departamentos.map((id) => parseInt(id));
 
-    // 👇 AQUI: busca o macroprocesso vinculado ao processo selecionado
+    // Caso processoId seja nulo, mas tenha subProcessoId, buscar o processo via subProcesso
+    if (!processoId && subProcessoId) {
+      const { data: subProcessoData, error: subProcError } = await supabase
+        .from('sub_processo')
+        .select('processo_id')
+        .eq('id', subProcessoId)
+        .single();
+
+      if (subProcError || !subProcessoData) {
+        return { success: false, message: 'Erro ao buscar processo do subprocesso selecionado.' };
+      }
+      processoId = subProcessoData.processo_id;
+    }
+
+    if (!processoId) {
+      return { success: false, message: 'Processo não selecionado.' };
+    }
+
+    // Buscar o macroprocesso
     const { data: processoData, error: procError } = await supabase
       .from('processo')
       .select('macroprocesso_id')
       .eq('id', processoId)
-      .single()
+      .single();
 
     if (procError || !processoData) {
-      return { success: false, message: 'Erro ao buscar macroprocesso do processo selecionado.' }
+      return { success: false, message: 'Erro ao buscar macroprocesso do processo selecionado.' };
     }
+    const macroprocessoId = processoData.macroprocesso_id;
 
-    const macroprocessoId = processoData.macroprocesso_id
-
-    // 👇 Insere a atividade com o macroprocesso resolvido
+    // Inserir atividade
     const { data: inserted, error: insertError } = await supabase
       .from("activities")
       .insert({
@@ -39,7 +57,7 @@ export async function createAtividade(prevState: any, formData: FormData) {
         sub_processo_id: subProcessoId,
       })
       .select("id")
-      .single()
+      .single();
 
     if (insertError) {
       if (insertError.code === "23505") {
@@ -48,21 +66,21 @@ export async function createAtividade(prevState: any, formData: FormData) {
       return { success: false, message: "Erro ao criar atividade: " + insertError.message }
     }
 
-    // 👇 Relaciona os departamentos à atividade criada
+    // Relaciona os departamentos à atividade criada
     const relations = departamentoIds.map((depId) => ({
       activity_id: inserted.id,
       department_id: depId,
-    }))
+    }));
 
     const { error: depError } = await supabase
       .from("activity_departments")
-      .insert(relations)
+      .insert(relations);
 
     if (depError) {
       return { success: false, message: "Atividade criada, mas erro ao associar departamentos." }
     }
 
-    revalidatePath("/controle-horarios/direcao/atividades")
+    revalidatePath("/controle-horarios/direcao/atividades");
 
     return { success: true, message: "Atividade criada com sucesso!" }
 
