@@ -53,7 +53,7 @@ export default function CadastroInventario() {
             {/* Valor Pago */}
             <div className="flex flex-col">
               <label htmlFor="valorPago" className="mb-1 font-medium text-sm">
-                Valor Pago (R$)
+                Preço Pago (R$)
               </label>
               <Input id="valorPago" name="valorPago" type="number" step="0.01" required />
             </div>
@@ -61,7 +61,7 @@ export default function CadastroInventario() {
             {/* Valor Atual */}
             <div className="flex flex-col">
               <label htmlFor="valorAtual" className="mb-1 font-medium text-sm">
-                Valor Atual (R$)
+                Preço Atual (R$)
               </label>
               <Input id="valorAtual" name="valorAtual" type="number" step="0.01" required />
             </div>
