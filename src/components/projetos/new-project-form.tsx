@@ -45,9 +45,9 @@ export function NewProjectForm({
       name: projeto?.name || "",
       code: projeto?.code || "",
       description: projeto?.description || "",
-      department_id: projeto?.department_id || (undefined as unknown as number),
-      status: projeto?.status || "ativo",
+        status: projeto?.status || "ativo",
       estimated_hours: projeto?.estimated_hours || 0,
+      department_ids: projeto?.department_ids || [],
     },
   });
 
@@ -154,34 +154,43 @@ export function NewProjectForm({
             )}
           />
           {/* Departamento */}
-          <FormField
-            control={form.control}
-            name="department_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Departamento</FormLabel>
-                <FormControl>
-                  <Select
-                    onValueChange={(v) => field.onChange(parseInt(v, 10))}
-                    value={field.value?.toString()}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione o departamento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departments.map((d) => (
-                        <SelectItem key={d.id} value={d.id.toString()}>
-                          {d.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        
         </div>
+        <FormField
+          control={form.control}
+          name="department_ids"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Departamentos</FormLabel>
+              <FormControl>
+                <div className="flex flex-col gap-3 mt-2">
+                  {departments.map((dep) => {
+                    const checked = field.value?.includes(dep.id);
+
+                    return (
+                      <label key={dep.id} className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 text-primary"
+                          checked={checked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              field.onChange([...field.value, dep.id]);
+                            } else {
+                              field.onChange(field.value.filter((id) => id !== dep.id));
+                            }
+                          }}
+                        />
+                        <span>{dep.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <div className="flex w-full justify-between">
           <Link
             href="/controle-horarios/direcao/projetos"
