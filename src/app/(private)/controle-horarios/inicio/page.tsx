@@ -16,7 +16,7 @@ import { TabGeneral } from "@/components/tab-general";
 
 export default function Page() {
   const { role } = useClientRole();
-  const isGestor = role === roles.gestor;
+  const isGestor = role === roles.gestor || role === roles.diretor;
 
   return (
     <div className="flex flex-col bg-white shadow-lg rounded-2xl p-2 sm:p-4 sm:px-6 lg:px-8 flex-1 min-h-[125vh] border dark:bg-[#1c1c20]">

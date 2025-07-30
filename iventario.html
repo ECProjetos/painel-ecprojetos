@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventário - Consultoria em Engenharia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Sistema de Inventário</h1>
+            <p class="text-gray-600">Consultoria em Engenharia - Controle de Patrimônio</p>
+        </div>
+
+        <!-- Navigation -->
+        <div class="bg-white rounded-xl shadow-lg p-2 mb-8">
+            <div class="flex space-x-2">
+                <button onclick="showSection('cadastro')" id="btn-cadastro" class="flex-1 py-3 px-6 bg-blue-600 text-white rounded-lg font-medium transition-all hover:bg-blue-700">
+                    📝 Cadastro
+                </button>
+                <button onclick="showSection('estoque')" id="btn-estoque" class="flex-1 py-3 px-6 bg-gray-200 text-gray-700 rounded-lg font-medium transition-all hover:bg-gray-300">
+                    📊 Estoque
+                </button>
+                <button onclick="showSection('relatorio')" id="btn-relatorio" class="flex-1 py-3 px-6 bg-gray-200 text-gray-700 rounded-lg font-medium transition-all hover:bg-gray-300">
+                    📋 Relatório
+                </button>
+            </div>
+        </div>
+
+        <!-- Cadastro Section -->
+        <div id="section-cadastro" class="section">
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Cadastro de Item</h2>
+                <form id="itemForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nome do Item</label>
+                        <input type="text" id="nome" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
+                        <select id="categoria" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Selecione...</option>
+                            <option value="Computadores">💻 Computadores</option>
+                            <option value="Material de Escritório">📎 Material de Escritório</option>
+                            <option value="Equipamentos de Campo">🔧 Equipamentos de Campo</option>
+                            <option value="Softwares">💿 Softwares</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Valor Pago (R$)</label>
+                        <input type="number" id="valorPago" step="0.01" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Valor Atual (R$)</label>
+                        <input type="number" id="valorAtual" step="0.01" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
+                        <input type="number" id="quantidade" min="1" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Data de Aquisição</label>
+                        <input type="date" id="dataAquisicao" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
+                        <textarea id="descricao" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Detalhes adicionais sobre o item..."></textarea>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <button type="submit" class="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-green-700 transition-colors">
+                            ✅ Cadastrar Item
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Estoque Section -->
+        <div id="section-estoque" class="section hidden">
+            <!-- Cards de Resumo -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-3xl font-bold" id="totalItens">0</div>
+                            <div class="text-blue-100">Total de Itens</div>
+                        </div>
+                        <div class="text-4xl opacity-80">📦</div>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-2xl font-bold" id="valorTotalPago">R$ 0</div>
+                            <div class="text-green-100">Valor Investido</div>
+                        </div>
+                        <div class="text-4xl opacity-80">💰</div>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-2xl font-bold" id="valorTotalAtual">R$ 0</div>
+                            <div class="text-purple-100">Valor Atual</div>
+                        </div>
+                        <div class="text-4xl opacity-80">📈</div>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-lg p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-2xl font-bold" id="depreciacao">R$ 0</div>
+                            <div class="text-orange-100">Depreciação</div>
+                        </div>
+                        <div class="text-4xl opacity-80">📉</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros e Busca -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div class="flex flex-col md:flex-row gap-4 items-end">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">🔍 Buscar Item</label>
+                        <input type="text" id="filtroBusca" onkeyup="aplicarFiltros()" placeholder="Digite o nome do item..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div class="w-full md:w-64">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">📂 Categoria</label>
+                        <select id="filtroCategoria" onchange="aplicarFiltros()" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Todas as categorias</option>
+                            <option value="Computadores">💻 Computadores</option>
+                            <option value="Material de Escritório">📎 Material de Escritório</option>
+                            <option value="Equipamentos de Campo">🔧 Equipamentos de Campo</option>
+                            <option value="Softwares">💿 Softwares</option>
+                        </select>
+                    </div>
+                    <button onclick="limparFiltros()" class="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium">
+                        🔄 Limpar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span class="mr-2">📊</span>
+                        Itens por Categoria
+                    </h3>
+                    <div class="h-64">
+                        <canvas id="chartCategoria"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span class="mr-2">💵</span>
+                        Valor por Categoria
+                    </h3>
+                    <div class="h-64">
+                        <canvas id="chartValor"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lista de Itens -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                    <span class="mr-2">📋</span>
+                    Itens em Estoque
+                    <span id="contadorItens" class="ml-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">0</span>
+                </h3>
+                <div id="listaItens">
+                    <div class="text-center text-gray-500 py-12">
+                        <div class="text-6xl mb-4">📦</div>
+                        <div class="text-xl font-medium mb-2">Nenhum item cadastrado</div>
+                        <div class="text-gray-400">Vá para a aba "Cadastro" para adicionar itens</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Relatório Section -->
+        <div id="section-relatorio" class="section hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Relatório Completo</h2>
+                    <button onclick="exportarDados()" class="bg-green-600 text-white py-2 px-6 rounded-lg font-medium hover:bg-green-700 transition-colors">
+                        📥 Exportar CSV
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table id="tabelaCompleta" class="w-full border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="border border-gray-300 px-4 py-3 text-left font-medium text-gray-700">Nome</th>
+                                <th class="border border-gray-300 px-4 py-3 text-left font-medium text-gray-700">Categoria</th>
+                                <th class="border border-gray-300 px-4 py-3 text-left font-medium text-gray-700">Quantidade</th>
+                                <th class="border border-gray-300 px-4 py-3 text-left font-medium text-gray-700">Valor Pago</th>
+                                <th class="border border-gray-300 px-4 py-3 text-left font-medium text-gray-700">Valor Atual</th>
+                                <th class="border border-gray-300 px-4 py-3 text-left font-medium text-gray-700">Depreciação</th>
+                                <th class="border border-gray-300 px-4 py-3 text-left font-medium text-gray-700">Data Aquisição</th>
+                                <th class="border border-gray-300 px-4 py-3 text-left font-medium text-gray-700">Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody id="corpoTabela">
+                            <tr>
+                                <td colspan="8" class="border border-gray-300 px-4 py-8 text-center text-gray-500">
+                                    Nenhum item cadastrado ainda
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let inventario = JSON.parse(localStorage.getItem('inventario')) || [];
+        let chartCategoria, chartValor;
+
+        // Navegação entre seções
+        function showSection(section) {
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`section-${section}`).classList.remove('hidden');
+            
+            document.querySelectorAll('[id^="btn-"]').forEach(btn => {
+                btn.className = btn.className.replace('bg-blue-600 text-white', 'bg-gray-200 text-gray-700');
+            });
+            document.getElementById(`btn-${section}`).className = document.getElementById(`btn-${section}`).className.replace('bg-gray-200 text-gray-700', 'bg-blue-600 text-white');
+            
+            if (section === 'estoque') {
+                atualizarEstoque();
+            } else if (section === 'relatorio') {
+                atualizarRelatorio();
+            }
+        }
+
+        // Cadastro de item
+        document.getElementById('itemForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const item = {
+                id: Date.now(),
+                nome: document.getElementById('nome').value,
+                categoria: document.getElementById('categoria').value,
+                valorPago: parseFloat(document.getElementById('valorPago').value),
+                valorAtual: parseFloat(document.getElementById('valorAtual').value),
+                quantidade: parseInt(document.getElementById('quantidade').value),
+                dataAquisicao: document.getElementById('dataAquisicao').value,
+                descricao: document.getElementById('descricao').value
+            };
+            
+            inventario.push(item);
+            localStorage.setItem('inventario', JSON.stringify(inventario));
+            
+            this.reset();
+            alert('Item cadastrado com sucesso!');
+        });
+
+        // Atualizar seção de estoque
+        function atualizarEstoque() {
+            atualizarResumo();
+            atualizarListaItens();
+            atualizarGraficos();
+        }
+
+        function atualizarResumo() {
+            const totalItens = inventario.reduce((sum, item) => sum + item.quantidade, 0);
+            const valorTotalPago = inventario.reduce((sum, item) => sum + (item.valorPago * item.quantidade), 0);
+            const valorTotalAtual = inventario.reduce((sum, item) => sum + (item.valorAtual * item.quantidade), 0);
+            const depreciacao = valorTotalPago - valorTotalAtual;
+
+            document.getElementById('totalItens').textContent = totalItens;
+            document.getElementById('valorTotalPago').textContent = `R$ ${valorTotalPago.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('valorTotalAtual').textContent = `R$ ${valorTotalAtual.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('depreciacao').textContent = `R$ ${depreciacao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        }
+
+        function atualizarListaItens() {
+            const container = document.getElementById('listaItens');
+            const contador = document.getElementById('contadorItens');
+            const itens = filtrarItens();
+            
+            contador.textContent = itens.length;
+            
+            if (itens.length === 0) {
+                const mensagem = document.getElementById('filtroBusca').value || document.getElementById('filtroCategoria').value 
+                    ? 'Nenhum item encontrado com os filtros aplicados'
+                    : 'Nenhum item cadastrado';
+                    
+                container.innerHTML = `
+                    <div class="text-center text-gray-500 py-12">
+                        <div class="text-6xl mb-4">🔍</div>
+                        <div class="text-xl font-medium mb-2">${mensagem}</div>
+                        <div class="text-gray-400">Tente ajustar os filtros ou cadastrar novos itens</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="grid gap-4">
+                    ${itens.map(item => {
+                        const depreciacao = item.valorPago - item.valorAtual;
+                        const percentualDepreciacao = ((depreciacao / item.valorPago) * 100).toFixed(1);
+                        const categoriaIcon = {
+                            'Computadores': '💻',
+                            'Material de Escritório': '📎',
+                            'Equipamentos de Campo': '🔧',
+                            'Softwares': '💿'
+                        };
+                        
+                        return `
+                            <div class="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 hover:border-blue-300">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="flex items-center">
+                                        <span class="text-2xl mr-3">${categoriaIcon[item.categoria] || '📦'}</span>
+                                        <div>
+                                            <h4 class="text-lg font-semibold text-gray-800">${item.nome}</h4>
+                                            <p class="text-sm text-gray-500">${item.categoria}</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-sm text-gray-500">Quantidade</div>
+                                        <div class="text-xl font-bold text-blue-600">${item.quantidade}</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                    <div class="bg-green-50 rounded-lg p-3">
+                                        <div class="text-xs text-green-600 font-medium">VALOR PAGO</div>
+                                        <div class="text-lg font-bold text-green-700">R$ ${item.valorPago.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                                    </div>
+                                    <div class="bg-blue-50 rounded-lg p-3">
+                                        <div class="text-xs text-blue-600 font-medium">VALOR ATUAL</div>
+                                        <div class="text-lg font-bold text-blue-700">R$ ${item.valorAtual.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                                    </div>
+                                    <div class="bg-red-50 rounded-lg p-3">
+                                        <div class="text-xs text-red-600 font-medium">DEPRECIAÇÃO</div>
+                                        <div class="text-lg font-bold text-red-700">R$ ${depreciacao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                                        <div class="text-xs text-red-500">${percentualDepreciacao}%</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="border-t pt-3">
+                                    <div class="flex justify-between items-center text-sm text-gray-600">
+                                        <span>📅 ${new Date(item.dataAquisicao).toLocaleDateString('pt-BR')}</span>
+                                        <span class="text-xs bg-gray-100 px-2 py-1 rounded">ID: ${item.id}</span>
+                                    </div>
+                                    ${item.descricao ? `<p class="text-sm text-gray-600 mt-2">${item.descricao}</p>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function atualizarGraficos() {
+            const categorias = {};
+            const valoresPorCategoria = {};
+
+            inventario.forEach(item => {
+                categorias[item.categoria] = (categorias[item.categoria] || 0) + item.quantidade;
+                valoresPorCategoria[item.categoria] = (valoresPorCategoria[item.categoria] || 0) + (item.valorAtual * item.quantidade);
+            });
+
+            // Gráfico de categorias (Doughnut)
+            const ctxCategoria = document.getElementById('chartCategoria').getContext('2d');
+            if (chartCategoria) chartCategoria.destroy();
+            
+            if (Object.keys(categorias).length === 0) {
+                ctxCategoria.clearRect(0, 0, ctxCategoria.canvas.width, ctxCategoria.canvas.height);
+                ctxCategoria.font = '16px Inter';
+                ctxCategoria.fillStyle = '#9CA3AF';
+                ctxCategoria.textAlign = 'center';
+                ctxCategoria.fillText('Nenhum dado disponível', ctxCategoria.canvas.width/2, ctxCategoria.canvas.height/2);
+            } else {
+                chartCategoria = new Chart(ctxCategoria, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(categorias),
+                        datasets: [{
+                            data: Object.values(categorias),
+                            backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
+                            borderWidth: 0,
+                            hoverBorderWidth: 2,
+                            hoverBorderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true,
+                                    font: {
+                                        size: 12,
+                                        family: 'Inter'
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '60%'
+                    }
+                });
+            }
+
+            // Gráfico de valores (Bar)
+            const ctxValor = document.getElementById('chartValor').getContext('2d');
+            if (chartValor) chartValor.destroy();
+            
+            if (Object.keys(valoresPorCategoria).length === 0) {
+                ctxValor.clearRect(0, 0, ctxValor.canvas.width, ctxValor.canvas.height);
+                ctxValor.font = '16px Inter';
+                ctxValor.fillStyle = '#9CA3AF';
+                ctxValor.textAlign = 'center';
+                ctxValor.fillText('Nenhum dado disponível', ctxValor.canvas.width/2, ctxValor.canvas.height/2);
+            } else {
+                chartValor = new Chart(ctxValor, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(valoresPorCategoria),
+                        datasets: [{
+                            label: 'Valor Atual (R$)',
+                            data: Object.values(valoresPorCategoria),
+                            backgroundColor: '#3B82F6',
+                            borderRadius: 8,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return 'R$ ' + value.toLocaleString('pt-BR');
+                                    }
+                                },
+                                grid: {
+                                    color: '#F3F4F6'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Filtros
+        function filtrarItens() {
+            const categoria = document.getElementById('filtroCategoria').value;
+            const busca = document.getElementById('filtroBusca').value.toLowerCase();
+
+            return inventario.filter(item => {
+                const matchCategoria = !categoria || item.categoria === categoria;
+                const matchBusca = !busca || item.nome.toLowerCase().includes(busca);
+                return matchCategoria && matchBusca;
+            });
+        }
+
+        function aplicarFiltros() {
+            atualizarListaItens();
+        }
+
+        function limparFiltros() {
+            document.getElementById('filtroCategoria').value = '';
+            document.getElementById('filtroBusca').value = '';
+            atualizarListaItens();
+        }
+
+        // Relatório
+        function atualizarRelatorio() {
+            const tbody = document.getElementById('corpoTabela');
+            
+            if (inventario.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="border border-gray-300 px-4 py-8 text-center text-gray-500">Nenhum item cadastrado ainda</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = inventario.map(item => `
+                <tr class="hover:bg-gray-50">
+                    <td class="border border-gray-300 px-4 py-3">${item.nome}</td>
+                    <td class="border border-gray-300 px-4 py-3">${item.categoria}</td>
+                    <td class="border border-gray-300 px-4 py-3">${item.quantidade}</td>
+                    <td class="border border-gray-300 px-4 py-3">R$ ${item.valorPago.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    <td class="border border-gray-300 px-4 py-3">R$ ${item.valorAtual.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    <td class="border border-gray-300 px-4 py-3">R$ ${(item.valorPago - item.valorAtual).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    <td class="border border-gray-300 px-4 py-3">${new Date(item.dataAquisicao).toLocaleDateString('pt-BR')}</td>
+                    <td class="border border-gray-300 px-4 py-3">${item.descricao}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Exportar dados
+        function exportarDados() {
+            if (inventario.length === 0) {
+                alert('Não há dados para exportar!');
+                return;
+            }
+
+            const headers = ['Nome', 'Categoria', 'Quantidade', 'Valor Pago', 'Valor Atual', 'Depreciação', 'Data Aquisição', 'Descrição'];
+            const csvContent = [
+                headers.join(','),
+                ...inventario.map(item => [
+                    `"${item.nome}"`,
+                    `"${item.categoria}"`,
+                    item.quantidade,
+                    item.valorPago.toFixed(2),
+                    item.valorAtual.toFixed(2),
+                    (item.valorPago - item.valorAtual).toFixed(2),
+                    item.dataAquisicao,
+                    `"${item.descricao}"`
+                ].join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `inventario_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        // Inicializar
+        if (inventario.length > 0) {
+            atualizarEstoque();
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9666f83c26e94568',t:'MTc1MzczMjg5OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
