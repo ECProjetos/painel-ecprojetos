@@ -94,7 +94,7 @@ export async function getAllAtividades() {
         const supabase = await createClient();
 
         const { data, error } = await supabase
-            .from("vw_activities_with_department")
+            .from("activities")
             .select("*")
             .order("name", { ascending: false });
 

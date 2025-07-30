@@ -28,11 +28,12 @@ import { Processo } from "@/types/activity-hierarchy/processo";
 import { PainelSubProcessos } from "@/components/atividades/subprocessos/painel-processos";
 import { SubProcesso } from "@/types/activity-hierarchy/sub-processo";
 import { getSubProcessos } from "@/app/actions/activity-hierarchy/subprocesso";
+import { getAllAtividades } from "@/app/actions/atividades";
 
 export default function ProjetosPage() {
   
   //datas
-  const [atividades] = useState<AtividadeView[]>([]);
+  const [atividades, setAtividades] = useState<AtividadeView[]>([]);
   const [macroprocessos, setMacroprocessos] = useState<Macroprocesso[]>([]);
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [subprocessos, setSubprocessos] = useState<SubProcesso[]>([]);
@@ -99,6 +100,24 @@ export default function ProjetosPage() {
       }
     };
     fetchSubProcessos();
+  }, [refresehMacroprocessos]);
+
+  useEffect(() => {
+    setFetchingMacroprocessos(true);
+    const fetchAtividades = async () => {
+      try {
+        const data = await getAllAtividades();
+        setAtividades(data);
+      } catch (error) {
+        console.error("Erro ao buscar Atividades:", error);
+        toast.error(
+          "Erro ao buscar subprocessos. Tente novamente mais tarde."
+        );
+      } finally {
+        setFetchingMacroprocessos(false);
+      }
+    };
+    fetchAtividades();
   }, [refresehMacroprocessos]);
 
   return (

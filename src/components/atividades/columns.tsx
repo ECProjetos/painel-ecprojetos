@@ -28,7 +28,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 
 import { toast } from "sonner";
 import Link from "next/link";
@@ -70,78 +69,6 @@ export const atividadeColumns = ({
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Nome" />
     ),
-  },
-  {
-    accessorKey: "description",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Descrição" />
-    ),
-    cell: ({ row }) => {
-      const description = row.original.description
-        ? row.original.description
-        : "Sem descrição";
-      const fullDescription = description;
-
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      const [expanded, setExpanded] = useState(false);
-      const limiteCaracteres = 50; // ajuste conforme necessário
-
-      const textoExibido = expanded
-        ? fullDescription
-        : description.slice(0, limiteCaracteres) +
-          (fullDescription.length > limiteCaracteres ? "..." : "");
-
-      return (
-        <div
-          className="text-sm text-muted-foreground"
-          style={{
-            whiteSpace: "normal",
-            wordWrap: "break-word",
-            maxWidth: "400px",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {textoExibido}
-          <br />
-          {fullDescription.length > limiteCaracteres && (
-            <button
-              className="text-sm"
-              onClick={() => setExpanded(!expanded)}
-              style={{
-                background: "none",
-                border: "none",
-                color: "black",
-                cursor: "pointer",
-              }}
-            >
-              {expanded ? "Mostrar menos" : "Mostrar mais"}
-            </button>
-          )}
-        </div>
-      );
-    },
-  },
-
-  {
-    accessorKey: "department_name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Departamento" />
-    ),
-  },
-  {
-    accessorKey: "status",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
-    ),
-    cell: ({ row }) => {
-      const status = row.original.status;
-      return (
-        <Badge variant={status === "ativo" ? "ativo" : "inativel"}>
-          {status}
-        </Badge>
-      );
-    },
   },
   {
     id: "actions",

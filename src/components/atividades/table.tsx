@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 
 import {
   ColumnDef,
@@ -27,13 +27,7 @@ import { DataTablePagination } from "@/components/data-table/pagination";
 import { DataTableViewOptions } from "@/components/data-table/column-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+
 
 interface AtividadeTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -47,20 +41,6 @@ export function AtividadeTable<
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  // extrai lista única de departamentos e statuses
-  const departmentOptions = useMemo(() => {
-    const setDeps = new Set<string>();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data.forEach((row) => setDeps.add((row as any).department_name));
-    return Array.from(setDeps).sort();
-  }, [data]);
-
-  const statusOptions = useMemo(() => {
-    const setSts = new Set<string>();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data.forEach((row) => setSts.add((row as any).status));
-    return Array.from(setSts).sort();
-  }, [data]);
 
   const handleResetFilters = () => {
     setColumnFilters([]);
@@ -93,54 +73,7 @@ export function AtividadeTable<
           className="max-w-sm"
         />
 
-        {/* Filtro por Departamento */}
-        <Select
-          value={
-            (table.getColumn("department_name")?.getFilterValue() as string) ??
-            "all"
-          }
-          onValueChange={(value) =>
-            table
-              .getColumn("department_name")
-              ?.setFilterValue(value === "all" ? undefined : value)
-          }
-        >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Departamento" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {departmentOptions.map((dep) => (
-              <SelectItem key={dep} value={dep}>
-                {dep}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Filtro por Status */}
-        <Select
-          value={
-            (table.getColumn("status")?.getFilterValue() as string) ?? "all"
-          }
-          onValueChange={(value) =>
-            table
-              .getColumn("status")
-              ?.setFilterValue(value === "all" ? undefined : value)
-          }
-        >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {statusOptions.map((st) => (
-              <SelectItem key={st} value={st}>
-                {st.charAt(0).toUpperCase() + st.slice(1)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+       
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" onClick={handleResetFilters}>
             Resetar Filtros
