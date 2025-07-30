@@ -17,7 +17,8 @@ import {
   PanelLeftOpen,
   ThumbsUpIcon,
   NotebookPen,
-  NotepadText
+  NotepadText,
+  LucideNotebook
 } from "lucide-react";
 
 import {
@@ -100,7 +101,13 @@ const createData = (pathname: string, userId?: string) => ({
       url: "/satisfacao",
       icon: ThumbsUpIcon,
       isActive: pathname.startsWith("/satisfacao"),
-    }
+    },
+    {
+      title: "Inventário",
+      url: "/inventario",
+      icon: LucideNotebook,
+      isActive: pathname.startsWith("/inventario"),
+    },
   ],
   navDiretor: [
     {
@@ -151,6 +158,12 @@ const createData = (pathname: string, userId?: string) => ({
       url: "/atividades",
       icon: NotepadText,
       isActive: pathname.startsWith("/atividades"),
+    },
+    {
+      title: "Inventário",
+      url: "/inventario",
+      icon: LucideNotebook,
+      isActive: pathname.startsWith("/inventario"),
     },
   ],
 });

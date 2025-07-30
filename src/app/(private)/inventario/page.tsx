@@ -2,6 +2,7 @@
 
 import CadastroInventario from "@/components/inventário/cadastro-inventario";
 import Estoque from "@/components/inventário/estoque";
+import RelatorioEstoque from "@/components/inventário/relatorio";
 import { Card, CardHeader } from "@/components/ui/card";
 import {
   Tabs,
@@ -36,7 +37,7 @@ export default function PaginaInventario() {
           <Estoque/>
         </TabsContent>
         <TabsContent value="relatorio">
-          <p>Conteúdo de Relatório</p>
+          <RelatorioEstoque/>
         </TabsContent>
       </Tabs>
     </div>
