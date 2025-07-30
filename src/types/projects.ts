@@ -12,7 +12,7 @@ export const projectSchema = z.object({
     estimated_hours: z.number().int().positive({ message: 'Horas estimadas devem ser um número positivo' }),
 })
 
-export const newProjectSchema = projectSchema.omit({ id: true });
+export const newProjectSchema = projectSchema.omit({ id: true, department_name: true });
 
 export const timeSumaryViewProjectSchema = projectSchema.omit({
     department_id: true,

@@ -40,11 +40,12 @@ export default function ProjetosPage() {
   }, []);
 
   const handleFormSubmit = async (data: NewProject) => {
+    console.log("Submissão do formulário recebida:", data);
     try {
       await createProject(data);
       toast("Projeto criado com sucesso!");
       setTimeout(() => {
-        window.location.href = "/direcao/projetos";
+        window.location.href = "/projetos";
       }, 2000); // Redireciona após 1 segundo
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {

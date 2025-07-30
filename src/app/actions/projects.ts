@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { NewProject } from "@/types/projects";
 
 export async function createProject(project: NewProject) {
+    console.log("CHAMOUUUU")
     try {
         const supabase = await createClient();
 
