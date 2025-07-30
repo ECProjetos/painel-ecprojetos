@@ -135,6 +135,12 @@ const createData = (pathname: string, userId?: string) => ({
       isActive: pathname.startsWith("/satisfacao"),
     },
     {
+      title: "Feedback interno",
+      url: "/enps",
+      icon: ClipboardList,
+      isActive: pathname.startsWith("/enps"),
+    },
+    {
       title: "Projetos",
       url: "/projetos",
       icon: NotebookPen,

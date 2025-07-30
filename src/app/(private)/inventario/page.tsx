@@ -1,6 +1,7 @@
 'use client';
 
 import CadastroInventario from "@/components/inventário/cadastro-inventario";
+import Estoque from "@/components/inventário/estoque";
 import { Card, CardHeader } from "@/components/ui/card";
 import {
   Tabs,
@@ -32,7 +33,7 @@ export default function PaginaInventario() {
           <CadastroInventario/>
         </TabsContent>
         <TabsContent value="estoque">
-          <p>Conteúdo de Estoque</p>
+          <Estoque/>
         </TabsContent>
         <TabsContent value="relatorio">
           <p>Conteúdo de Relatório</p>
