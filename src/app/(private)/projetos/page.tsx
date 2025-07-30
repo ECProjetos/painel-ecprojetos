@@ -19,6 +19,7 @@ import { getAllProjects } from "@/app/actions/projects";
 import { TimeSumaryViewProject } from "@/types/projects";
 import { ProjectTable } from "@/components/projetos/table";
 import { projectColumns } from "@/components/projetos/columns";
+import Loading from "@/app/loading";
 
 export default function ProjetosPage() {
   const [loading, setLoading] = useState(true);
@@ -77,7 +78,7 @@ export default function ProjetosPage() {
         </div>
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <p>Carregando pROJETOS...</p>
+            <Loading/>
           </div>
         ) : (
           <ProjectTable
