@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-800">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gradient-to-br from-blue-100 via-white to-blue-200 text-gray-800">
       <div className="max-w-xl text-center space-y-6">
         {/* Título elegante */}
         <h1 className="text-4xl sm:text-5xl font-bold leading-tight tracking-tight text-blue-900">
