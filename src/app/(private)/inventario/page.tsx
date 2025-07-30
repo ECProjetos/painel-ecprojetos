@@ -1,5 +1,6 @@
 'use client';
 
+import CadastroInventario from "@/components/inventário/cadastro-inventario";
 import { Card, CardHeader } from "@/components/ui/card";
 import {
   Tabs,
@@ -10,10 +11,10 @@ import {
 
 export default function PaginaInventario() {
   return (
-    <div>
-      <Card className="m-10 p-8">
+    <div className="m-10 flex-col justify-center">
+      <Card className="p-8 w-full mb-5">
         <CardHeader>
-          <h1 className="font-semibold text-2xl">Sistema de Inventário</h1>
+          <h1 className="font-semibold text-3xl">Sistema de Inventário</h1>
           <p className="text-sm text-gray-500">
             Consultoria em Engenharia - Controle de Patrimônio
           </p>
@@ -21,14 +22,14 @@ export default function PaginaInventario() {
       </Card>
 
       <Tabs defaultValue="cadastro">
-        <TabsList>
-          <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
-          <TabsTrigger value="estoque">Estoque</TabsTrigger>
-          <TabsTrigger value="relatorio">Relatório</TabsTrigger>
+        <TabsList className="w-full">
+          <TabsTrigger value="cadastro">📝 Cadastro</TabsTrigger>
+          <TabsTrigger value="estoque">📊 Estoque</TabsTrigger>
+          <TabsTrigger value="relatorio">📋 Relatório</TabsTrigger>
         </TabsList>
 
         <TabsContent value="cadastro">
-          <p>Conteúdo de Cadastro</p>
+          <CadastroInventario/>
         </TabsContent>
         <TabsContent value="estoque">
           <p>Conteúdo de Estoque</p>

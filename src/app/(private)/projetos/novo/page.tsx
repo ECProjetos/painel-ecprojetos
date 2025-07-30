@@ -71,7 +71,7 @@ export default function ProjetosPage() {
             <BreadcrumbEllipsis />
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink href="/controle-horarios/direcao/projetos">
+              <BreadcrumbLink href="/projetos">
                 Projetos
               </BreadcrumbLink>
             </BreadcrumbItem>
