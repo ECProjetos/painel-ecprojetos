@@ -6,7 +6,6 @@ export const projectsSchema = z.object({
   code: z.string().max(50).nullable(), // character varying(50) null
   estimated_hours: z.number().int().nullable(), // integer null
   description: z.string().nullable(), // text null
-  department_id: z.number().int().positive(), // integer not null
   status: z.enum(["ativo", "inativo", "concluido", "pausado"]),
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 
 import {
   ColumnDef,
@@ -27,13 +27,7 @@ import { DataTablePagination } from "@/components/data-table/pagination";
 import { DataTableViewOptions } from "@/components/data-table/column-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+
 
 interface ProjectTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -41,19 +35,12 @@ interface ProjectTableProps<TData, TValue> {
 }
 
 export function ProjectTable<
-  TData extends { status: string },
+  TData,
   TValue
 >({ columns, data }: ProjectTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-
-  const statusOptions = useMemo(() => {
-    const setSts = new Set<string>();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data.forEach((row) => setSts.add((row as any).status));
-    return Array.from(setSts).sort();
-  }, [data]);
 
   const handleResetFilters = () => {
     setColumnFilters([]);
@@ -88,29 +75,6 @@ export function ProjectTable<
 
   
 
-        {/* Filtro por Status */}
-        <Select
-          value={
-            (table.getColumn("status")?.getFilterValue() as string) ?? "all"
-          }
-          onValueChange={(value) =>
-            table
-              .getColumn("status")
-              ?.setFilterValue(value === "all" ? undefined : value)
-          }
-        >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {statusOptions.map((st) => (
-              <SelectItem key={st} value={st}>
-                {st.charAt(0).toUpperCase() + st.slice(1)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" onClick={handleResetFilters}>
             Resetar Filtros

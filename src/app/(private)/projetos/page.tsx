@@ -15,21 +15,22 @@ import { cn } from "@/lib/utils";
 import {  PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { getAllProjects } from "@/app/actions/projects";
-import { TimeSumaryViewProject } from "@/types/projects";
 import { ProjectTable } from "@/components/projetos/table";
 import { projectColumns } from "@/components/projetos/columns";
 import Loading from "@/app/loading";
+import { ProjectsType } from "@/types/inicio/projetos";
+import { getProjetos } from "@/app/actions/inicio/get-projetos";
 
 export default function ProjetosPage() {
   const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState<TimeSumaryViewProject[]>([]);
+  const [projects, setProjects] = useState<ProjectsType[]>([]);
   const [refresh, setRefresh] = useState<number>(0);
+  console.log(projects)
 
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const data = await getAllProjects();
+        const data = await getProjetos();
         setProjects(data ?? []);
       } catch (error) {
         console.error("Erro ao buscar projetos:", error);

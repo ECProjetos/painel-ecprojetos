@@ -44,6 +44,7 @@ export default function PontoForm() {
   const [userId, setUserId] = useState<string | null>(null);
   const [atividades, setAtividades] = useState<ActivitiesType>();
   const [projetos, setProjetos] = useState<ProjectsType>();
+  console.log(projetos)
   const [selectedProjeto, setSelectedProjeto] = useState<string>("");
   const [selectedAtividade, setSelectedAtividade] = useState<string>("");
   const [periodos, setPeriodos] = useState<nestedPontoType[]>([]);
