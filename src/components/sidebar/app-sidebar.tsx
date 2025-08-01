@@ -18,7 +18,8 @@ import {
   ThumbsUpIcon,
   NotebookPen,
   NotepadText,
-  LucideNotebook
+  LucideNotebook,
+  User
 } from "lucide-react";
 
 import {
@@ -107,6 +108,12 @@ const createData = (pathname: string, userId?: string) => ({
       url: "/inventario",
       icon: LucideNotebook,
       isActive: pathname.startsWith("/inventario"),
+    },
+    {
+      title: "Formulário ENPS",
+      url: "https://sistema.ecprojetos.com.br/enps/2025/terceiro-trimestre",
+      icon:User,
+      isActive: pathname.startsWith("/enps"),
     },
   ],
   navDiretor: [
