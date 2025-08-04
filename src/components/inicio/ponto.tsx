@@ -25,6 +25,7 @@ import { getProjetos } from "@/app/actions/inicio/get-projetos";
 import { getUserSession } from "@/app/(auth)/actions";
 import Loading from "@/app/loading";
 import { nestedPontoType } from "@/types/inicio/ponto";
+import { deletePonto } from "@/app/actions/inicio/get-ponto";
 
 
 const initialState = { success: false, error: null as string | null };
@@ -146,7 +147,7 @@ export default function PontoForm() {
                   {projetos && projetos.length > 0 ? (
                     projetos.map((projeto) => (
                       <SelectItem key={projeto.id} value={projeto.id.toString()}>
-                        {projeto.name}
+                        {projeto.code} - {projeto.name}
                       </SelectItem>
                     ))
                   ) : (
@@ -199,7 +200,7 @@ export default function PontoForm() {
             <p className="text-red-600 mt-2 mx-10">{state.error}</p>
           )}
         </div>
-        <PeriodosDoDia periodos={periodos} />
+        <PeriodosDoDia periodos={periodos} setPeriodos={setPeriodos} />
 
       </div>
     </Card>
@@ -209,6 +210,7 @@ export default function PontoForm() {
 
 type Props = {
   periodos: nestedPontoType[];
+  setPeriodos: React.Dispatch<React.SetStateAction<nestedPontoType[]>>;
 };
 
 function formatTime(time: string): string {
@@ -225,7 +227,7 @@ function calcularDuracao(entry: string, exit: string): string {
   return `${horas}h ${minutos}min`;
 }
 
-export  function PeriodosDoDia({ periodos }: Props) {
+export  function PeriodosDoDia({ periodos, setPeriodos }: Props) {
   const totalMinutos = periodos.reduce((acc, p) => {
     const [eh, em] = p.entry_time.split(":").map(Number);
     const [xh, xm] = p.exit_time.split(":").map(Number);
@@ -234,6 +236,17 @@ export  function PeriodosDoDia({ periodos }: Props) {
 
   const totalHoras = Math.floor(totalMinutos / 60);
   const totalMin = totalMinutos % 60;
+
+  const handleDelete = async (ponto: nestedPontoType) => {
+    await deletePonto({
+      payload: {
+        user_id: ponto.user_id,
+        entry_date: ponto.entry_date,
+        entry_time: ponto.entry_time,
+      },
+    });
+    setPeriodos(periodos.filter((item) => item.entry_time !== ponto.entry_time));
+  };
 
   return (
     <div className=" h-full bg-[#fafbfc] m-4 p-10">
@@ -257,6 +270,7 @@ export  function PeriodosDoDia({ periodos }: Props) {
             <button
               className="text-red-500 hover:text-red-700 text-sm font-bold"
               aria-label="Remover período"
+              onClick={() => handleDelete(p)}
             >
               ×
             </button>

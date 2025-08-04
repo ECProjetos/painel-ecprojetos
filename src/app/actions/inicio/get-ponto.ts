@@ -28,7 +28,6 @@ interface DeleteType {
 
 export async function deletePonto({ payload }: DeleteType) {
   const supabase = await createClient()
-
   const { error } = await supabase
     .from("ponto")
     .delete()
