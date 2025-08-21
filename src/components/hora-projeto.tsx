@@ -39,7 +39,7 @@ export function MinhasHorasPorProjeto({
           <div key={item.agrupamento_id} className="mb-4">
             <div className="flex justify-between text-sm font-medium">
               <span>{item.nome_agrupamento}</span>
-              <span>{horas.toFixed(1)}h</span>
+                <span>{Math.floor(horas)}h {Math.round((horas % 1) * 60)}m</span>
             </div>
             <div className="w-full h-2 bg-gray-200 rounded mt-2 mb-1">
               <div
