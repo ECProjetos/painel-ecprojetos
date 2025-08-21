@@ -154,7 +154,9 @@ export default function RelatorioColaborador() {
             </td>
             <td className="px-4 py-2">{item.projeto}</td>
             <td className="px-4 py-2">{item.atividade}</td>
-            <td className="px-4 py-2 font-semibold">{item.horas.toFixed(2)}h</td>
+            <td className="px-4 py-2 font-semibold">
+              {`${Math.floor(item.horas)}h ${Math.round((item.horas % 1) * 60)}m`}
+            </td>
           </tr>
         ))}
       </tbody>
