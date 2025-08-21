@@ -14,12 +14,10 @@ export default function HomePage() {
         </h1>
 
         {/* Subtítulo explicativo */}
-        <p className="text-lg text-gray-600">
-          Acesse sua conta ou vá direto para o Controle de Horários.
-        </p>
+
 
         {/* Botões */}
-        <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+        <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6 ">
           <Link
             href="/login"
             className={cn(
@@ -28,15 +26,6 @@ export default function HomePage() {
             )}
           >
             Login
-          </Link>
-          <Link
-            href="/controle-horarios/inicio"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "lg" }),
-              "w-full sm:w-auto text-blue-700 border-blue-600 hover:bg-blue-50"
-            )}
-          >
-            Controle de Horários
           </Link>
         </div>
       </div>

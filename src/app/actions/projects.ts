@@ -7,6 +7,7 @@ import { NewProject } from "@/types/projects";
 
 // CRIAR projeto com múltiplos departamentos
 export async function createProject(project: NewProject) {
+  console.log("entrou")
   try {
     const supabase = await createClient();
     const { department_ids, ...projectData } = project;

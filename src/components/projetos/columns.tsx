@@ -49,7 +49,7 @@ const DescriptionCell = ({ row }: { row: any }) => {
 
   return (
     <div
-      className="text-sm text-muted-foreground"
+      className="text-sm "
       style={{
         whiteSpace: "normal",
         wordWrap: "break-word",
@@ -62,13 +62,13 @@ const DescriptionCell = ({ row }: { row: any }) => {
       <br />
       {fullDescription.length > limiteCaracteres && (
         <button
-          className="text-sm"
           onClick={() => setExpanded(!expanded)}
           style={{
             background: "none",
             border: "none",
-            color: "black",
             cursor: "pointer",
+            color: "gray",
+            fontSize: "12px"
           }}
         >
           {expanded ? "Mostrar menos" : "Mostrar mais"}

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "../ui/card";
 import { Input } from "@/components/ui/input";
 import { savePonto } from "@/app/actions/inicio/send-form-ponto";
-import { getAtividades } from "@/app/actions/inicio/get-atividades";
+import { getAtividadesByProjectId } from "@/app/actions/inicio/get-atividades";
 import {
   activitiesArraySchema,
   ActivitiesType,
@@ -26,32 +26,32 @@ import { getUserSession } from "@/app/(auth)/actions";
 import Loading from "@/app/loading";
 import { nestedPontoType } from "@/types/inicio/ponto";
 import { deletePonto } from "@/app/actions/inicio/get-ponto";
-
+import { ComboboxSelect } from "../ui/combobox-select";
 
 const initialState = { success: false, error: null as string | null };
-
-
 
 export default function PontoForm() {
   const formRef = useRef<HTMLFormElement | null>(null);
 
   const [state, formAction, isPending] = useActionState(
-    async (prevState: { success: boolean; error: string | null }, formData: FormData) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async (_prev: any, formData: FormData) => {
       return await savePonto(formData);
     },
     initialState
   );
 
   const [userId, setUserId] = useState<string | null>(null);
-  const [atividades, setAtividades] = useState<ActivitiesType>();
-  const [projetos, setProjetos] = useState<ProjectsType>();
-  console.log(projetos)
-  const [selectedProjeto, setSelectedProjeto] = useState<string>("");
+  const [atividades, setAtividades] = useState<ActivitiesType>([]);
+  const [projetos, setProjetos] = useState<ProjectsType>([]);
+  const [selectedProjetoId, setSelectedProjetoId] = useState<string>(""); // <- id em string
   const [selectedAtividade, setSelectedAtividade] = useState<string>("");
   const [periodos, setPeriodos] = useState<nestedPontoType[]>([]);
   const today = new Date().toISOString().slice(0, 10);
 
   const [date, setDate] = useState<string>(today);
+
+  // Buscar períodos do dia
   useEffect(() => {
     if (!userId || !date) return;
 
@@ -59,16 +59,12 @@ export default function PontoForm() {
       try {
         const res = await fetch("/api/ponto", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ user_id: userId, entry_date: date }),
         });
-
         if (!res.ok) throw new Error("Erro ao buscar dados do ponto");
-
         const data = await res.json();
-        setPeriodos(data); // data é um array
+        setPeriodos(data);
       } catch (err) {
         console.error("Erro ao buscar períodos:", err);
       }
@@ -77,6 +73,7 @@ export default function PontoForm() {
     fetchPeriodos();
   }, [userId, date, state]);
 
+  // Usuário
   useEffect(() => {
     const fetchUser = async () => {
       const session = await getUserSession();
@@ -85,32 +82,50 @@ export default function PontoForm() {
     fetchUser();
   }, []);
 
-  useEffect(() => {
-    const fetchAtividades = async () => {
-      const atividades = await getAtividades();
-      const parsed = activitiesArraySchema.safeParse(atividades);
-      if (parsed.success) setAtividades(parsed.data);
-    };
-    fetchAtividades();
-  }, []);
-
+  // Projetos
   useEffect(() => {
     const fetchProjetos = async () => {
       const projetos = await getProjetos();
       const parsed = projectsArraySchema.safeParse(projetos);
       if (parsed.success) setProjetos(parsed.data);
+      else setProjetos([]);
     };
     fetchProjetos();
   }, []);
 
+  // Atividades por projeto (dispara quando o projeto muda)
+  useEffect(() => {
+    const fetchAtividades = async () => {
+      if (!selectedProjetoId) {
+        setAtividades([]);
+        return;
+      }
+      try {
+        const atividades = await getAtividadesByProjectId({
+          project_id: selectedProjetoId,
+        });
+        const parsed = activitiesArraySchema.safeParse(atividades);
+        setAtividades(parsed.success ? parsed.data : []);
+      } catch (e) {
+        console.error("Erro ao buscar atividades do projeto:", e);
+        setAtividades([]);
+      }
+    };
+
+    // ao trocar de projeto, limpa atividade selecionada
+    setSelectedAtividade("");
+    fetchAtividades();
+  }, [selectedProjetoId]);
+
+  // Reset após salvar
   useEffect(() => {
     if (state.success) {
-      formRef.current?.reset(); // resetar inputs
-      setSelectedProjeto("");
+      formRef.current?.reset();
+      setSelectedProjetoId("");
       setSelectedAtividade("");
+      setAtividades([]);
     }
   }, [state.success]);
-
 
   if (!userId) return <Loading />;
 
@@ -121,8 +136,17 @@ export default function PontoForm() {
           <form ref={formRef} action={formAction} className="space-y-6 m-5">
             <div>
               <label className="block mb-5 font-medium">Data</label>
-              <Input name="entry_date" className="bg-white" type="date"defaultValue={today} max={today} required onChange={(e) => setDate(e.target.value)}/>
+              <Input
+                name="entry_date"
+                className="bg-white"
+                type="date"
+                defaultValue={today}
+                max={today}
+                required
+                onChange={(e) => setDate(e.target.value)}
+              />
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block mb-5 font-medium">Hora de Entrada</label>
@@ -133,12 +157,14 @@ export default function PontoForm() {
                 <Input name="exit_time" className="bg-white" type="time" required />
               </div>
             </div>
+
             <div>
               <label className="block mb-5 font-medium">Projeto</label>
+              {/* hidden para garantir envio no FormData */}
+              <input type="hidden" name="projeto" value={selectedProjetoId} />
               <Select
-                name="projeto"
-                value={selectedProjeto}
-                onValueChange={setSelectedProjeto}
+                value={selectedProjetoId}
+                onValueChange={setSelectedProjetoId}
               >
                 <SelectTrigger className="w-full bg-white">
                   <SelectValue placeholder="Selecione um projeto" />
@@ -157,37 +183,35 @@ export default function PontoForm() {
               </Select>
 
               <label className="block mb-5 mt-5 font-medium">Atividade</label>
-              <Select
+              <ComboboxSelect
                 name="atividade"
+                className="w-full"
                 value={selectedAtividade}
                 onValueChange={setSelectedAtividade}
-              >
-                <SelectTrigger className="w-full bg-white">
-                  <SelectValue placeholder="Selecione uma atividade" />
-                </SelectTrigger>
-                <SelectContent>
-                  {atividades && atividades.length > 0 ? (
-                    atividades.map((atividade) => (
-                      <SelectItem
-                        key={atividade.id}
-                        value={atividade.id.toString()}
-                      >
-                        {atividade.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="p-2 text-gray-400">Nenhuma atividade encontrada</div>
-                  )}
-                </SelectContent>
-              </Select>
+                placeholder={
+                  selectedProjetoId
+                    ? "Selecione uma atividade"
+                    : "Selecione um projeto primeiro"
+                }
+                emptyText={
+                  selectedProjetoId
+                    ? "Nenhuma atividade encontrada"
+                    : "Selecione um projeto"
+                }
+                items={(atividades ?? []).map((a) => ({
+                  value: a.id.toString(),
+                  label: a.name,
+                }))}
+                disabled={!selectedProjetoId}
+              />
             </div>
 
-            <input type="hidden" name="user_id" value={userId} />
+            <input type="hidden" name="user_id" value={userId ?? ""} />
 
             <Button
               type="submit"
               className="w-full mt-10 py-1"
-              disabled={isPending || !selectedProjeto || !selectedAtividade}
+              disabled={isPending || !selectedProjetoId || !selectedAtividade}
             >
               {isPending ? "Salvando..." : "Registrar Ponto"}
             </Button>
@@ -200,13 +224,12 @@ export default function PontoForm() {
             <p className="text-red-600 mt-2 mx-10">{state.error}</p>
           )}
         </div>
-        <PeriodosDoDia periodos={periodos} setPeriodos={setPeriodos} />
 
+        <PeriodosDoDia periodos={periodos} setPeriodos={setPeriodos} />
       </div>
     </Card>
   );
 }
-
 
 type Props = {
   periodos: nestedPontoType[];
@@ -220,18 +243,18 @@ function formatTime(time: string): string {
 function calcularDuracao(entry: string, exit: string): string {
   const [eh, em] = entry.split(":").map(Number);
   const [xh, xm] = exit.split(":").map(Number);
-  let totalMin = (xh * 60 + xm) - (eh * 60 + em);
+  let totalMin = xh * 60 + xm - (eh * 60 + em);
   if (totalMin < 0) totalMin = 0;
   const horas = Math.floor(totalMin / 60);
   const minutos = totalMin % 60;
   return `${horas}h ${minutos}min`;
 }
 
-export  function PeriodosDoDia({ periodos, setPeriodos }: Props) {
+export function PeriodosDoDia({ periodos, setPeriodos }: Props) {
   const totalMinutos = periodos.reduce((acc, p) => {
     const [eh, em] = p.entry_time.split(":").map(Number);
     const [xh, xm] = p.exit_time.split(":").map(Number);
-    return acc + ((xh * 60 + xm) - (eh * 60 + em));
+    return acc + (xh * 60 + xm - (eh * 60 + em));
   }, 0);
 
   const totalHoras = Math.floor(totalMinutos / 60);

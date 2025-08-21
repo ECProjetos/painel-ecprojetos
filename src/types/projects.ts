@@ -9,6 +9,7 @@ export const projectSchema = z.object({
   description: z.string().optional(),
   department_id: z.number().int().positive({ message: "Departamento é obrigatório" }),
   status: statusEnum,
+  activities: z.array(z.string()),
   estimated_hours: z
     .number()
     .int()
@@ -24,6 +25,8 @@ export const newProjectSchema = projectSchema.omit({
     .array(z.number().int().positive())
     .min(1, { message: "Selecione pelo menos um departamento" }),
 });
+
+
 
 
 export type Project = z.infer<typeof projectSchema>;
