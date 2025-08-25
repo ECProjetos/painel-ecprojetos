@@ -53,6 +53,7 @@ export function NewProjectForm({
       estimated_hours: projeto?.estimated_hours || 0,
       department_ids: projeto?.department_ids || [],
       activities: projeto?.activities || [], // <- importante
+      encharged: projeto?.encharged || "",
     },
   });
 
@@ -169,6 +170,23 @@ export function NewProjectForm({
                     placeholder="Descrição do projeto. Ex: Projeto para facilitar gestão interna de horários trabalhados por projeto."
                     className="min-h-[120px]"
                     {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="encharged"
+            render={({ field }) => (
+              <FormItem className="space-y-2 md:col-span-2">
+                <FormLabel>Gestor</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Gestor do projeto"
+                    {...field}
+                    className="w-1/2"
                   />
                 </FormControl>
                 <FormMessage />

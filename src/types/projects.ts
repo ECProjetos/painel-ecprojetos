@@ -10,6 +10,7 @@ export const projectSchema = z.object({
   department_id: z.number().int().positive({ message: "Departamento é obrigatório" }),
   status: statusEnum,
   activities: z.array(z.string()),
+  encharged:z.string(),
   estimated_hours: z
     .number()
     .int()
