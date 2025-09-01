@@ -35,6 +35,7 @@ export async function fetchProjects(): Promise<Project[]> {
         status: proj.status,
         estimated_hours: proj.estimated_hours,
         department_name: proj.departments?.name ?? '',
-        activities: proj.activities
+        activities: proj.activities,
+        encharged: proj.encharged
     }));
 }
