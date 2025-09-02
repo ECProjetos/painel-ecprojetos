@@ -30,7 +30,7 @@ import Link from "next/link";
 import MultiSelect from "../ui/multi-select";
 import { useQuery } from "@tanstack/react-query";
 import { getAtividades } from "@/app/actions/inicio/get-atividades";
-import { Atividade } from "@/types/atidades";
+import { Atividade } from "@/types/activity-hierarchy/atividades";
 
 interface NewProjectFormProps {
   departments: { id: number; name: string }[];

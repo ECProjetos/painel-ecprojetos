@@ -12,11 +12,11 @@ import {
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getAllDepartments } from "@/app/actions/get-departamentos";
-import {  Atividade } from "@/types/atidades";
 import { getAtividadeById } from "@/app/actions/atividades";
 import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SkeletonTable } from "@/components/skeleton-table";
+import { Atividade } from "@/types/activity-hierarchy/atividades";
 
 export default function AtividadePage() {
   const [departamentos, setDepartamentos] = useState<

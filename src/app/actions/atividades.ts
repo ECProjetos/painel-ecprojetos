@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
+import { NewAtividade } from "@/types/activity-hierarchy/atividades";
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { NewAtividade } from "@/types/atidades";
 
 export async function createAtividade(prevState: any, formData: FormData) {
   try {

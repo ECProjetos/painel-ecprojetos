@@ -11,6 +11,8 @@ export const atividadeSchema = z.object({
     sub_processo_id: z.number().optional(),
 });
 
+
+
 export const newAtividadeSchema = atividadeSchema.omit({ id: true });
 
 export const atividadeViewSchema = atividadeSchema.extend({
