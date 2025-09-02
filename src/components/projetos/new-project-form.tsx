@@ -247,8 +247,6 @@ export function NewProjectForm({
               <FormLabel className="font-semibold">Atividades</FormLabel>
               <FormControl>
                 <MultiSelect
-                  // se seu MultiSelect aceitar "name", pode manter; não é obrigatório com RHF controlando
-                  // name="activities"
                   className="max-w-2xl"
                   options={activities?.map((activity) => ({
                     label: activity.name,
@@ -260,6 +258,7 @@ export function NewProjectForm({
                   onChange={(vals: string[]) => field.onChange(vals)}
                   placeholder="Selecione atividades..."
                 />
+                
               </FormControl>
               <FormMessage />
             </FormItem>

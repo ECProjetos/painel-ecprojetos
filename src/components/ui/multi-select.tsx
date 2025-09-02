@@ -140,25 +140,26 @@ export default function MultiSelect({
                   </div>
                 )}
               </CommandEmpty>
-              <CommandGroup>
-                {options?.map((option) => (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    onSelect={() => handleSelect(option.value)}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        value.includes(option.value)
-                          ? "opacity-100"
-                          : "opacity-0"
-                      )}
-                    />
-                    {option.label}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+             <CommandGroup>
+  {options?.map((option) => (
+    <CommandItem
+      key={option.value}
+      // use o label aqui para a busca funcionar
+      value={option.label}
+      // se quiser, adicione palavras-chave extras
+      // keywords={[option.value]} // opcional: permite buscar pelo id também
+      onSelect={() => handleSelect(option.value)} // mantém seleção pelo id
+    >
+      <Check
+        className={cn(
+          "mr-2 h-4 w-4",
+          value.includes(option.value) ? "opacity-100" : "opacity-0"
+        )}
+      />
+      {option.label}
+    </CommandItem>
+  ))}
+</CommandGroup>
             </CommandList>
           </Command>
         </PopoverContent>
