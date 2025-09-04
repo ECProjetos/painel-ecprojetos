@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -46,16 +46,32 @@ export function NewProjectForm({
   const form = useForm<NewProject>({
     resolver: zodResolver(newProjectSchema),
     defaultValues: {
-      name: projeto?.name || "",
-      code: projeto?.code || "",
-      description: projeto?.description || "",
-      status: projeto?.status || "ativo",
-      estimated_hours: projeto?.estimated_hours || 0,
-      department_ids: projeto?.department_ids || [],
-      activities: projeto?.activities || [], // <- importante
-      encharged: projeto?.encharged || "",
+      name: "",
+      code: "",
+      description: "",
+      status: "ativo",
+      estimated_hours: 0,
+      department_ids: [],
+      activities: [],
+      encharged: "",
     },
   });
+
+  // 🔑 Resetar valores quando receber "projeto" (edição)
+  useEffect(() => {
+    if (projeto) {
+      form.reset({
+        name: projeto.name ?? "",
+        code: projeto.code ?? "",
+        description: projeto.description ?? "",
+        status: projeto.status ?? "ativo",
+        estimated_hours: projeto.estimated_hours ?? 0,
+        department_ids: projeto.department_ids ?? [],
+        activities: projeto.activities ?? [],
+        encharged: projeto.encharged ?? "",
+      });
+    }
+  }, [projeto, form]);
 
   const { data: activities } = useQuery<Atividade[]>({
     queryKey: ["atividades"],
@@ -69,11 +85,12 @@ export function NewProjectForm({
         className="space-y-8"
         noValidate
       >
-        {/* Cabeçalho simples */}
+        {/* Cabeçalho */}
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm text-muted-foreground">
-              Preencha os campos abaixo para {projeto ? "atualizar" : "criar"} o projeto.
+              Preencha os campos abaixo para{" "}
+              {projeto ? "atualizar" : "criar"} o projeto.
             </p>
           </div>
         </div>
@@ -88,7 +105,11 @@ export function NewProjectForm({
               <FormItem className="space-y-2">
                 <FormLabel>Nome do Projeto</FormLabel>
                 <FormControl>
-                  <Input placeholder="Projeto Incrível EC Projetos" {...field} />
+                  <Input
+                    placeholder="Projeto Incrível EC Projetos"
+                    {...field}
+                    value={field.value ?? ""}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -103,7 +124,11 @@ export function NewProjectForm({
               <FormItem className="space-y-2">
                 <FormLabel>Código do Projeto</FormLabel>
                 <FormControl>
-                  <Input placeholder="ECP-01 Projeto Incrível" {...field} />
+                  <Input
+                    placeholder="ECP-01 Projeto Incrível"
+                    {...field}
+                    value={field.value ?? ""}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -118,7 +143,10 @@ export function NewProjectForm({
               <FormItem className="space-y-2">
                 <FormLabel>Status do Projeto</FormLabel>
                 <FormControl>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value ?? "ativo"}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione um status" />
                     </SelectTrigger>
@@ -150,7 +178,10 @@ export function NewProjectForm({
                     type="number"
                     placeholder="Ex: 404"
                     value={field.value ?? ""}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      field.onChange(val === "" ? null : Number(val));
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -158,7 +189,7 @@ export function NewProjectForm({
             )}
           />
 
-          {/* Descrição (ocupa 2 colunas) */}
+          {/* Descrição */}
           <FormField
             control={form.control}
             name="description"
@@ -170,12 +201,15 @@ export function NewProjectForm({
                     placeholder="Descrição do projeto. Ex: Projeto para facilitar gestão interna de horários trabalhados por projeto."
                     className="min-h-[120px]"
                     {...field}
+                    value={field.value ?? ""}
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          {/* Gestor */}
           <FormField
             control={form.control}
             name="encharged"
@@ -187,6 +221,7 @@ export function NewProjectForm({
                     placeholder="Gestor do projeto"
                     {...field}
                     className="w-1/2"
+                    value={field.value ?? ""}
                   />
                 </FormControl>
                 <FormMessage />
@@ -218,10 +253,15 @@ export function NewProjectForm({
                             checked={checked}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                field.onChange([...(field.value ?? []), dep.id]);
+                                field.onChange([
+                                  ...(field.value ?? []),
+                                  dep.id,
+                                ]);
                               } else {
                                 field.onChange(
-                                  (field.value ?? []).filter((id) => id !== dep.id)
+                                  (field.value ?? []).filter(
+                                    (id) => id !== dep.id
+                                  )
                                 );
                               }
                             }}
@@ -238,7 +278,7 @@ export function NewProjectForm({
           />
         </div>
 
-        {/* Atividades (agora integradas ao RHF) */}
+        {/* Atividades */}
         <FormField
           control={form.control}
           name="activities"
@@ -252,13 +292,10 @@ export function NewProjectForm({
                     label: activity.name,
                     value: activity.id.toString(),
                   }))}
-                  // valor vem do RHF
                   value={field.value ?? []}
-                  // devolve string[] para o RHF
                   onChange={(vals: string[]) => field.onChange(vals)}
                   placeholder="Selecione atividades..."
                 />
-                
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -269,7 +306,10 @@ export function NewProjectForm({
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Link
             href="/controle-horarios/direcao/projetos"
-            className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "w-full sm:w-auto"
+            )}
           >
             Voltar
           </Link>

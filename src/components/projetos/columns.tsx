@@ -119,7 +119,7 @@ const ActionsCell = ({ row, onUpdate }: { row: any; onUpdate: () => void }) => {
         <DropdownMenuLabel>Ações</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href={`/controle-horarios/direcao/projetos/${project.id}`}>
+          <Link href={`/projetos/${project.id}`}>
             <PenSquare className="mr-2 h-4 w-4" />
             Editar
           </Link>
