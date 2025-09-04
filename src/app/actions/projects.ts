@@ -15,7 +15,7 @@ export async function createProject(project: NewProject) {
     // Inserir o projeto e retornar o ID
     const { data, error: projectError } = await supabase
       .from("projects")
-      .insert([projectData])
+      .upsert([projectData])
       .select("id")
       .single();
 
