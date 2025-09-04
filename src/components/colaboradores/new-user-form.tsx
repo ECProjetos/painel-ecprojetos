@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
 import { Card } from "../ui/card"
+import { toast } from "sonner"
 
 // ✅ Interface atualizada
 interface NewColaboradorFormProps {
@@ -81,11 +82,15 @@ export default function NewColaboradorForm({
   return (
     <Card className="p-20">
       <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-6"
-          noValidate
-        >
+<form
+  onSubmit={form.handleSubmit(async (values) => {
+      await onSubmit(values);       // chama a função do pai
+      toast.success("Colaborador criado com sucesso!"); // mostra mensagem
+      form.reset();                 // limpa os campos
+  })} 
+  className="space-y-6"
+  noValidate
+>
           <div className="grid grid-cols-2 gap-4">
             {/** Campos principais */}
             <FormField
