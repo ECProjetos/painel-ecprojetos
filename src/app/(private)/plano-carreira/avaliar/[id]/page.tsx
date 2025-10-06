@@ -19,11 +19,7 @@ import {
   submitComment,
 } from "@/app/actions/plano-carreira"
 import { SoftSkillsAssessmentType } from "@/types/plano-carreira/soft-skills"
-import {
-  getAllColaboradores,
-  getDepartamentoByID,
-} from "@/app/actions/colaboradores"
-import { Colaborador } from "@/types/colaboradores"
+import { getAllColaboradores } from "@/app/actions/colaboradores"
 
 import { habilidadesDetalhadas, opcoes } from "@/constants/soft-skills"
 import { HardContabeisSkillsTable } from "@/components/plano-carreira/hard-skills-adm"
