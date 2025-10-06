@@ -41,7 +41,6 @@ import {
   SelectContent,
   SelectValue,
 } from "@/components/ui/select"
-import { useQuery } from "@tanstack/react-query"
 
 export default function AvaliacaoColaboradorPage() {
   const params = useParams()
