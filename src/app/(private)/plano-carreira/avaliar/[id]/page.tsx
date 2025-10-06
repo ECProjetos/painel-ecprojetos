@@ -79,7 +79,7 @@ export default function AvaliacaoColaboradorPage() {
     },
     enabled: !!idDeptoAvaliado,
   })
-
+  console.log(nomeDeptoAvaliado)
   if (!isDiretor) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted">
