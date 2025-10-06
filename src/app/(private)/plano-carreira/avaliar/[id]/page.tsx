@@ -69,16 +69,20 @@ export default function AvaliacaoColaboradorPage() {
   const colaborador = colaboradores.find((c) => c.id === colaboradorId)
   const idDeptoAvaliado = colaborador?.departamentoId
 
-  const { data: nomeDeptoAvaliado } = useQuery({
-    queryKey: ["depto", idDeptoAvaliado],
-    queryFn: async ({ queryKey }) => {
-      const id = queryKey[1]
-      if (!id) return null
-      const departamento = await getDepartamentoByID(String(id))
-      return departamento?.nome_departamento
-    },
-    enabled: !!idDeptoAvaliado,
-  })
+  const [nomeDeptoAvaliado, setNomeDeptoAvaliado] = useState<string>("")
+
+  useEffect(() => {
+    if (!idDeptoAvaliado) return
+    ;(async () => {
+      try {
+        const depto = await getDepartamentoByID(String(idDeptoAvaliado))
+        setNomeDeptoAvaliado(depto.nome_departamento)
+      } catch {
+        setNomeDeptoAvaliado("")
+      }
+    })()
+  }, [idDeptoAvaliado])
+
   console.log(nomeDeptoAvaliado)
   if (!isDiretor) {
     return (
