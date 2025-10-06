@@ -216,7 +216,6 @@ export async function deleteColaborador(id: string) {
   // Nesse caso retorna o corpo JSON para quem chamou
   return res.json()
 }
-
 export async function getDepartamentoByID(id: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -229,7 +228,7 @@ export async function getDepartamentoByID(id: string) {
     console.error("Erro ao buscar departamento:", error)
     throw new Error(error.message)
   }
-
+  console.log("VEIO", data)
   return data
 }
 

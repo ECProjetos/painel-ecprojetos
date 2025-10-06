@@ -50,7 +50,8 @@ export default function AvaliacaoColaboradorPage() {
   const { role } = useClientRole()
   const isDiretor = role === roles.diretor || role === roles.gestor
 
-  const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [colaboradores, setColaboradores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<"soft" | "hard" | "feedback">(
     "soft",
@@ -66,23 +67,8 @@ export default function AvaliacaoColaboradorPage() {
 
   // Always call hooks before any return
   const colaborador = colaboradores.find((c) => c.id === colaboradorId)
-  const idDeptoAvaliado = colaborador?.departamentoId
+  const nomeDeptoAvaliado = colaborador?.nome_departamento
 
-  const [nomeDeptoAvaliado, setNomeDeptoAvaliado] = useState<string>("")
-
-  useEffect(() => {
-    if (!idDeptoAvaliado) return
-    ;(async () => {
-      try {
-        const depto = await getDepartamentoByID(String(idDeptoAvaliado))
-        setNomeDeptoAvaliado(depto.nome_departamento)
-      } catch {
-        setNomeDeptoAvaliado("")
-      }
-    })()
-  }, [idDeptoAvaliado])
-
-  console.log(nomeDeptoAvaliado)
   if (!isDiretor) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted">
