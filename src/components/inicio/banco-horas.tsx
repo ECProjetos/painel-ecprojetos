@@ -5,6 +5,8 @@ import { getHours } from "@/app/actions/inicio/get-hours";
 import { BancoHorasType, BancoHorasResponseSchema } from "@/types/inicio/banco-horas";
 import { Card } from "../ui/card";
 import Loading from "@/app/loading";
+import { formatMinutesToHHMM } from "@/lib/utils"
+
 
 export default function BancoHorasPage() {
   const [timeData, setTimeData] = useState<BancoHorasType >();
@@ -21,11 +23,7 @@ export default function BancoHorasPage() {
     fetchData();
   }, []);
 
-  function formatHour(hour: number) {
-    if (typeof hour !== "number" || isNaN(hour)) return "-";
-    return `${hour.toFixed(1)}h`;
-  }
-
+ 
   function sum(field: keyof BancoHorasType["data"][number]) {
     if (!timeData || !Array.isArray(timeData.data)) return 0;
     return timeData.data.reduce((acc, curr) => acc + (Number(curr[field] || 0)), 0);
@@ -57,7 +55,8 @@ export default function BancoHorasPage() {
           >
             <div className="font-semibold">{user.user_name}</div>
             <div className="text-sm text-[#444] mb-1">
-              Trabalhadas: {formatHour(user.actual_hours)} | Esperadas: {formatHour(user.expected_hours)}
+            Trabalhadas: {formatMinutesToHHMM(user.actual_hours)} | Esperadas: {formatMinutesToHHMM(user.expected_hours)}
+
             </div>
             <div className="text-xs text-[#888]">
               Carga: {user.working_hours_per_day}h/dia • {user.business_days_passed} dias
@@ -70,7 +69,7 @@ export default function BancoHorasPage() {
               {user.banco_horas_atual < 0 ? (
                 <>
                   <span className="mr-1">⚠️</span>
-                  {formatHour(user.banco_horas_atual)}
+                  {formatMinutesToHHMM(user.banco_horas_atual)}
                 </>
               ) : (
                 formatHour(user.banco_horas_atual)
@@ -83,15 +82,15 @@ export default function BancoHorasPage() {
         <h2>Resumo Geral</h2>
         <div className="bg-white rounded-lg p-4 mb-3">
           <span>Total de Horas Registradas:</span>
-          <span className="float-right text-[#2662f0] font-semibold">{formatHour(totalHoras)}</span>
+          <span className="float-right text-[#2662f0] font-semibold">{formatMinutesToHHMM(totalHoras)}</span>
         </div>
         <div className="bg-white rounded-lg p-4 mb-3">
           <span>Horas Extras Acumuladas:</span>
-          <span className="float-right text-[#36af36] font-semibold">{formatHour(horasExtras)}</span>
+          <span className="float-right text-[#36af36] font-semibold">{formatMinutesToHHMM(horasExtras)}</span>
         </div>
         <div className="bg-white rounded-lg p-4">
           <span>Horas em Débito:</span>
-          <span className="float-right text-[#d63434] font-semibold">{formatHour(horasDebito)}</span>
+          <span className="float-right text-[#d63434] font-semibold">{formatMinutesToHHMM(horasDebito)}</span>
         </div>
       </div>
     </div>

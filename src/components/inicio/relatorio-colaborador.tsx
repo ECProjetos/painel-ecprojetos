@@ -11,6 +11,8 @@ import {
 } from "@/types/inicio/relatorio-colaborador"
 import { HistoricoDetalhado, horaProjeto } from "@/types/inicio/hora-projeto"
 import { MinhasHorasPorProjeto } from "@/components/hora-projeto"
+import { formatMinutesToHHMM } from "@/lib/utils"
+
 
 
 export default function RelatorioColaborador() {
@@ -83,7 +85,7 @@ export default function RelatorioColaborador() {
           title="Total Trabalhado"
           value={
             hoursData?.actual_hours !== undefined
-              ? `${hoursData.actual_hours.toFixed(1)} horas`
+              ? `${formatMinutesToHHMM(hoursData.actual_hours)} horas`
               : ""
           }
           gradient="from-blue-600 to-blue-500"
@@ -92,7 +94,7 @@ export default function RelatorioColaborador() {
           title="Banco de Horas"
           value={
             hoursData?.banco_horas_atual !== undefined
-              ? `${hoursData.banco_horas_atual.toFixed(1)} horas`
+              ? `${formatMinutesToHHMM(hoursData.banco_horas_atual)} horas`
               : ""
           }
           gradient="from-green-600 to-green-500"
