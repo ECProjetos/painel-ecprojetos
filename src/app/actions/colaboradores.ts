@@ -4,6 +4,41 @@ import { createClient } from "@/utils/supabase/server"
 import { supabaseAdmin } from "@/utils/supabase/admin"
 import { ColaboradorUpdate } from "@/types/colaboradores"
 
+type UserRow = {
+  id: string
+  nome: string
+  email: string
+  status: string | null
+  working_hours_per_day: number | null
+  cargos: { nome: string | null }[] | null
+  user_departments: { departments: { name: string | null } | null }[] | null
+}
+
+type DepartamentoRow = {
+  departments: { name: string | null } | null
+}
+
+type UserDepartamentoRow = {
+  users: {
+    id: string
+    nome: string
+    email: string
+    status: string | null
+    working_hours_per_day: number | null
+    cargos: { nome: string | null }[] | null
+  }
+  departments: { name: string | null }
+}
+
+type UserUpdatePayload = Partial<{
+  nome: string
+  email: string
+  cargo_id: number
+  role: string
+  working_hours_per_day: number
+  status: string
+}>
+
 export async function createColaborador(
   nome: string,
   email: string,
@@ -32,23 +67,20 @@ export async function createColaborador(
     },
   )
 
-  // Lança exceção para status >= 400
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || "Erro ao criar colaborador")
   }
 
-  // Nesse caso retorna o corpo JSON para quem chamou
   return res.json()
 }
 
 export async function updateColaborador(id: string, data: ColaboradorUpdate) {
   const supabase = await createClient()
 
-  // 1) Monta apenas os campos de users que vieram no data
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userPayload: Record<string, any> = {}
-  if (data.nome !== undefined) userPayload.name = data.nome
+  const userPayload: UserUpdatePayload = {}
+
+  if (data.nome !== undefined) userPayload.nome = data.nome
   if (data.email !== undefined) userPayload.email = data.email
   if (data.cargoId !== undefined) userPayload.cargo_id = data.cargoId
   if (data.role !== undefined) userPayload.role = data.role
@@ -56,7 +88,6 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
     userPayload.working_hours_per_day = data.working_hours_per_day
   if (data.status !== undefined) userPayload.status = data.status
 
-  // 2) Atualiza tabela "users" se houver algo para alterar
   if (Object.keys(userPayload).length > 0) {
     const { error: userError } = await supabase
       .from("users")
@@ -69,7 +100,6 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
     }
   }
 
-  // 3) Se veio departamentoId, faz upsert (sem delete) em user_departments
   if (data.departamentoId !== undefined) {
     const deptRow = await supabase
       .from("user_departments")
@@ -77,8 +107,12 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
       .eq("user_id", id)
       .maybeSingle()
 
+    if (deptRow.error) {
+      console.error("Erro ao buscar dept:", deptRow.error)
+      throw new Error(deptRow.error.message)
+    }
+
     if (deptRow.data) {
-      // já existe, faz update
       const { error: updError } = await supabase
         .from("user_departments")
         .update({ department_id: data.departamentoId })
@@ -88,7 +122,6 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
         throw new Error(updError.message)
       }
     } else {
-      // não existia, insere novo
       const { error: insError } = await supabase
         .from("user_departments")
         .insert({ user_id: id, department_id: data.departamentoId })
@@ -105,7 +138,7 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
 export async function updateColaboradorEmail(id: string, email: string) {
   try {
     const { data, error } = await supabaseAdmin.auth.admin.updateUserById(id, {
-      email: email,
+      email,
     })
 
     if (error) {
@@ -113,11 +146,11 @@ export async function updateColaboradorEmail(id: string, email: string) {
       throw new Error(error.message)
     }
 
-    // Atualiza o email na tabela users
     const { error: updateError } = await supabaseAdmin
       .from("users")
-      .update({ email: email })
+      .update({ email })
       .eq("id", id)
+
     if (updateError) {
       console.error("Erro ao atualizar email na tabela users:", updateError)
       throw new Error(updateError.message)
@@ -133,7 +166,7 @@ export async function updateColaboradorEmail(id: string, email: string) {
 export async function updateColaboradorPassword(id: string, password: string) {
   try {
     const { data, error } = await supabaseAdmin.auth.admin.updateUserById(id, {
-      password: password,
+      password,
     })
 
     if (error) {
@@ -150,9 +183,22 @@ export async function updateColaboradorPassword(id: string, password: string) {
 
 export async function getAllColaboradores() {
   const supabase = await createClient()
+
   const { data, error } = await supabase
-    .from("vw_colaboradores")
-    .select("*")
+    .from("users")
+    .select(
+      `
+      id,
+      nome,
+      email,
+      status,
+      working_hours_per_day,
+      cargos ( nome ),
+      user_departments (
+        departments ( name )
+      )
+    `,
+    )
     .order("nome", { ascending: true })
 
   if (error) {
@@ -160,7 +206,121 @@ export async function getAllColaboradores() {
     throw new Error(error.message)
   }
 
-  return data
+  const rows = (data ?? []) as UserRow[]
+
+  return rows.map((u) => {
+    const depName = u.user_departments?.[0]?.departments?.name ?? null
+    const cargoName = u.cargos?.[0]?.nome ?? null
+
+    const statusNormalizado =
+      u.status === "active" || u.status === "ativo"
+        ? "ativo"
+        : u.status === "inactive" || u.status === "inativo"
+          ? "inativo"
+          : (u.status ?? "ativo")
+
+    return {
+      id: u.id,
+      nome: u.nome,
+      email: u.email,
+      nome_departamento: depName,
+      nome_cargo: cargoName,
+      status: statusNormalizado,
+      carga_horaria: u.working_hours_per_day ?? null,
+      banco_horas_atual: null,
+    }
+  })
+}
+
+export async function getDepartamentoByID(id: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from("user_departments")
+    .select(`departments ( name )`)
+    .eq("user_id", id)
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    console.error("Erro ao buscar departamento:", error)
+    throw new Error(error.message)
+  }
+
+  const row = data as DepartamentoRow | null
+
+  return {
+    nome_departamento: row?.departments?.name ?? null,
+  }
+}
+
+export async function getColaboradoresByDepartamento(
+  nome_departamento: string,
+) {
+  const supabase = await createClient()
+
+  const { data: dep, error: depError } = await supabase
+    .from("departments")
+    .select("id")
+    .eq("name", nome_departamento)
+    .maybeSingle()
+
+  if (depError) {
+    console.error("Erro ao buscar department_id:", depError)
+    throw new Error(depError.message)
+  }
+
+  if (!dep?.id) return []
+
+  const { data, error } = await supabase
+    .from("user_departments")
+    .select(
+      `
+      users (
+        id,
+        nome,
+        email,
+        status,
+        working_hours_per_day,
+        cargos ( nome )
+      ),
+      departments ( name )
+    `,
+    )
+    .eq("department_id", dep.id)
+
+  if (error) {
+    console.error("Erro ao buscar colaboradores:", error)
+    throw new Error(error.message)
+  }
+
+  const rows = (data ?? []) as UserDepartamentoRow[]
+
+  return rows
+    .map((row) => {
+      const u = row.users
+      if (!u) return null
+
+      const statusNormalizado =
+        u.status === "active" || u.status === "ativo"
+          ? "ativo"
+          : u.status === "inactive" || u.status === "inativo"
+            ? "inativo"
+            : (u.status ?? "ativo")
+
+      return {
+        id: u.id,
+        nome: u.nome,
+        email: u.email,
+        nome_departamento: row.departments?.name ?? null,
+        nome_cargo: u.cargos?.nome ?? null,
+        status: statusNormalizado,
+        carga_horaria: u.working_hours_per_day ?? null,
+        banco_horas_atual: null,
+      }
+    })
+    .filter((u): u is NonNullable<typeof u> => u !== null)
+    .sort((a, b) => a.nome.localeCompare(b.nome))
 }
 
 export async function getColaboradorById(id: string) {
@@ -172,6 +332,7 @@ export async function getColaboradorById(id: string) {
       .select("*")
       .eq("id", id)
       .single()
+
     if (error) {
       throw new Error(error.message)
     }
@@ -181,17 +342,18 @@ export async function getColaboradorById(id: string) {
       .select("department_id")
       .eq("user_id", id)
       .single()
+
     if (depError) {
       console.error("Erro ao buscar departamento do colaborador:", depError)
       throw new Error(depError.message)
     }
 
-    const data = {
+    const merged = {
       ...userData,
       departamentoId: userDepartament ? userDepartament.department_id : null,
     }
 
-    return data
+    return merged
   } catch (error) {
     console.error("Erro ao buscar colaborador:", error)
     throw error
@@ -207,44 +369,11 @@ export async function deleteColaborador(id: string) {
       body: JSON.stringify({ id }),
     },
   )
-  // Lança exceção para status >= 400
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || "Erro ao deletar colaborador")
   }
 
-  // Nesse caso retorna o corpo JSON para quem chamou
   return res.json()
-}
-export async function getDepartamentoByID(id: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("vw_colaboradores")
-    .select("nome_departamento")
-    .eq("id", id)
-    .single()
-
-  if (error) {
-    console.error("Erro ao buscar departamento:", error)
-    throw new Error(error.message)
-  }
-  console.log("VEIO", data)
-  return data
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getColaboradoresByDepartamento(nome_departamento: any) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("vw_colaboradores")
-    .select("*")
-    .eq("nome_departamento", nome_departamento)
-    .order("nome", { ascending: true })
-
-  if (error) {
-    console.error("Erro ao buscar colaboradores:", error)
-    throw new Error(error.message)
-  }
-
-  return data
 }
