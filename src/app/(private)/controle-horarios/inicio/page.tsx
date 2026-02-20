@@ -26,7 +26,7 @@ export default function Page() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/private/controle-horarios/inicio">
+              <BreadcrumbLink href="/controle-horarios/inicio/detalhado">
                 Controle de Horários
               </BreadcrumbLink>
             </BreadcrumbItem>

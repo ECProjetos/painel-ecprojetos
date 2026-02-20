@@ -2,6 +2,7 @@
 
 import { pontoSchema } from "@/types/inicio/ponto"
 import { createClient } from "@/utils/supabase/server"
+import { revalidatePath } from "next/cache"
 
 // 🔹 Busca todos os pontos (opcional)
 export async function getPontos() {
@@ -28,18 +29,74 @@ interface DeleteType {
 
 export async function deletePonto({ payload }: DeleteType) {
   const supabase = await createClient()
-  const { error } = await supabase
-    .from("ponto")
-    .delete()
-    .eq("user_id", payload.user_id)
-    .eq("entry_date", payload.entry_date)
-    .eq("entry_time", payload.entry_time)
 
-  if (error) {
-    console.error("Erro ao deletar ponto:", error.message)
-    return { success: false, error: error.message }
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  if (authError || !authData?.user) {
+    return { success: false, error: "Usuário não autenticado." }
   }
 
+  const userId = authData.user.id
+
+  const hhmm = (payload.entry_time ?? "").trim().slice(0, 5)
+  if (!/^\d{2}:\d{2}$/.test(hhmm)) {
+    return { success: false, error: "Horário inválido para exclusão." }
+  }
+
+  const [hhStr, mmStr] = hhmm.split(":")
+  const hh = Number(hhStr)
+  const mm = Number(mmStr)
+
+  // intervalo [HH:mm:00, HH:mm+1min:00)
+  const start = `${hhStr}:${mmStr}:00`
+  const nextTotal = hh * 60 + mm + 1
+  const endH = String(Math.floor(nextTotal / 60) % 24).padStart(2, "0")
+  const endM = String(nextTotal % 60).padStart(2, "0")
+  const end = `${endH}:${endM}:00`
+
+  // 1) Verifica o que vai apagar (bom para não “sumir” errado)
+  const { data: rows, error: selError } = await supabase
+    .from("ponto")
+    .select("id, entry_time")
+    .eq("user_id", userId)
+    .eq("entry_date", payload.entry_date)
+    .gte("entry_time", start)
+    .lt("entry_time", end)
+
+  if (selError) return { success: false, error: selError.message }
+  if (!rows || rows.length === 0) {
+    return {
+      success: false,
+      error:
+        "Nada foi excluído no banco. Não existe registro neste minuto. Provável diferença maior que 1 minuto no horário salvo.",
+    }
+  }
+
+  // 2) Deleta pelos IDs encontrados (mais seguro)
+  const ids = rows.map((r: unknown) => (r as { id: string | number })?.id).filter(Boolean)
+
+  if (ids.length === 0) {
+    // fallback caso a tabela não tenha id
+    const { error, count } = await supabase
+      .from("ponto")
+      .delete({ count: "exact" })
+      .eq("user_id", userId)
+      .eq("entry_date", payload.entry_date)
+      .gte("entry_time", start)
+      .lt("entry_time", end)
+
+    if (error) return { success: false, error: error.message }
+    if (!count || count === 0) return { success: false, error: "A exclusão não afetou nenhuma linha." }
+  } else {
+    const { error, count } = await supabase
+      .from("ponto")
+      .delete({ count: "exact" })
+      .in("id", ids)
+
+    if (error) return { success: false, error: error.message }
+    if (!count || count === 0) return { success: false, error: "A exclusão não afetou nenhuma linha." }
+  }
+
+  revalidatePath("/private/controle-horarios/inicio")
   return { success: true }
 }
 

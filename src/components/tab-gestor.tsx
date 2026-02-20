@@ -34,7 +34,7 @@ export function TabGestor(){
       focus-visible:ring-2 focus-visible:ring-blue-100
     "
             >
-              ⏰ Banco de horas
+              ⏰ Horas Trabalhadas
             </TabsTrigger>
             <TabsTrigger
               value="relatorios"

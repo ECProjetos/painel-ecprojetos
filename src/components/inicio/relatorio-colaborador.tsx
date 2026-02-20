@@ -1,9 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import ResumoCard from "./resumo-card"
+import { formatISODateBR } from "@/lib/utils"
 import { useEffect, useState } from "react"
 import { getUserSession } from "@/app/(auth)/actions"
-import { getHistoricoDetalhado, getHoursById, getHoursProAct } from "@/app/actions/inicio/get-hours"
+import {
+  getHistoricoDetalhado,
+  getHoursById,
+  getHoursProAct,
+} from "@/app/actions/inicio/get-hours"
 import Loading from "@/app/loading"
 import {
   relatorioColaborador,
@@ -11,7 +16,7 @@ import {
 } from "@/types/inicio/relatorio-colaborador"
 import { HistoricoDetalhado, horaProjeto } from "@/types/inicio/hora-projeto"
 import { MinhasHorasPorProjeto } from "@/components/hora-projeto"
-
+import Link from "next/link"
 
 export default function RelatorioColaborador() {
   const [userId, setUserId] = useState<any>()
@@ -20,9 +25,9 @@ export default function RelatorioColaborador() {
     projetos: [],
     atividades: [],
   })
-  console.log("AQUI",hourProject)
+  console.log("AQUI", hourProject)
   const [historico, setHistorico] = useState<HistoricoDetalhado[]>([])
-  
+
   useEffect(() => {
     const fetchHistorico = async () => {
       if (!userId) return
@@ -77,6 +82,7 @@ export default function RelatorioColaborador() {
 
   return userId ? (
     <div className="p-6 space-y-6">
+      
       {/* 🔹 Top Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 mb-10">
         <ResumoCard
@@ -97,6 +103,7 @@ export default function RelatorioColaborador() {
           }
           gradient="from-green-600 to-green-500"
         />
+        
         <ResumoCard
           title="Dias Trabalhados"
           value={
@@ -106,6 +113,12 @@ export default function RelatorioColaborador() {
           }
           gradient="from-purple-600 to-purple-500"
         />
+        <Link
+            href="/controle-horarios/inicio/detalhado"
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Visão Detalhada
+          </Link>
       </div>
 
       {/* 🔹 Gráficos de Projeto e Atividade */}
@@ -130,39 +143,55 @@ export default function RelatorioColaborador() {
           cor="green"
         />
       </div>
-      <div>
-      </div>
+      <div></div>
       <div className="bg-white rounded-xl shadow p-6 mt-10">
-  <h2 className="text-lg font-semibold mb-4">Meu Histórico Detalhado</h2>
-  <div className="overflow-x-auto">
-    <table className="min-w-full divide-y divide-gray-200 text-sm">
-      <thead className="bg-gray-100">
-        <tr>
-          <th className="px-4 py-2 text-left font-semibold text-gray-700">Data</th>
-          <th className="px-4 py-2 text-left font-semibold text-gray-700">Período</th>
-          <th className="px-4 py-2 text-left font-semibold text-gray-700">Projeto</th>
-          <th className="px-4 py-2 text-left font-semibold text-gray-700">Atividade</th>
-          <th className="px-4 py-2 text-left font-semibold text-gray-700">Horas</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-gray-100">
-        {historico.map((item, idx) => (
-          <tr key={idx}>
-            <td className="px-4 py-2">{item.entry_date}</td>
-            <td className="px-4 py-2">
-              {item.entry_time.slice(0, 5)} - {item.fim_time.slice(0, 5)}
-            </td>
-            <td className="px-4 py-2">{item.projeto}</td>
-            <td className="px-4 py-2">{item.atividade}</td>
-            <td className="px-4 py-2 font-semibold">
-              {`${Math.floor(item.horas)}h ${Math.round((item.horas % 1) * 60)}m`}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-</div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold mb-4">
+            Meu Histórico Detalhado
+          </h2>
+
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  Data
+                </th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  Período
+                </th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  Projeto
+                </th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  Atividade
+                </th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  Horas
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {historico.map((item, idx) => (
+                <tr key={idx}>
+                  <td className="px-4 py-2">
+                    {formatISODateBR(item.entry_date)}
+                  </td>
+                  <td className="px-4 py-2">
+                    {item.entry_time.slice(0, 5)} - {item.fim_time.slice(0, 5)}
+                  </td>
+                  <td className="px-4 py-2">{item.projeto}</td>
+                  <td className="px-4 py-2">{item.atividade}</td>
+                  <td className="px-4 py-2 font-semibold">
+                    {`${Math.floor(item.horas)}h ${Math.round((item.horas % 1) * 60)}m`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   ) : (
     <Loading />
