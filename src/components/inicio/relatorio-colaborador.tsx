@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import ResumoCard from "./resumo-card"
-import { formatISODateBR } from "@/lib/utils"
+import Link from "next/link"
+import { formatISODateBR, formatMinutesToHHMM } from "@/lib/utils"
 import { useEffect, useState } from "react"
 import { getUserSession } from "@/app/(auth)/actions"
 import {
@@ -16,13 +17,6 @@ import {
 } from "@/types/inicio/relatorio-colaborador"
 import { HistoricoDetalhado, horaProjeto } from "@/types/inicio/hora-projeto"
 import { MinhasHorasPorProjeto } from "@/components/hora-projeto"
-<<<<<<< HEAD
-import Link from "next/link"
-=======
-import { formatMinutesToHHMM } from "@/lib/utils"
-
-
->>>>>>> c56355624a57bdb0043e872f3ed7fec6718bd266
 
 export default function RelatorioColaborador() {
   const [userId, setUserId] = useState<any>()
