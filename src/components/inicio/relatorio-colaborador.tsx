@@ -3,7 +3,7 @@
 import ResumoCard from "./resumo-card"
 import Link from "next/link"
 import { formatISODateBR, formatMinutesToHHMM } from "@/lib/utils"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { getUserSession } from "@/app/(auth)/actions"
 import {
   getHistoricoDetalhado,
@@ -17,6 +17,13 @@ import {
 } from "@/types/inicio/relatorio-colaborador"
 import { HistoricoDetalhado, horaProjeto } from "@/types/inicio/hora-projeto"
 import { MinhasHorasPorProjeto } from "@/components/hora-projeto"
+
+function getPrefixType(projeto: string | null | undefined) {
+  const p = (projeto ?? "").trim().toUpperCase()
+  if (p.startsWith("INT")) return "INT"
+  if (p.startsWith("EXT")) return "EXT"
+  return "OUTRO"
+}
 
 export default function RelatorioColaborador() {
   const [userId, setUserId] = useState<any>()
@@ -39,6 +46,19 @@ export default function RelatorioColaborador() {
     }
     fetchHistorico()
   }, [userId])
+  const { totalINT, totalEXT } = useMemo(() => {
+    let totalINT = 0
+    let totalEXT = 0
+
+    for (const item of historico) {
+      const horas = Number(item.horas ?? 0)
+      const tipo = getPrefixType(item.projeto)
+      if (tipo === "INT") totalINT += horas
+      if (tipo === "EXT") totalEXT += horas
+    }
+
+    return { totalINT, totalEXT }
+  }, [historico])
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -82,28 +102,19 @@ export default function RelatorioColaborador() {
 
   return userId ? (
     <div className="p-6 space-y-6">
-      
       {/* 🔹 Top Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 mb-10">
         <ResumoCard
-          title="Total Trabalhado"
-          value={
-            hoursData?.actual_hours !== undefined
-              ? `${formatMinutesToHHMM(hoursData.actual_hours)} horas`
-              : ""
-          }
+          title="Horas em Projetos Internos"
+          value={`${totalINT.toFixed(1)} horas`}
           gradient="from-blue-600 to-blue-500"
         />
         <ResumoCard
-          title="Banco de Horas"
-          value={
-            hoursData?.banco_horas_atual !== undefined
-              ? `${formatMinutesToHHMM(hoursData.banco_horas_atual)} horas`
-              : ""
-          }
+          title="Horas em Projetos Externos (EXT)"
+          value={`${totalEXT.toFixed(1)} horas`}
           gradient="from-green-600 to-green-500"
         />
-        
+
         <ResumoCard
           title="Dias Trabalhados"
           value={
@@ -114,11 +125,11 @@ export default function RelatorioColaborador() {
           gradient="from-purple-600 to-purple-500"
         />
         <Link
-            href="/controle-horarios/inicio/detalhado"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            Visão Detalhada
-          </Link>
+          href="/controle-horarios/inicio/detalhado"
+          className="text-sm text-blue-600 hover:underline"
+        >
+          Visão Detalhada
+        </Link>
       </div>
 
       {/* 🔹 Gráficos de Projeto e Atividade */}
@@ -149,7 +160,6 @@ export default function RelatorioColaborador() {
           <h2 className="text-lg font-semibold mb-4">
             Meu Histórico Detalhado
           </h2>
-
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
