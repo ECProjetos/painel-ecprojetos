@@ -15,64 +15,54 @@ type BancoHorasRow = BancoHorasType["data"][number]
 export default function BancoHorasPage() {
   const [timeData, setTimeData] = useState<BancoHorasType>()
   const [filtroColaborador, setFiltroColaborador] = useState<string>("")
-  const [filtroSetor, setFiltroSetor] = useState<string>("")
+  const [filtroDepartamento, setFiltroDepartamento] = useState<string>("")
 
   useEffect(() => {
     async function fetchData() {
       const data = await getHours()
       const parsedData = BancoHorasResponseSchema.safeParse(data)
-
-      if (parsedData.success) {
-        setTimeData(parsedData.data)
-      }
+      if (parsedData.success) setTimeData(parsedData.data)
     }
     fetchData()
   }, [])
+
+  const colaboradoresOptions = useMemo(() => {
+    const allRows = timeData?.data ?? []
+    return [...allRows]
+      .map((r) => ({ id: r.user_id, name: r.user_name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [timeData])
+
+  const departamentosOptions = useMemo(() => {
+    const set = new Set<string>()
+
+    for (const row of timeData?.data ?? []) {
+      if (row.departamento_nome) {
+        set.add(row.departamento_nome)
+      }
+    }
+
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [timeData])
+
+  const filteredRows = useMemo(() => {
+    return (timeData?.data ?? []).filter((row) => {
+      const okColab =
+        !filtroColaborador || String(row.user_id) === String(filtroColaborador)
+
+      const okDep =
+        !filtroDepartamento || row.departamento_nome === filtroDepartamento
+
+      return okColab && okDep
+    })
+  }, [timeData, filtroColaborador, filtroDepartamento])
 
   function sum(list: BancoHorasRow[], field: keyof BancoHorasRow) {
     return list.reduce((acc, curr) => acc + Number(curr[field] || 0), 0)
   }
 
-  const allRows = timeData?.data ?? []
-
-  // Opções dos filtros
-  const colaboradoresOptions = useMemo(() => {
-    return [...allRows]
-      .map((r) => ({ id: r.user_id, name: r.user_name }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [allRows])
-
-  // O backend precisa enviar esse campo (veja o passo 2 abaixo)
-  // Aqui eu uso fallback para não quebrar: (row as any).departamento_nome
-  const setoresOptions = useMemo(() => {
-    const set = new Set<string>()
-    for (const row of allRows) {
-      const setor =
-        (row as unknown as { departamento_nome?: string }).departamento_nome ??
-        ""
-      if (setor) set.add(setor)
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b))
-  }, [allRows])
-
-  const filteredRows = useMemo(() => {
-    return allRows.filter((row) => {
-      const okColab =
-        !filtroColaborador || String(row.user_id) === String(filtroColaborador)
-
-      const setor =
-        (row as unknown as { departamento_nome?: string }).departamento_nome ??
-        ""
-
-      const okSetor = !filtroSetor || setor === filtroSetor
-
-      return okColab && okSetor
-    })
-  }, [allRows, filtroColaborador, filtroSetor])
-
   if (!timeData) return <Loading />
 
-  // Totais com base no que está filtrado
   const totalHoras = sum(filteredRows, "actual_hours")
 
   const horasExtras = filteredRows
@@ -88,13 +78,15 @@ export default function BancoHorasPage() {
       <div className="m-6 space-y-4">
         {/* Filtros */}
         <div className="bg-[#fafbfc] rounded-xl p-4 border">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-            <div className="flex flex-col">
-              <label className="text-xs text-gray-600 mb-1">Colaborador</label>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div className="md:col-span-5">
+              <label className="text-xs text-gray-600 mb-1 block">
+                Colaborador
+              </label>
               <select
                 value={filtroColaborador}
                 onChange={(e) => setFiltroColaborador(e.target.value)}
-                className="border rounded-md px-3 py-2 text-sm bg-white"
+                className="h-10 w-full border rounded-md px-3 text-sm bg-white"
               >
                 <option value="">Todos</option>
                 {colaboradoresOptions.map((c) => (
@@ -105,44 +97,34 @@ export default function BancoHorasPage() {
               </select>
             </div>
 
-            <div className="flex flex-col">
-              <label className="text-xs text-gray-600 mb-1">Setor</label>
+            <div className="md:col-span-5">
+              <label className="text-xs text-gray-600 mb-1 block">
+                Departamento
+              </label>
               <select
-                value={filtroSetor}
-                onChange={(e) => setFiltroSetor(e.target.value)}
-                className="border rounded-md px-3 py-2 text-sm bg-white"
-                disabled={setoresOptions.length === 0}
-                title={
-                  setoresOptions.length === 0
-                    ? "Setor só aparece quando o backend enviar o departamento."
-                    : ""
-                }
+                value={filtroDepartamento}
+                onChange={(e) => setFiltroDepartamento(e.target.value)}
+                className="h-10 w-full border rounded-md px-3 text-sm bg-white"
               >
                 <option value="">Todos</option>
-                {setoresOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                {departamentosOptions.map((dep) => (
+                  <option key={dep} value={dep}>
+                    {dep}
                   </option>
                 ))}
               </select>
-              {setoresOptions.length === 0 ? (
-                <span className="text-[11px] text-gray-500 mt-1">
-                  Para o filtro de setor funcionar, precisamos retornar o
-                  departamento no getHours.
-                </span>
-              ) : null}
             </div>
 
-            <div className="flex gap-2">
+            <div className="md:col-span-2 flex md:justify-end">
               <button
                 type="button"
                 onClick={() => {
                   setFiltroColaborador("")
-                  setFiltroSetor("")
+                  setFiltroDepartamento("")
                 }}
-                className="border rounded-md px-3 py-2 text-sm bg-white hover:bg-gray-50"
+                className="h-10 w-full md:w-auto border rounded-md px-4 text-sm bg-white hover:bg-gray-50"
               >
-                Limpar filtros
+                Limpar
               </button>
             </div>
           </div>
@@ -158,7 +140,7 @@ export default function BancoHorasPage() {
             ) : (
               filteredRows.map((user) => {
                 const dept =
-                  (user as unknown as { departamento_nome?: string })
+                  (user as unknown as { departamento_nome?: string | null })
                     .departamento_nome ?? ""
 
                 return (

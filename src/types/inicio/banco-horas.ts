@@ -4,6 +4,8 @@ export const FuncionarioSchema = z.object({
   user_id: z.string(),
   user_name: z.string(),
   working_hours_per_day: z.number(),
+  departamento_id: z.number().nullable().optional(),
+  departamento_nome: z.string().nullable().optional(),
   business_days_passed: z.number(),
   expected_hours: z.number(),
   actual_hours: z.number(),
