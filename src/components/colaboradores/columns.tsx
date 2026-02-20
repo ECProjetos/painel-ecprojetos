@@ -39,6 +39,8 @@ import { useState } from "react";
 import { Label } from "@radix-ui/react-label";
 
 import { deleteColaborador } from "@/app/actions/colaboradores";
+import { formatMinutesToHHMM } from "@/lib/utils"
+
 
 type handleDeleteColaboradorProps = {
   id: string;
@@ -104,7 +106,7 @@ export const colaboradoresColumns = ({
         }
       >
         {row.original.banco_horas_atual !== null
-          ? row.original.banco_horas_atual.toFixed(2)
+          ? formatMinutesToHHMM(row.original.banco_horas_atual)
           : "N/A"}
       </span>
     ),
