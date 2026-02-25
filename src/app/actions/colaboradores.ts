@@ -6,12 +6,14 @@ import { ColaboradorUpdate } from "@/types/colaboradores"
 
 type UserRow = {
   id: string
-  nome: string
-  email: string
+  nome: string | null
+  email: string | null
   status: string | null
   working_hours_per_day: number | null
-  cargos: { nome: string | null }[] | null
-  user_departments: { departments: { name: string | null } | null }[] | null
+  cargos: { nome: string | null }[]
+  user_departments: {
+    departments: { name: string | null }[]
+  }[]
 }
 
 type DepartamentoRow = {
@@ -206,10 +208,10 @@ export async function getAllColaboradores() {
     throw new Error(error.message)
   }
 
-  const rows = (data ?? []) as UserRow[]
+  const rows: UserRow[] = (data ?? []) as unknown as UserRow[]
 
   return rows.map((u) => {
-    const depName = u.user_departments?.[0]?.departments?.name ?? null
+    const depName = u.user_departments?.[0]?.departments?.[0]?.name ?? null
     const cargoName = u.cargos?.[0]?.nome ?? null
 
     const statusNormalizado =
