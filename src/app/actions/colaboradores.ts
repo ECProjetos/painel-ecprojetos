@@ -4,32 +4,45 @@ import { createClient } from "@/utils/supabase/server"
 import { supabaseAdmin } from "@/utils/supabase/admin"
 import { ColaboradorUpdate } from "@/types/colaboradores"
 
+/** Helpers para lidar com relações do Supabase que às vezes vêm como array */
+type MaybeArray<T> = T | T[]
+
+function first<T>(v: MaybeArray<T> | null | undefined): T | null {
+  if (!v) return null
+  return Array.isArray(v) ? (v[0] ?? null) : v
+}
+
+type CargoRow = { nome: string | null }
+type DepartmentRow = { name: string | null }
+
+type UserDepartmentRow = {
+  departments: MaybeArray<DepartmentRow> | null
+}
+
 type UserRow = {
   id: string
   nome: string | null
   email: string | null
   status: string | null
   working_hours_per_day: number | null
-  cargos: { nome: string | null }[]
-  user_departments: {
-    departments: { name: string | null }[]
-  }[]
+  cargos: CargoRow[] | null
+  user_departments: UserDepartmentRow[] | null
 }
 
 type DepartamentoRow = {
-  departments: { name: string | null } | null
+  departments: MaybeArray<DepartmentRow> | null
 }
 
 type UserDepartamentoRow = {
-  users: {
+  users: MaybeArray<{
     id: string
-    nome: string
-    email: string
+    nome: string | null
+    email: string | null
     status: string | null
     working_hours_per_day: number | null
-    cargos: { nome: string | null }[] | null
-  }
-  departments: { name: string | null }
+    cargos: CargoRow[] | null
+  }> | null
+  departments: MaybeArray<DepartmentRow> | null
 }
 
 type UserUpdatePayload = Partial<{
@@ -119,6 +132,7 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
         .from("user_departments")
         .update({ department_id: data.departamentoId })
         .eq("user_id", id)
+
       if (updError) {
         console.error("Erro ao atualizar dept:", updError)
         throw new Error(updError.message)
@@ -127,6 +141,7 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
       const { error: insError } = await supabase
         .from("user_departments")
         .insert({ user_id: id, department_id: data.departamentoId })
+
       if (insError) {
         console.error("Erro ao inserir dept:", insError)
         throw new Error(insError.message)
@@ -208,10 +223,13 @@ export async function getAllColaboradores() {
     throw new Error(error.message)
   }
 
-  const rows: UserRow[] = (data ?? []) as unknown as UserRow[]
+  const rows = (data ?? []) as unknown as UserRow[]
 
   return rows.map((u) => {
-    const depName = u.user_departments?.[0]?.departments?.[0]?.name ?? null
+    const depRel = first(u.user_departments)
+    const depObj = first(depRel?.departments)
+    const depName = depObj?.name ?? null
+
     const cargoName = u.cargos?.[0]?.nome ?? null
 
     const statusNormalizado =
@@ -249,16 +267,15 @@ export async function getDepartamentoByID(id: string) {
     throw new Error(error.message)
   }
 
-  const row = data as DepartamentoRow | null
+  const row = data as unknown as DepartamentoRow | null
+  const dep = first(row?.departments)
 
   return {
-    nome_departamento: row?.departments?.name ?? null,
+    nome_departamento: dep?.name ?? null,
   }
 }
 
-export async function getColaboradoresByDepartamento(
-  nome_departamento: string,
-) {
+export async function getColaboradoresByDepartamento(nome_departamento: string) {
   const supabase = await createClient()
 
   const { data: dep, error: depError } = await supabase
@@ -296,12 +313,14 @@ export async function getColaboradoresByDepartamento(
     throw new Error(error.message)
   }
 
-  const rows = (data ?? []) as UserDepartamentoRow[]
+  const rows = (data ?? []) as unknown as UserDepartamentoRow[]
 
   return rows
     .map((row) => {
-      const u = row.users
+      const u = first(row.users)
       if (!u) return null
+
+      const depObj = first(row.departments)
 
       const statusNormalizado =
         u.status === "active" || u.status === "ativo"
@@ -314,15 +333,15 @@ export async function getColaboradoresByDepartamento(
         id: u.id,
         nome: u.nome,
         email: u.email,
-        nome_departamento: row.departments?.name ?? null,
-        nome_cargo: u.cargos?.nome ?? null,
+        nome_departamento: depObj?.name ?? null,
+        nome_cargo: u.cargos?.[0]?.nome ?? null,
         status: statusNormalizado,
         carga_horaria: u.working_hours_per_day ?? null,
         banco_horas_atual: null,
       }
     })
     .filter((u): u is NonNullable<typeof u> => u !== null)
-    .sort((a, b) => a.nome.localeCompare(b.nome))
+    .sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? ""))
 }
 
 export async function getColaboradorById(id: string) {
