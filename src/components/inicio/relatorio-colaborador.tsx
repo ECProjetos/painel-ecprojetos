@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+"use client"
 
 import ResumoCard from "./resumo-card"
 import Link from "next/link"
 import { formatISODateBR } from "@/lib/utils"
 import { useEffect, useState } from "react"
 import { getUserSession } from "@/app/(auth)/actions"
-import { getHoursIntExtMonthly } from "@/app/actions/inicio/get-hours"
 import {
   getHistoricoDetalhado,
   getHoursById,
   getHoursProAct,
-  getHoursIntExt,
+  getHoursIntExtMonthly,
 } from "@/app/actions/inicio/get-hours"
 import Loading from "@/app/loading"
 import {
@@ -27,20 +27,7 @@ export default function RelatorioColaborador() {
     projetos: [],
     atividades: [],
   })
-  console.log("AQUI", hourProject)
   const [historico, setHistorico] = useState<HistoricoDetalhado[]>([])
-
-  useEffect(() => {
-    const fetchHistorico = async () => {
-      if (!userId) return
-      const result = await getHistoricoDetalhado(userId)
-      console.log("HISTORICO", result)
-      if (result.success) {
-        setHistorico(result.data)
-      }
-    }
-    fetchHistorico()
-  }, [userId])
   const [intExt, setIntExt] = useState<{ internas: number; externas: number }>({
     internas: 0,
     externas: 0,
@@ -50,24 +37,26 @@ export default function RelatorioColaborador() {
     const fetchUser = async () => {
       const session = await getUserSession()
       setUserId(session?.user.id || null)
-      console.log(session)
     }
     fetchUser()
   }, [])
+
+  useEffect(() => {
+    const fetchHistorico = async () => {
+      if (!userId) return
+      const result = await getHistoricoDetalhado(userId)
+      if (result.success) setHistorico(result.data)
+    }
+    fetchHistorico()
+  }, [userId])
 
   useEffect(() => {
     const fetchHours = async () => {
       if (!userId) return
       const hoursData = await getHoursById(userId)
       if (hoursData && hoursData.data) {
-        const parsedResult = relatorioColaboradorSchema.safeParse(
-          hoursData.data,
-        )
-        if (parsedResult.success) {
-          setHours(parsedResult.data)
-        } else {
-          setHours(undefined)
-        }
+        const parsedResult = relatorioColaboradorSchema.safeParse(hoursData.data)
+        setHours(parsedResult.success ? parsedResult.data : undefined)
       }
     }
     fetchHours()
@@ -77,11 +66,7 @@ export default function RelatorioColaborador() {
     const fetchHoursProAct = async () => {
       if (!userId) return
       const hoursResult = await getHoursProAct(userId)
-      if (hoursResult?.success && hoursResult.data) {
-        setHourProject(hoursResult.data)
-      } else {
-        setHourProject({ projetos: [], atividades: [] })
-      }
+      setHourProject(hoursResult?.success && hoursResult.data ? hoursResult.data : { projetos: [], atividades: [] })
     }
     fetchHoursProAct()
   }, [userId])
@@ -102,10 +87,7 @@ export default function RelatorioColaborador() {
       const res = await getHoursIntExtMonthly(userId, startDate, endDate)
 
       if (res?.success) {
-        setIntExt({
-          internas: res.horas_internas,
-          externas: res.horas_externas,
-        })
+        setIntExt({ internas: res.horas_internas, externas: res.horas_externas })
       } else {
         setIntExt({ internas: 0, externas: 0 })
       }
@@ -113,9 +95,9 @@ export default function RelatorioColaborador() {
 
     fetchIntExt()
   }, [userId])
+
   return userId ? (
     <div className="p-6 space-y-6">
-      {/* 🔹 Top Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 mb-10">
         <ResumoCard
           title="Horas em Projetos Internos"
@@ -127,7 +109,6 @@ export default function RelatorioColaborador() {
           value={`${intExt.externas.toFixed(1)} horas`}
           gradient="from-green-600 to-green-500"
         />
-
         <ResumoCard
           title="Dias Trabalhados"
           value={
@@ -138,6 +119,7 @@ export default function RelatorioColaborador() {
           gradient="from-purple-600 to-purple-500"
         />
       </div>
+
       <Link
         href="/controle-horarios/inicio/detalhado"
         className="text-sm text-blue-600 hover:underline"
@@ -145,7 +127,6 @@ export default function RelatorioColaborador() {
         Visão Detalhada
       </Link>
 
-      {/* 🔹 Gráficos de Projeto e Atividade */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <MinhasHorasPorProjeto
           dados={(hourProject.projetos ?? []).map((item) => ({
@@ -167,40 +148,28 @@ export default function RelatorioColaborador() {
           cor="green"
         />
       </div>
-      <div></div>
+
       <div className="bg-white rounded-xl shadow p-6 mt-10">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold mb-4">
-            Meu Histórico Detalhado
-          </h2>
+          <h2 className="text-lg font-semibold mb-4">Meu Histórico Detalhado</h2>
         </div>
+
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
-                  Data
-                </th>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
-                  Período
-                </th>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
-                  Projeto
-                </th>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
-                  Atividade
-                </th>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
-                  Horas
-                </th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700">Data</th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700">Período</th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700">Projeto</th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700">Atividade</th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700">Horas</th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-gray-100">
               {historico.map((item, idx) => (
                 <tr key={idx}>
-                  <td className="px-4 py-2">
-                    {formatISODateBR(item.entry_date)}
-                  </td>
+                  <td className="px-4 py-2">{formatISODateBR(item.entry_date)}</td>
                   <td className="px-4 py-2">
                     {item.entry_time.slice(0, 5)} - {item.fim_time.slice(0, 5)}
                   </td>
