@@ -40,7 +40,7 @@ export default function AvaliacaoSelectColaboradorTable() {
 
                     const departamento = await getDepartamentoByID(user.id);
 
-                    setDepartamentoNome(departamento.nome_departamento);
+                    setDepartamentoNome(departamento.nome_departamento ?? "");
                 }
             } catch (err) {
                 console.error("Erro ao buscar departamento:", err);
