@@ -15,14 +15,16 @@ export function formatISODateBR(isoDate: string) {
   return `${d}/${m}/${y}`
 }
 
-/**
- * Converte minutos para "Xh YYm"
- */
-export function formatMinutesToHHMM(totalMinutes: number) {
-  if (typeof totalMinutes !== "number" || Number.isNaN(totalMinutes)) return "-"
-  const sign = totalMinutes < 0 ? "-" : ""
+export function formatMinutesToHHMM(minutesValue: number) {
+  if (minutesValue === null || minutesValue === undefined) return "0h 00m"
+
+  const totalMinutes = Math.round(Number(minutesValue)) // aqui elimina 55.200000000000045
+  const isNegative = totalMinutes < 0
+
   const abs = Math.abs(totalMinutes)
-  const h = Math.floor(abs / 60)
-  const m = abs % 60
-  return `${sign}${h}h ${String(m).padStart(2, "0")}m`
+  const hours = Math.floor(abs / 60)
+  const minutes = abs % 60
+
+  const sign = isNegative ? "-" : ""
+  return `${sign}${hours}h ${String(minutes).padStart(2, "0")}m`
 }
