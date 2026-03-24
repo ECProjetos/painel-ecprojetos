@@ -48,7 +48,7 @@ export default function EditColaboradorPage() {
         setDepartamentos(departamentosData)
         const mapped = {
           id: colaboradorData.id,
-          nome: colaboradorData.name,
+          nome: colaboradorData.nome,
           email: colaboradorData.email,
           role: colaboradorData.role,
           cargoId: colaboradorData.cargo_id,
@@ -119,7 +119,7 @@ export default function EditColaboradorPage() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="/controle-horarios/gestao/colaboradores">
+                <Link href="/controle-horarios/inicio">
                   Colaboradores
                 </Link>
               </BreadcrumbLink>

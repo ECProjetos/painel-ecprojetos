@@ -521,7 +521,7 @@ export default function NewColaboradorForm({
 
           <div className="flex w-full justify-between">
             <Link
-              href="/controle-horarios/gestao/colaboradores"
+              href="/controle-horarios/inicio"
               className={cn(buttonVariants({ variant: "outline" }), "w-auto")}
             >
               Cancelar

@@ -18,9 +18,17 @@ import { createClient } from "@/utils/supabase/server"
 export async function getHours(): Promise<BancoHorasType | null> {
   const supabase = await createClient()
 
+  const hoje = new Date()
+  const ano = hoje.getFullYear()
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0")
+  const mesReferencia = `${ano}-${mes}`
+
   const { data, error, status, statusText } = await supabase
-    .from("vw_user_month_balance")
+    .from("vw_banco_horas_tela")
     .select("*")
+    .eq("mes_referencia", mesReferencia)
+    .eq("status", "ativo")
+    .order("user_name", { ascending: true })
 
   if (error || !data) return null
 
@@ -36,10 +44,16 @@ export async function getHours(): Promise<BancoHorasType | null> {
 export async function getHoursById(user_id: string) {
   const supabase = await createClient()
 
+  const hoje = new Date()
+  const ano = hoje.getFullYear()
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0")
+  const mesReferencia = `${ano}-${mes}`
+
   const data = await supabase
-    .from("vw_user_month_balance")
+    .from("vw_banco_horas_tela")
     .select("*")
     .eq("user_id", user_id)
+    .eq("mes_referencia", mesReferencia)
 
   const parsedData = data.data
     ? relatorioColaboradorSchema.safeParse(data.data[0])
@@ -81,13 +95,17 @@ export async function getHistoricoDetalhado(user_id: string): Promise<{
   if (error || !data) return { success: false, data: [] }
 
   const parsed = historicoDetalhadoSchema.safeParse(data)
-  return parsed.success ? { success: true, data: parsed.data } : { success: false, data: [] }
+  return parsed.success
+    ? { success: true, data: parsed.data }
+    : { success: false, data: [] }
 }
 
 export async function getHoursRh(): Promise<RelatorioRh | null> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase.from("vw_rh_horas_agrupadas").select("*")
+  const { data, error } = await supabase
+    .from("vw_rh_horas_agrupadas")
+    .select("*")
   if (error || !data) return null
 
   const parsed = relatorioRhSchema.safeParse(data)
@@ -102,7 +120,9 @@ export async function getHoursRh(): Promise<RelatorioRh | null> {
 export async function getHoursRhByAttProj(): Promise<RelatorioRh2 | null> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase.from("vw_dashboard_ponto_geral").select("*")
+  const { data, error } = await supabase
+    .from("vw_dashboard_ponto_geral")
+    .select("*")
   if (error || !data) return null
 
   const parsed = relatorioRhSchema2.safeParse(data)

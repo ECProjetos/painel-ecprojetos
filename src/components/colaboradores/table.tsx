@@ -50,23 +50,44 @@ export function ColaboradorTable<TData, TValue>({
   // extrai lista única de departamentos e statuses
   const departmentOptions = useMemo(() => {
     const setDeps = new Set<string>();
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data.forEach((row) => setDeps.add((row as any).nome_departamento));
-    return Array.from(setDeps).sort();
+    data.forEach((row) => {
+      const dep = (row as any).nome_departamento;
+      if (typeof dep === "string" && dep.trim()) {
+        setDeps.add(dep.trim());
+      }
+    });
+
+    return Array.from(setDeps).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
   const statusOptions = useMemo(() => {
     const setSts = new Set<string>();
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data.forEach((row) => setSts.add((row as any).status));
-    return Array.from(setSts).sort();
+    data.forEach((row) => {
+      const status = (row as any).status;
+      if (typeof status === "string" && status.trim()) {
+        setSts.add(status.trim());
+      }
+    });
+
+    return Array.from(setSts).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
   const cargosOptions = useMemo(() => {
     const setCargos = new Set<string>();
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data.forEach((row) => setCargos.add((row as any).nome_cargo));
-    return Array.from(setCargos).sort();
+    data.forEach((row) => {
+      const cargo = (row as any).nome_cargo;
+      if (typeof cargo === "string" && cargo.trim()) {
+        setCargos.add(cargo.trim());
+      }
+    });
+
+    return Array.from(setCargos).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
   const handleResetFilters = () => {
@@ -93,7 +114,6 @@ export function ColaboradorTable<TData, TValue>({
   return (
     <div className="overflow-x-auto">
       <div className="flex flex-wrap items-center justify-between p-4 space-x-2">
-        {/* Filtro por Nome */}
         <Input
           placeholder="Pesquisar Nome do Colaborador..."
           value={(table.getColumn("nome")?.getFilterValue() as string) ?? ""}
@@ -102,7 +122,7 @@ export function ColaboradorTable<TData, TValue>({
           }
           className="max-w-sm"
         />
-        {/* Filtro por Departamento */}
+
         <Select
           value={
             (table
@@ -120,15 +140,14 @@ export function ColaboradorTable<TData, TValue>({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            {departmentOptions.map((dep) => (
-              <SelectItem key={dep} value={dep}>
+            {departmentOptions.map((dep, index) => (
+              <SelectItem key={`dep-${dep}-${index}`} value={dep}>
                 {dep}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        {/* Filtro por Status */}
         <Select
           value={
             (table.getColumn("status")?.getFilterValue() as string) ?? "all"
@@ -144,14 +163,14 @@ export function ColaboradorTable<TData, TValue>({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            {statusOptions.map((status) => (
-              <SelectItem key={status} value={status}>
+            {statusOptions.map((status, index) => (
+              <SelectItem key={`status-${status}-${index}`} value={status}>
                 {status}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {/* Filtro por Cargo */}
+
         <Select
           value={
             (table.getColumn("nome_cargo")?.getFilterValue() as string) ?? "all"
@@ -167,13 +186,14 @@ export function ColaboradorTable<TData, TValue>({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            {cargosOptions.map((cargo) => (
-              <SelectItem key={cargo} value={cargo}>
+            {cargosOptions.map((cargo, index) => (
+              <SelectItem key={`cargo-${cargo}-${index}`} value={cargo}>
                 {cargo}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" onClick={handleResetFilters}>
             Resetar Filtros

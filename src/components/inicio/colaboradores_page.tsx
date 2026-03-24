@@ -8,10 +8,10 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {  buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import {  PlusCircle } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { getAllColaboradores } from "@/app/actions/colaboradores";
 import { useEffect, useState } from "react";
@@ -23,19 +23,30 @@ import { SkeletonTable } from "@/components/skeleton-table";
 export function ColaboradoresPage() {
   const [colaboradores, setColaboradores] = useState<ColaboradorView[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refresh, setRefresh] = useState<number>(0);
-  // Fetch colaboradores data when the component mounts or refresh changes
+  const [refresh, setRefresh] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   useEffect(() => {
     async function fetchColaboradores() {
       try {
+        setLoading(true);
+        setErrorMessage(null);
+
         const data = await getAllColaboradores();
-        setColaboradores(data);
+        setColaboradores(data ?? []);
       } catch (error) {
         console.error("Erro ao buscar colaboradores:", error);
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar colaboradores."
+        );
+        setColaboradores([]);
       } finally {
         setLoading(false);
       }
     }
+
     fetchColaboradores();
   }, [refresh]);
 
@@ -65,7 +76,8 @@ export function ColaboradoresPage() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-      <div className="space-y-4 mt-4 ">
+
+      <div className="space-y-4 mt-4">
         <div className="flex items-center align-center justify-between px-4">
           <h1 className="text-2xl font-bold">Gestão de Colaboradores</h1>
           <div className="flex items-center space-x-2">
@@ -78,8 +90,13 @@ export function ColaboradoresPage() {
             </Link>
           </div>
         </div>
+
         {loading ? (
           <SkeletonTable />
+        ) : errorMessage ? (
+          <div className="px-4 py-6 text-sm text-red-600 border rounded-md bg-red-50">
+            Erro ao carregar colaboradores: {errorMessage}
+          </div>
         ) : (
           <div className="overflow-auto">
             <ColaboradorTable
@@ -94,5 +111,3 @@ export function ColaboradoresPage() {
     </div>
   );
 }
-// This page is for managing collaborators in the time control system.
-// It includes a breadcrumb navigation and a button to add new collaborators.

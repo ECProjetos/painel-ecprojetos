@@ -3,13 +3,18 @@ import { z } from "zod";
 export const FuncionarioSchema = z.object({
   user_id: z.string(),
   user_name: z.string(),
-  working_hours_per_day: z.number(),
+  mes_referencia: z.string(),
+  mes_inicio: z.string().or(z.date()).transform((v) => String(v)),
+  horas_trabalhadas: z.number(),
+  horas_a_fazer: z.number(),
+  horas_somadas_banco: z.number(),
+  banco_horas_anterior: z.number(),
+  banco_horas_atual: z.number(),
   departamento_id: z.number().nullable().optional(),
   departamento_nome: z.string().nullable().optional(),
-  business_days_passed: z.number(),
-  expected_hours: z.number(),
-  actual_hours: z.number(),
-  banco_horas_atual: z.number(),
+  working_hours_per_day: z.number(),
+  role: z.string(),
+  status: z.string(),
 });
 
 export const BancoHorasResponseSchema = z.object({
@@ -20,4 +25,4 @@ export const BancoHorasResponseSchema = z.object({
   statusText: z.string(),
 });
 
-export type BancoHorasType = z.infer<typeof BancoHorasResponseSchema>
+export type BancoHorasType = z.infer<typeof BancoHorasResponseSchema>;
