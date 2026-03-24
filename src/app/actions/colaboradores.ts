@@ -83,7 +83,6 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
   }
   if (data.status !== undefined) userPayload.status = data.status
 
-  // campos adicionais do formulário
   if (data.endereco !== undefined) userPayload.endereco = data.endereco
   if (data.cep !== undefined) userPayload.cep = data.cep
   if (data.cidade !== undefined) userPayload.cidade = data.cidade
@@ -103,10 +102,7 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
   if (data.horario !== undefined) userPayload.horario = data.horario
 
   if (Object.keys(userPayload).length > 0) {
-    const { error } = await supabaseAdmin
-      .from("users")
-      .update(userPayload)
-      .eq("id", id)
+    const { error } = await supabaseAdmin.from("users").update(userPayload).eq("id", id)
 
     if (error) {
       console.error("Erro ao atualizar users:", error)
@@ -189,6 +185,40 @@ export async function getAllColaboradores() {
 
   if (error) {
     console.error("Erro ao buscar colaboradores:", error)
+    throw new Error(error.message)
+  }
+
+  return data
+}
+
+export async function getColaboradoresByDepartamento(nome_departamento: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from("vw_colaboradores")
+    .select("*")
+    .eq("departamento_nome", nome_departamento)
+    .order("nome", { ascending: true })
+
+  if (error) {
+    console.error("Erro ao buscar colaboradores por departamento:", error)
+    throw new Error(error.message)
+  }
+
+  return data
+}
+
+export async function getDepartamentoByID(id: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from("departments")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if (error) {
+    console.error("Erro ao buscar departamento por ID:", error)
     throw new Error(error.message)
   }
 
