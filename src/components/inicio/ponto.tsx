@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useActionState, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "../ui/card"
@@ -21,6 +22,7 @@ import { ComboboxSelect } from "../ui/combobox-select"
 const initialState = { success: false, error: null as string | null }
 
 export default function PontoForm() {
+  const router = useRouter()
   const formRef = useRef<HTMLFormElement | null>(null)
 
   const [state, formAction, isPending] = useActionState(
@@ -34,14 +36,13 @@ export default function PontoForm() {
   const [userId, setUserId] = useState<string | null>(null)
   const [atividades, setAtividades] = useState<ActivitiesType>([])
   const [projetos, setProjetos] = useState<ProjectsType>([])
-  const [selectedProjetoId, setSelectedProjetoId] = useState<string>("") // <- id em string
+  const [selectedProjetoId, setSelectedProjetoId] = useState<string>("")
   const [selectedAtividade, setSelectedAtividade] = useState<string>("")
   const [periodos, setPeriodos] = useState<nestedPontoType[]>([])
   const today = new Date().toISOString().slice(0, 10)
 
   const [date, setDate] = useState<string>(today)
 
-  // Buscar períodos do dia
   useEffect(() => {
     if (!userId || !date) return
 
@@ -52,7 +53,9 @@ export default function PontoForm() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ user_id: userId, entry_date: date }),
         })
+
         if (!res.ok) throw new Error("Erro ao buscar dados do ponto")
+
         const data = await res.json()
         setPeriodos(data)
       } catch (err) {
@@ -63,33 +66,34 @@ export default function PontoForm() {
     fetchPeriodos()
   }, [userId, date, state])
 
-  // Usuário
   useEffect(() => {
     const fetchUser = async () => {
       const session = await getUserSession()
       setUserId(session?.user.id || null)
     }
+
     fetchUser()
   }, [])
 
-  // Projetos
   useEffect(() => {
     const fetchProjetos = async () => {
       const projetos = await getProjetos()
       const parsed = projectsArraySchema.safeParse(projetos)
+
       if (parsed.success) setProjetos(parsed.data)
       else setProjetos([])
     }
+
     fetchProjetos()
   }, [])
 
-  // Atividades por projeto (dispara quando o projeto muda)
   useEffect(() => {
     const fetchAtividades = async () => {
       if (!selectedProjetoId) {
         setAtividades([])
         return
       }
+
       try {
         const atividades = await getAtividadesByProjectId({
           project_id: selectedProjetoId,
@@ -102,20 +106,20 @@ export default function PontoForm() {
       }
     }
 
-    // ao trocar de projeto, limpa atividade selecionada
     setSelectedAtividade("")
     fetchAtividades()
   }, [selectedProjetoId])
 
-  // Reset após salvar
   useEffect(() => {
     if (state.success) {
       formRef.current?.reset()
       setSelectedProjetoId("")
       setSelectedAtividade("")
       setAtividades([])
+      setDate(today)
+      router.refresh()
     }
-  }, [state.success])
+  }, [state.success, router, today])
 
   if (!userId) return <Loading />
 
@@ -216,6 +220,7 @@ export default function PontoForm() {
               Ponto registrado com sucesso!
             </p>
           )}
+
           {state.error && (
             <p className="text-red-600 mt-2 mx-10">{state.error}</p>
           )}
@@ -233,20 +238,25 @@ type Props = {
 }
 
 function formatTime(time: string): string {
-  return time.slice(0, 5) // hh:mm:ss → hh:mm
+  return time.slice(0, 5)
 }
 
 function calcularDuracao(entry: string, exit: string): string {
   const [eh, em] = entry.split(":").map(Number)
   const [xh, xm] = exit.split(":").map(Number)
   let totalMin = xh * 60 + xm - (eh * 60 + em)
+
   if (totalMin < 0) totalMin = 0
+
   const horas = Math.floor(totalMin / 60)
   const minutos = totalMin % 60
+
   return `${horas}h ${minutos}min`
 }
 
 export function PeriodosDoDia({ periodos, setPeriodos }: Props) {
+  const router = useRouter()
+
   const totalMinutos = periodos.reduce((acc, p) => {
     const [eh, em] = p.entry_time.split(":").map(Number)
     const [xh, xm] = p.exit_time.split(":").map(Number)
@@ -257,14 +267,20 @@ export function PeriodosDoDia({ periodos, setPeriodos }: Props) {
   const totalMin = totalMinutos % 60
 
   const handleDelete = async (ponto: nestedPontoType) => {
-    await deletePonto({
+    const result = await deletePonto({
       payload: {
         user_id: ponto.user_id,
         entry_date: ponto.entry_date,
         entry_time: ponto.entry_time,
       },
     })
-    setPeriodos(periodos.filter((item) => item.entry_time !== ponto.entry_time))
+
+    if (result?.success) {
+      setPeriodos((prev) =>
+        prev.filter((item) => item.entry_time !== ponto.entry_time),
+      )
+      router.refresh()
+    }
   }
 
   return (
@@ -272,6 +288,7 @@ export function PeriodosDoDia({ periodos, setPeriodos }: Props) {
       <h3 className="text-lg font-semibold mb-4">
         Períodos do Dia Selecionado
       </h3>
+
       <div className="space-y-4 ">
         {periodos.map((p) => (
           <div
@@ -289,6 +306,7 @@ export function PeriodosDoDia({ periodos, setPeriodos }: Props) {
                 {p.atividade?.name || "Sem atividade"}
               </p>
             </div>
+
             <button
               className="text-red-500 hover:text-red-700 text-sm font-bold"
               aria-label="Remover período"
