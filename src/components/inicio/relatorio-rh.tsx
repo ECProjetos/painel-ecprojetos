@@ -13,6 +13,22 @@ import {
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
+import { Check, ChevronsUpDown } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
 import {
   Table,
   TableBody,
@@ -226,6 +242,82 @@ function FilterSelect({
   )
 }
 
+function SearchableFilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  searchPlaceholder,
+  emptyText,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Array<{ value: string; label: string }>
+  placeholder: string
+  searchPlaceholder: string
+  emptyText: string
+}) {
+  const [open, setOpen] = useState(false)
+
+  const selectedOption = options.find((option) => option.value === value)
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-sx font-medium uppercase tracking-wide text-gray-500">
+        {label}
+      </label>
+
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="h-10 w-full justify-between border-gray-300 bg-white px-3 text-sm font-normal"
+          >
+            <span className="truncate">
+              {selectedOption ? selectedOption.label : placeholder}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+
+        <PopoverContent className="w-[320px] p-0" align="start">
+          <Command>
+            <CommandInput placeholder={searchPlaceholder} />
+            <CommandList>
+              <CommandEmpty>{emptyText}</CommandEmpty>
+              <CommandGroup>
+                {options.map((option) => (
+                  <CommandItem
+                    key={`${label}-${option.value}`}
+                    value={option.label}
+                    onSelect={() => {
+                      onChange(option.value)
+                      setOpen(false)
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === option.value ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <span className="truncate">{option.label}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}
+
 export default function RelatorioRh() {
   const [loading, setLoading] = useState(true)
   const [projetos, setProjetos] = useState<DashboardHorasProjeto[]>([])
@@ -239,7 +331,6 @@ export default function RelatorioRh() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
     null,
   )
-  const [projectSearch, setProjectSearch] = useState("")
   const currentYear = new Date().getFullYear()
 
   const [selectedYear, setSelectedYear] = useState<string>("all")
@@ -311,16 +402,7 @@ export default function RelatorioRh() {
   ])
 
   const projetosFiltrados = useMemo(() => {
-    const termo = projectSearch.trim().toLowerCase()
-
-    let filtered = projetos.filter((item) => {
-      if (!termo) return true
-
-      return (
-        item.projeto_nome.toLowerCase().includes(termo) ||
-        item.projeto_codigo.toLowerCase().includes(termo)
-      )
-    })
+    let filtered = [...projetos]
 
     if (selectedProjetoFiltro !== "all") {
       filtered = filtered.filter(
@@ -328,8 +410,8 @@ export default function RelatorioRh() {
       )
     }
 
-    return [...filtered].sort((a, b) => b.horas_feitas - a.horas_feitas)
-  }, [projetos, projectSearch, selectedProjetoFiltro])
+    return filtered.sort((a, b) => b.horas_feitas - a.horas_feitas)
+  }, [projetos, selectedProjetoFiltro])
 
   const colaboradoresOrdenados = useMemo(() => {
     let filtered = [...colaboradores]
@@ -566,28 +648,24 @@ export default function RelatorioRh() {
             onChange={setSelectedWeek}
             options={weekOptions}
           />
-
-          <FilterSelect
+          <SearchableFilterSelect
             label="Projeto"
             value={selectedProjetoFiltro}
             onChange={setSelectedProjetoFiltro}
             options={projetoFiltroOptions}
+            placeholder="Selecionar projeto"
+            searchPlaceholder="Digite o código ou nome do projeto"
+            emptyText="Nenhum projeto encontrado."
           />
 
-          <FilterSelect
+          <SearchableFilterSelect
             label="Colaborador"
             value={selectedColaboradorFiltro}
             onChange={setSelectedColaboradorFiltro}
             options={colaboradorFiltroOptions}
-          />
-        </div>
-
-        <div className="mt-4">
-          <Input
-            value={projectSearch}
-            onChange={(e) => setProjectSearch(e.target.value)}
-            placeholder="Buscar projeto por nome ou código"
-            className="max-w-sm"
+            placeholder="Selecionar colaborador"
+            searchPlaceholder="Digite o nome do colaborador"
+            emptyText="Nenhum colaborador encontrado."
           />
         </div>
       </SectionCard>
