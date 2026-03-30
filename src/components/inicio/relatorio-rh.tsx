@@ -1,10 +1,18 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Card } from "../ui/card"
-import type { RelatorioRh as RelatorioRhType, RelatorioRh2 } from "@/types/inicio/relatorio-colaborador"
-import { getHoursRh, getHoursRhByAttProj } from "@/app/actions/inicio/get-hours"
+import {
+  AlertTriangle,
+  BriefcaseBusiness,
+  CalendarDays,
+  Clock3,
+  Filter,
+  TrendingUp,
+  Users,
+} from "lucide-react"
+import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -13,250 +21,861 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  getColaboradoresDashboardOptions,
+  getProjetosDashboardOptions,
+} from "@/app/actions/inicio/get-dashboard-filters"
+import { getDashboardDataFiltered } from "@/app/actions/inicio/get-dashboard-data"
+import type {
+  DashboardHorasColaboradorProjeto,
+  DashboardHorasProjeto,
+} from "@/types/inicio/dashboard"
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 
-type DistribuicaoItem = {
+type ProjetoOption = {
+  id: number
+  code: string
+  name: string
+  status: string
+}
+
+type ColaboradorOption = {
+  id: string
   nome: string
-  horas: number
-  percentual: number
+  status: string
+}
+
+function getStatusConsumo(percentual: number) {
+  if (percentual >= 100) {
+    return {
+      label: "Estourado",
+      className: "bg-red-100 text-red-700",
+      color: "#ef4444",
+    }
+  }
+
+  if (percentual >= 80) {
+    return {
+      label: "Atenção",
+      className: "bg-yellow-100 text-yellow-700",
+      color: "#eab308",
+    }
+  }
+
+  return {
+    label: "OK",
+    className: "bg-green-100 text-green-700",
+    color: "#22c55e",
+  }
+}
+
+function formatHours(value: number) {
+  const safeValue = Number.isFinite(value) ? value : 0
+  const negative = safeValue < 0
+  const absoluteValue = Math.abs(safeValue)
+
+  let horas = Math.floor(absoluteValue)
+  let minutos = Math.round((absoluteValue % 1) * 60)
+
+  if (minutos === 60) {
+    horas += 1
+    minutos = 0
+  }
+
+  const result = `${horas}h ${String(minutos).padStart(2, "0")}min`
+  return negative ? `-${result}` : result
+}
+
+function formatPercent(value: number) {
+  const safeValue = Number.isFinite(value) ? value : 0
+  return `${safeValue.toFixed(2)}%`
+}
+
+function truncateLabel(value: string, max = 22) {
+  if (value.length <= max) return value
+  return `${value.slice(0, max)}...`
+}
+
+function KpiCard({
+  title,
+  value,
+  subtitle,
+  icon,
+}: {
+  title: string
+  value: string
+  subtitle?: string
+  icon: React.ReactNode
+}) {
+  return (
+    <Card className="rounded-2xl border border-gray-200 p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-gray-900">
+            {value}
+          </p>
+          {subtitle ? (
+            <p className="mt-2 text-xs leading-5 text-gray-500">{subtitle}</p>
+          ) : null}
+        </div>
+
+        <div className="rounded-2xl bg-gray-50 p-3 text-gray-600">{icon}</div>
+      </div>
+    </Card>
+  )
+}
+
+function SectionCard({
+  title,
+  subtitle,
+  rightContent,
+  children,
+}: {
+  title: string
+  subtitle?: string
+  rightContent?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <Card className="rounded-2xl border border-gray-200 p-5 shadow-sm">
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          {subtitle ? (
+            <p className="text-sm text-gray-500">{subtitle}</p>
+          ) : null}
+        </div>
+        {rightContent}
+      </div>
+      {children}
+    </Card>
+  )
+}
+
+type CustomTooltipProps = {
+  active?: boolean
+  payload?: Array<{
+    value: number
+    payload: {
+      nome: string
+      nomeCompleto?: string
+      percentual?: number
+    }
+  }>
+}
+
+function CustomHoursTooltip({ active, payload }: CustomTooltipProps) {
+  if (!active || !payload || payload.length === 0) return null
+
+  const item = payload[0]
+  const nome = item.payload.nomeCompleto ?? item.payload.nome
+  const horas = item.value
+  const percentual = item.payload.percentual
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-md">
+      <p className="text-sm font-semibold text-gray-900">{nome}</p>
+      <p className="text-sm text-gray-600">{formatHours(horas)}</p>
+      {typeof percentual === "number" ? (
+        <p className="text-xs text-gray-500">{formatPercent(percentual)}</p>
+      ) : null}
+    </div>
+  )
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Array<{ value: string; label: string }>
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm"
+      >
+        {options.map((option) => (
+          <option key={`${label}-${option.value}`} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
 }
 
 export default function RelatorioRh() {
   const [loading, setLoading] = useState(true)
-  const [distributionData, setDistributionData] = useState<RelatorioRhType>([])
-  const [detailedData, setDetailedData] = useState<RelatorioRh2>([])
+  const [projetos, setProjetos] = useState<DashboardHorasProjeto[]>([])
+  const [colaboradores, setColaboradores] = useState<
+    DashboardHorasColaboradorProjeto[]
+  >([])
+  const [projetoOptions, setProjetoOptions] = useState<ProjetoOption[]>([])
+  const [colaboradorOptions, setColaboradorOptions] = useState<
+    ColaboradorOption[]
+  >([])
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
+    null,
+  )
+  const [projectSearch, setProjectSearch] = useState("")
+  const currentYear = new Date().getFullYear()
+
+  const [selectedYear, setSelectedYear] = useState<string>("all")
+  const [selectedQuarter, setSelectedQuarter] = useState<string>("all")
+  const [selectedMonth, setSelectedMonth] = useState<string>("all")
+  const [selectedWeek, setSelectedWeek] = useState<string>("all")
+  const [selectedProjetoFiltro, setSelectedProjetoFiltro] =
+    useState<string>("all")
+  const [selectedColaboradorFiltro, setSelectedColaboradorFiltro] =
+    useState<string>("all")
 
   useEffect(() => {
-    const fetchAllData = async () => {
+    const loadDashboard = async () => {
       setLoading(true)
+
       try {
-        const [rhResult, rhByAttProjResult] = await Promise.all([
-          getHoursRh(),
-          getHoursRhByAttProj(),
-        ])
+        const [projetosFiltroData, colaboradoresFiltroData, dashboardData] =
+          await Promise.all([
+            getProjetosDashboardOptions(),
+            getColaboradoresDashboardOptions(),
+            getDashboardDataFiltered({
+              year: selectedYear,
+              quarter: selectedQuarter,
+              month: selectedMonth,
+              week: selectedWeek,
+              projetoId: selectedProjetoFiltro,
+              colaboradorId: selectedColaboradorFiltro,
+            }),
+          ])
 
-        if (rhResult && Array.isArray(rhResult)) {
-          setDistributionData(rhResult)
-        }
+        setProjetoOptions((projetosFiltroData as ProjetoOption[]) ?? [])
+        setColaboradorOptions(
+          (colaboradoresFiltroData as ColaboradorOption[]) ?? [],
+        )
 
-        if (rhByAttProjResult && Array.isArray(rhByAttProjResult)) {
-          setDetailedData(rhByAttProjResult)
+        setProjetos(dashboardData.projetos as DashboardHorasProjeto[])
+        setColaboradores(
+          dashboardData.colaboradores as DashboardHorasColaboradorProjeto[],
+        )
+
+        if (dashboardData.projetos.length > 0) {
+          setSelectedProjectId((current) => {
+            const projetoExiste =
+              current &&
+              dashboardData.projetos.some((p) => p.projeto_id === current)
+
+            return projetoExiste
+              ? current
+              : dashboardData.projetos[0].projeto_id
+          })
+        } else {
+          setSelectedProjectId(null)
         }
       } catch (error) {
-        console.error("Erro ao buscar dados do relatório RH:", error)
+        console.error("Erro ao carregar dashboard de relatórios:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchAllData()
-  }, [])
+    loadDashboard()
+  }, [
+    selectedYear,
+    selectedQuarter,
+    selectedMonth,
+    selectedWeek,
+    selectedProjetoFiltro,
+    selectedColaboradorFiltro,
+  ])
 
-  const { distribuicaoProjetos, distribuicaoAtividades } = useMemo(() => {
-    const projetos = distributionData.filter(
-      (item) => item.tipo_agrupamento === "projeto",
-    )
-    const atividades = distributionData.filter(
-      (item) => item.tipo_agrupamento === "atividade",
-    )
+  const projetosFiltrados = useMemo(() => {
+    const termo = projectSearch.trim().toLowerCase()
 
-    const totalProjetos = projetos.reduce(
-      (acc, item) => acc + item.total_horas,
-      0,
-    )
-    const totalAtividades = atividades.reduce(
-      (acc, item) => acc + item.total_horas,
-      0,
-    )
+    let filtered = projetos.filter((item) => {
+      if (!termo) return true
 
-    const distribuicaoProjetos: DistribuicaoItem[] = projetos.map((item) => ({
-      nome: item.nome_agrupamento,
-      horas: item.total_horas,
-      percentual:
-        totalProjetos > 0 ? (item.total_horas / totalProjetos) * 100 : 0,
-    }))
+      return (
+        item.projeto_nome.toLowerCase().includes(termo) ||
+        item.projeto_codigo.toLowerCase().includes(termo)
+      )
+    })
 
-    const distribuicaoAtividades: DistribuicaoItem[] = atividades.map(
-      (item) => ({
-        nome: item.nome_agrupamento,
-        horas: item.total_horas,
-        percentual:
-          totalAtividades > 0
-            ? (item.total_horas / totalAtividades) * 100
-            : 0,
-      }),
+    if (selectedProjetoFiltro !== "all") {
+      filtered = filtered.filter(
+        (item) => String(item.projeto_id) === selectedProjetoFiltro,
+      )
+    }
+
+    return [...filtered].sort((a, b) => b.horas_feitas - a.horas_feitas)
+  }, [projetos, projectSearch, selectedProjetoFiltro])
+
+  const colaboradoresOrdenados = useMemo(() => {
+    let filtered = [...colaboradores]
+
+    if (selectedProjectId) {
+      filtered = filtered.filter(
+        (item) => item.projeto_id === selectedProjectId,
+      )
+    }
+
+    if (selectedColaboradorFiltro !== "all") {
+      filtered = filtered.filter(
+        (item) => item.user_id === selectedColaboradorFiltro,
+      )
+    }
+
+    return filtered.sort((a, b) => b.horas_feitas - a.horas_feitas)
+  }, [colaboradores, selectedColaboradorFiltro, selectedProjectId])
+
+  const projetoSelecionado = useMemo(() => {
+    return (
+      projetos.find((item) => item.projeto_id === selectedProjectId) ?? null
     )
+  }, [projetos, selectedProjectId])
 
-    return { distribuicaoProjetos, distribuicaoAtividades }
-  }, [distributionData])
+  const totalHorasProjetos = useMemo(() => {
+    return projetosFiltrados.reduce((acc, item) => acc + item.horas_feitas, 0)
+  }, [projetosFiltrados])
+
+  const totalProjetosAtivos = projetosFiltrados.length
+
+  const projetosCriticos = useMemo(() => {
+    return projetosFiltrados.filter((p) => p.percentual_consumido >= 100)
+  }, [projetosFiltrados])
+
+  const projetosAtencao = useMemo(() => {
+    return projetosFiltrados.filter(
+      (p) => p.percentual_consumido >= 80 && p.percentual_consumido < 100,
+    )
+  }, [projetosFiltrados])
+
+  const projetosOk = useMemo(() => {
+    return projetosFiltrados.filter((p) => p.percentual_consumido < 80)
+  }, [projetosFiltrados])
+
+  const totalProjetosCriticos = projetosCriticos.length
+
+  const projetoMaisConsumido = useMemo(() => {
+    if (projetosFiltrados.length === 0) return null
+    return [...projetosFiltrados].sort(
+      (a, b) => b.horas_feitas - a.horas_feitas,
+    )[0]
+  }, [projetosFiltrados])
+
+  const projetosCriticosTop = useMemo(() => {
+    return [...projetosCriticos]
+      .sort((a, b) => b.percentual_consumido - a.percentual_consumido)
+      .slice(0, 5)
+  }, [projetosCriticos])
+
+  const statusChartData = useMemo(() => {
+    return [
+      { name: "OK", value: projetosOk.length, color: "#22c55e" },
+      { name: "Atenção", value: projetosAtencao.length, color: "#eab308" },
+      { name: "Estourado", value: projetosCriticos.length, color: "#ef4444" },
+    ]
+  }, [projetosOk.length, projetosAtencao.length, projetosCriticos.length])
+
+  const projetosGrafico = useMemo(() => {
+    return [...projetosFiltrados]
+      .sort((a, b) => b.horas_feitas - a.horas_feitas)
+      .slice(0, 10)
+      .reverse()
+      .map((item) => ({
+        nome: item.projeto_codigo,
+        nomeCompleto: `${item.projeto_codigo} • ${item.projeto_nome}`,
+        horas: Number(item.horas_feitas.toFixed(2)),
+        percentual: item.percentual_consumido,
+        color: getStatusConsumo(item.percentual_consumido).color,
+      }))
+  }, [projetosFiltrados])
+
+  const colaboradoresGrafico = useMemo(() => {
+    return [...colaboradoresOrdenados]
+      .slice(0, 10)
+      .reverse()
+      .map((item) => ({
+        nome: truncateLabel(item.user_name, 18),
+        nomeCompleto: item.user_name,
+        horas: Number(item.horas_feitas.toFixed(2)),
+        percentual: item.percentual_participacao_projeto,
+      }))
+  }, [colaboradoresOrdenados])
+
+  const yearOptions = useMemo(() => {
+    return [
+      { value: "all", label: "Todos" },
+      { value: String(currentYear - 1), label: String(currentYear - 1) },
+      { value: String(currentYear), label: String(currentYear) },
+      { value: String(currentYear + 1), label: String(currentYear + 1) },
+    ]
+  }, [currentYear])
+
+  const quarterOptions = [
+    { value: "all", label: "Todos" },
+    { value: "1", label: "1º trimestre" },
+    { value: "2", label: "2º trimestre" },
+    { value: "3", label: "3º trimestre" },
+    { value: "4", label: "4º trimestre" },
+  ]
+
+  const monthOptions = [
+    { value: "all", label: "Todos" },
+    { value: "1", label: "Janeiro" },
+    { value: "2", label: "Fevereiro" },
+    { value: "3", label: "Março" },
+    { value: "4", label: "Abril" },
+    { value: "5", label: "Maio" },
+    { value: "6", label: "Junho" },
+    { value: "7", label: "Julho" },
+    { value: "8", label: "Agosto" },
+    { value: "9", label: "Setembro" },
+    { value: "10", label: "Outubro" },
+    { value: "11", label: "Novembro" },
+    { value: "12", label: "Dezembro" },
+  ]
+
+  const weekOptions = [
+    { value: "all", label: "Todas" },
+    { value: "1", label: "Semana 1" },
+    { value: "2", label: "Semana 2" },
+    { value: "3", label: "Semana 3" },
+    { value: "4", label: "Semana 4" },
+    { value: "5", label: "Semana 5" },
+  ]
+
+  const projetoFiltroOptions = useMemo(() => {
+    return [
+      { value: "all", label: "Todos os projetos" },
+      ...projetoOptions.map((item) => ({
+        value: String(item.id),
+        label: `${item.code} • ${item.name}`,
+      })),
+    ]
+  }, [projetoOptions])
+
+  const colaboradorFiltroOptions = useMemo(() => {
+    return [
+      { value: "all", label: "Todos os colaboradores" },
+      ...colaboradorOptions.map((item) => ({
+        value: item.id,
+        label: item.nome,
+      })),
+    ]
+  }, [colaboradorOptions])
 
   if (loading) {
     return (
-      <div className="space-y-8 p-6">
-        <h1 className="text-xl font-semibold">Relatórios</h1>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          <Card className="p-4">
-            <Skeleton className="mb-4 h-6 w-1/2" />
-            <Skeleton className="mb-2 h-4 w-full" />
-            <Skeleton className="mb-4 h-2 w-full" />
-            <Skeleton className="mb-2 h-4 w-full" />
-            <Skeleton className="h-2 w-full" />
-          </Card>
-          <Card className="p-4">
-            <Skeleton className="mb-4 h-6 w-1/2" />
-            <Skeleton className="mb-2 h-4 w-full" />
-            <Skeleton className="mb-4 h-2 w-full" />
-            <Skeleton className="mb-2 h-4 w-full" />
-            <Skeleton className="h-2 w-full" />
-          </Card>
+      <div className="space-y-6 p-6">
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Relatórios Gerenciais
+        </h1>
+
+        <Skeleton className="h-28 w-full rounded-2xl" />
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Skeleton className="h-32 w-full rounded-2xl" />
+          <Skeleton className="h-32 w-full rounded-2xl" />
+          <Skeleton className="h-32 w-full rounded-2xl" />
+          <Skeleton className="h-32 w-full rounded-2xl" />
         </div>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          <Card className="p-4">
-            <Skeleton className="mb-4 h-6 w-1/2" />
-            <Skeleton className="h-32 w-full" />
-          </Card>
-          <Card className="p-4">
-            <Skeleton className="mb-4 h-6 w-1/2" />
-            <Skeleton className="h-32 w-full" />
-          </Card>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <Skeleton className="h-80 w-full rounded-2xl" />
+          <Skeleton className="h-80 w-full rounded-2xl" />
         </div>
-        <Card className="p-4">
-          <Skeleton className="mb-4 h-6 w-1/2" />
-          <Skeleton className="h-48 w-full" />
-        </Card>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <Skeleton className="h-96 w-full rounded-2xl" />
+          <Skeleton className="h-96 w-full rounded-2xl" />
+        </div>
+
+        <Skeleton className="h-[420px] w-full rounded-2xl" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 p-6">
-      <h1 className="text-xl font-semibold">Relatórios</h1>
-
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <Card className="p-4">
-          <h2 className="mb-3 font-semibold">Distribuição por Projeto</h2>
-          {distribuicaoProjetos.map((p, i) => (
-            <div key={i} className="mb-4">
-              <div className="flex justify-between text-sm font-medium text-gray-700">
-                <span>{p.nome}</span>
-                <span className="text-blue-600">{p.horas.toFixed(1)}h</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-gray-200">
-                <div
-                  className="h-2 rounded-full bg-blue-500"
-                  style={{ width: `${p.percentual}%` }}
-                />
-              </div>
-              <div className="mt-1 text-xs text-gray-500">
-                {p.percentual.toFixed(1)}% do total
-              </div>
-            </div>
-          ))}
-        </Card>
-
-        <Card className="p-4">
-          <h2 className="mb-3 font-semibold">Distribuição por Atividade</h2>
-          {distribuicaoAtividades.map((a, i) => (
-            <div key={i} className="mb-4">
-              <div className="flex justify-between text-sm font-medium text-gray-700">
-                <span>{a.nome}</span>
-                <span className="text-green-600">{a.horas.toFixed(1)}h</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-gray-200">
-                <div
-                  className="h-2 rounded-full bg-green-500"
-                  style={{ width: `${a.percentual}%` }}
-                />
-              </div>
-              <div className="mt-1 text-xs text-gray-500">
-                {a.percentual.toFixed(1)}% do total
-              </div>
-            </div>
-          ))}
-        </Card>
+    <div className="space-y-6 p-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Relatórios Gerenciais
+        </h1>
+        <p className="text-sm text-gray-500">
+          Painel executivo para acompanhamento de horas, risco de consumo e
+          alocação por projeto.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <Card className="p-4">
-          <h2 className="mb-3 font-semibold">Horas por Projeto e Atividade</h2>
+      <SectionCard
+        title="Filtros do dashboard"
+        subtitle="Selecione os recortes que deseja analisar"
+        rightContent={
+          <div className="rounded-2xl bg-gray-50 p-3 text-gray-600">
+            <Filter className="h-5 w-5" />
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <FilterSelect
+            label="Ano"
+            value={selectedYear}
+            onChange={setSelectedYear}
+            options={yearOptions}
+          />
+
+          <FilterSelect
+            label="Trimestre"
+            value={selectedQuarter}
+            onChange={setSelectedQuarter}
+            options={quarterOptions}
+          />
+
+          <FilterSelect
+            label="Mês"
+            value={selectedMonth}
+            onChange={setSelectedMonth}
+            options={monthOptions}
+          />
+
+          <FilterSelect
+            label="Semana"
+            value={selectedWeek}
+            onChange={setSelectedWeek}
+            options={weekOptions}
+          />
+
+          <FilterSelect
+            label="Projeto"
+            value={selectedProjetoFiltro}
+            onChange={setSelectedProjetoFiltro}
+            options={projetoFiltroOptions}
+          />
+
+          <FilterSelect
+            label="Colaborador"
+            value={selectedColaboradorFiltro}
+            onChange={setSelectedColaboradorFiltro}
+            options={colaboradorFiltroOptions}
+          />
+        </div>
+
+        <div className="mt-4">
+          <Input
+            value={projectSearch}
+            onChange={(e) => setProjectSearch(e.target.value)}
+            placeholder="Buscar projeto por nome ou código"
+            className="max-w-sm"
+          />
+        </div>
+      </SectionCard>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          title="Horas realizadas"
+          value={formatHours(totalHorasProjetos)}
+          subtitle="Somatório de horas registradas no recorte selecionado"
+          icon={<Clock3 className="h-5 w-5" />}
+        />
+
+        <KpiCard
+          title="Projetos ativos"
+          value={`${totalProjetosAtivos}`}
+          subtitle="Projetos visíveis no recorte atual"
+          icon={<BriefcaseBusiness className="h-5 w-5" />}
+        />
+
+        <KpiCard
+          title="Projetos críticos"
+          value={`${totalProjetosCriticos}`}
+          subtitle="Projetos com consumo acima de 100%"
+          icon={<AlertTriangle className="h-5 w-5" />}
+        />
+
+        <KpiCard
+          title="Projeto mais demandado"
+          value={projetoMaisConsumido?.projeto_codigo ?? "-"}
+          subtitle={
+            projetoMaisConsumido
+              ? `${formatHours(projetoMaisConsumido.horas_feitas)} em ${projetoMaisConsumido.projeto_nome}`
+              : "Sem dados"
+          }
+          icon={<TrendingUp className="h-5 w-5" />}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <SectionCard
+          title="Projetos que exigem atenção"
+          subtitle="Foco imediato da liderança"
+        >
+          {projetosCriticosTop.length > 0 ? (
+            <div className="space-y-3">
+              {projetosCriticosTop.map((item) => {
+                const status = getStatusConsumo(item.percentual_consumido)
+
+                return (
+                  <div
+                    key={item.projeto_id}
+                    className="flex flex-col gap-3 rounded-2xl border border-red-100 bg-red-50/50 p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {item.projeto_codigo} • {item.projeto_nome}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Horas feitas: {formatHours(item.horas_feitas)} | Saldo:{" "}
+                        <span className="font-medium text-red-600">
+                          {formatHours(item.saldo_horas)}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-red-700">
+                        {formatPercent(item.percentual_consumido)}
+                      </span>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${status.className}`}
+                      >
+                        {status.label}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-green-100 bg-green-50 p-5 text-sm text-green-700">
+              Nenhum projeto acima de 100% no momento.
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Distribuição de status"
+          subtitle="Visão consolidada do portfólio"
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[0.95fr_1.05fr] md:items-center">
+            <div className="h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusChartData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={55}
+                    outerRadius={85}
+                    paddingAngle={3}
+                  >
+                    {statusChartData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="space-y-3">
+              {statusChartData.map((item) => (
+                <div
+                  key={item.name}
+                  className="flex items-center justify-between rounded-xl border border-gray-100 p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="h-3 w-3 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      {item.name}
+                    </span>
+                  </div>
+                  <span className="text-lg font-semibold text-gray-900">
+                    {item.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <SectionCard
+          title="Top projetos por horas"
+          subtitle="Projetos com maior volume de esforço acumulado"
+        >
+          <div className="h-[360px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={projetosGrafico}
+                layout="vertical"
+                margin={{ left: 10 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" tick={{ fontSize: 12 }} />
+                <YAxis
+                  type="category"
+                  dataKey="nome"
+                  width={105}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip content={<CustomHoursTooltip />} />
+                <Bar dataKey="horas" radius={[0, 8, 8, 0]}>
+                  {projetosGrafico.map((entry) => (
+                    <Cell key={entry.nome} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Top colaboradores do projeto selecionado"
+          subtitle={
+            projetoSelecionado
+              ? `${projetoSelecionado.projeto_codigo} • ${projetoSelecionado.projeto_nome}`
+              : "Selecione um projeto"
+          }
+        >
+          <div className="h-[360px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={colaboradoresGrafico}
+                layout="vertical"
+                margin={{ left: 10 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" tick={{ fontSize: 12 }} />
+                <YAxis
+                  type="category"
+                  dataKey="nome"
+                  width={125}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip content={<CustomHoursTooltip />} />
+                <Bar dataKey="horas" fill="#2563eb" radius={[0, 8, 8, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </SectionCard>
+      </div>
+
+      <SectionCard
+        title="Tabela final de detalhamento"
+        subtitle="Única visualização tabular para aprofundamento"
+        rightContent={
+          <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600">
+            <CalendarDays className="h-4 w-4" />
+            <span>
+              Ano: {selectedYear} • Trimestre: {selectedQuarter} • Mês:{" "}
+              {selectedMonth} • Semana: {selectedWeek}
+            </span>
+          </div>
+        }
+      >
+        <div className="overflow-x-auto rounded-xl border border-gray-100">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Projeto</TableHead>
-                <TableHead>Atividade</TableHead>
-                <TableHead>Horas</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Horas estimadas</TableHead>
+                <TableHead>Horas feitas</TableHead>
+                <TableHead>Saldo</TableHead>
+                <TableHead>% consumido</TableHead>
+                <TableHead>Colaborador destaque</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {detailedData.map((item, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{item.projeto}</TableCell>
-                  <TableCell>{item.atividade}</TableCell>
-                  <TableCell className="font-medium">
-                    {item.horas.toFixed(1)}h
-                  </TableCell>
+              {projetosFiltrados.length > 0 ? (
+                projetosFiltrados.map((item) => {
+                  const status = getStatusConsumo(item.percentual_consumido)
 
+                  const colaboradoresProjeto = colaboradoresOrdenados.filter(
+                    (colaborador) => colaborador.projeto_id === item.projeto_id,
+                  )
+
+                  const colaboradorDestaque =
+                    colaboradoresProjeto.length > 0
+                      ? colaboradoresProjeto[0].user_name
+                      : "-"
+
+                  return (
+                    <TableRow
+                      key={item.projeto_id}
+                      className="cursor-pointer"
+                      onClick={() => setSelectedProjectId(item.projeto_id)}
+                    >
+                      <TableCell className="font-medium">
+                        {item.projeto_codigo} • {item.projeto_nome}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`rounded-full px-2 py-1 text-xs font-medium ${status.className}`}
+                        >
+                          {status.label}
+                        </span>
+                      </TableCell>
+                      <TableCell>{formatHours(item.horas_estimadas)}</TableCell>
+                      <TableCell>{formatHours(item.horas_feitas)}</TableCell>
+                      <TableCell
+                        className={
+                          item.saldo_horas < 0
+                            ? "font-medium text-red-600"
+                            : "font-medium text-green-600"
+                        }
+                      >
+                        {formatHours(item.saldo_horas)}
+                      </TableCell>
+                      <TableCell>
+                        {formatPercent(item.percentual_consumido)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-gray-400" />
+                          <span>{colaboradorDestaque}</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-gray-500">
+                    Nenhum projeto encontrado.
+                  </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
-        </Card>
-
-        <Card className="p-4">
-          <h2 className="mb-3 font-semibold">
-            Horas por Funcionário e Atividade
-          </h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Funcionário</TableHead>
-                <TableHead>Atividade</TableHead>
-                <TableHead>Horas</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {detailedData.map((item, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{item.funcionario}</TableCell>
-                  <TableCell>{item.atividade}</TableCell>
-                  <TableCell className="font-medium">
-                    {item.horas.toFixed(1)}h
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
-      </div>
-
-      <Card className="p-4">
-        <h2 className="mb-3 font-semibold">Relatório Geral Detalhado</h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Funcionário</TableHead>
-              <TableHead>Período</TableHead>
-              <TableHead>Projeto</TableHead>
-              <TableHead>Atividade</TableHead>
-              <TableHead>Horas</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {detailedData.map((item, idx) => (
-              <TableRow key={idx}>
-                <TableCell>{item.data}</TableCell>
-                <TableCell>{item.funcionario}</TableCell>
-                <TableCell>{item.periodo}</TableCell>
-                <TableCell>{item.projeto}</TableCell>
-                <TableCell>{item.atividade}</TableCell>
-                <TableCell className="font-medium">
-                  {item.horas.toFixed(1)}h
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+        </div>
+      </SectionCard>
     </div>
   )
 }
