@@ -2,6 +2,16 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  // 🔥 LIBERA ROTAS PUBLICAS DIRETAMENTE AQUI
+  if (
+    pathname.startsWith('/satisfacao') ||
+    pathname.startsWith('/enps')
+  ) {
+    return NextResponse.next()
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -15,7 +25,9 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
 
           supabaseResponse = NextResponse.next({
             request,
@@ -33,11 +45,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const pathname = request.nextUrl.pathname
-
   const isPublicRoute =
-    pathname.startsWith('/enps') ||
-    pathname.startsWith('/satisfacao') ||
     pathname.includes('/login') ||
     pathname.includes('/forgot-password') ||
     pathname.includes('/reset-password') ||
