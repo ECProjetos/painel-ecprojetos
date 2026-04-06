@@ -64,7 +64,19 @@ export type DashboardDataResponse = {
 function intervalToHours(value: string | null | undefined) {
   if (!value) return 0
 
-  const parts = value.split(":")
+  const normalized = String(value).trim()
+
+  const dayMatch = normalized.match(/(\d+)\s+days?\s+(\d+):(\d+):(\d+)/i)
+  if (dayMatch) {
+    const days = Number(dayMatch[1] ?? 0)
+    const hours = Number(dayMatch[2] ?? 0)
+    const minutes = Number(dayMatch[3] ?? 0)
+    const seconds = Number(dayMatch[4] ?? 0)
+
+    return days * 24 + hours + minutes / 60 + seconds / 3600
+  }
+
+  const parts = normalized.split(":")
   if (parts.length < 2) return 0
 
   const hours = Number(parts[0] ?? 0)
@@ -85,14 +97,18 @@ function getWeekOfMonth(dateStr: string) {
 }
 
 function getDateRangeFromFilters(params: DashboardFilterParams) {
-  const now = new Date()
   const selectedYear =
-    params.year && params.year !== "all" ? Number(params.year) : now.getFullYear()
+    params.year && params.year !== "all" ? Number(params.year) : null
 
-  let startDate: Date | null = new Date(selectedYear, 0, 1)
-  let endDate: Date | null = new Date(selectedYear, 11, 31)
+  let startDate: Date | null = null
+  let endDate: Date | null = null
 
-  if (params.quarter && params.quarter !== "all") {
+  if (selectedYear !== null) {
+    startDate = new Date(selectedYear, 0, 1)
+    endDate = new Date(selectedYear, 11, 31)
+  }
+
+  if (params.quarter && params.quarter !== "all" && selectedYear !== null) {
     const quarter = Number(params.quarter)
     const quarterStartMonth = (quarter - 1) * 3
     const quarterEndMonth = quarterStartMonth + 2
@@ -101,18 +117,73 @@ function getDateRangeFromFilters(params: DashboardFilterParams) {
     endDate = new Date(selectedYear, quarterEndMonth + 1, 0)
   }
 
-  if (params.month && params.month !== "all") {
+  if (params.month && params.month !== "all" && selectedYear !== null) {
     const month = Number(params.month) - 1
     startDate = new Date(selectedYear, month, 1)
     endDate = new Date(selectedYear, month + 1, 0)
   }
 
   return {
-    startDate: startDate?.toISOString().slice(0, 10) ?? null,
-    endDate: endDate?.toISOString().slice(0, 10) ?? null,
+    startDate: startDate ? startDate.toISOString().slice(0, 10) : null,
+    endDate: endDate ? endDate.toISOString().slice(0, 10) : null,
     selectedWeek:
       params.week && params.week !== "all" ? Number(params.week) : null,
   }
+}
+
+async function fetchAllVPontoRows(
+  params: DashboardFilterParams,
+  startDate: string | null,
+  endDate: string | null,
+): Promise<VPontoRow[]> {
+  const supabase = await createClient()
+  const pageSize = 1000
+  let from = 0
+  let allRows: VPontoRow[] = []
+
+  while (true) {
+    let query = supabase
+      .from("v_ponto")
+      .select(
+        "user_id, user_name, entry_date, projeto, projeto_nome, worked_time",
+      )
+      .not("projeto", "is", null)
+      .range(from, from + pageSize - 1)
+
+    if (startDate) {
+      query = query.gte("entry_date", startDate)
+    }
+
+    if (endDate) {
+      query = query.lte("entry_date", endDate)
+    }
+
+    if (params.projetoId && params.projetoId !== "all") {
+      query = query.eq("projeto", Number(params.projetoId))
+    }
+
+    if (params.colaboradorId && params.colaboradorId !== "all") {
+      query = query.eq("user_id", params.colaboradorId)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error("Erro ao buscar v_ponto filtrada:", error)
+      throw new Error("Não foi possível buscar os dados filtrados do dashboard.")
+    }
+
+    const batch = (data ?? []) as VPontoRow[]
+    allRows = allRows.concat(batch)
+
+    if (batch.length < pageSize) {
+      break
+    }
+
+    from += pageSize
+  }
+
+  return allRows
 }
 
 export async function getDashboardDataFiltered(
@@ -122,48 +193,19 @@ export async function getDashboardDataFiltered(
 
   const { startDate, endDate, selectedWeek } = getDateRangeFromFilters(params)
 
-  let pontoQuery = supabase
-    .from("v_ponto")
-    .select(
-      "user_id, user_name, entry_date, projeto, projeto_nome, worked_time",
-    )
-    .not("projeto", "is", null)
-
-  if (startDate) {
-    pontoQuery = pontoQuery.gte("entry_date", startDate)
-  }
-
-  if (endDate) {
-    pontoQuery = pontoQuery.lte("entry_date", endDate)
-  }
-
-  if (params.projetoId && params.projetoId !== "all") {
-    pontoQuery = pontoQuery.eq("projeto", Number(params.projetoId))
-  }
-
-  if (params.colaboradorId && params.colaboradorId !== "all") {
-    pontoQuery = pontoQuery.eq("user_id", params.colaboradorId)
-  }
-
-  const { data: pontoData, error: pontoError } = await pontoQuery
-
-  if (pontoError) {
-    console.error("Erro ao buscar v_ponto filtrada:", pontoError)
-    throw new Error("Não foi possível buscar os dados filtrados do dashboard.")
-  }
-
-  let rows = (pontoData ?? []) as VPontoRow[]
+  let rows = await fetchAllVPontoRows(params, startDate, endDate)
 
   if (selectedWeek) {
     rows = rows.filter((row) => getWeekOfMonth(row.entry_date) === selectedWeek)
   }
 
-  const projetoIds = [...new Set(rows.map((row) => row.projeto).filter(Boolean))]
+  const projetoIds = [
+    ...new Set(rows.map((row) => row.projeto).filter(Boolean)),
+  ]
 
   let projectsQuery = supabase
     .from("projects")
     .select("id, code, name, estimated_hours, status")
-    .eq("status", "ativo")
 
   if (projetoIds.length > 0) {
     projectsQuery = projectsQuery.in("id", projetoIds)

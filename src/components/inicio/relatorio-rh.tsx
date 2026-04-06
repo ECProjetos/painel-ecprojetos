@@ -12,7 +12,6 @@ import {
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Input } from "@/components/ui/input"
 import { Check, ChevronsUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -265,7 +264,7 @@ function SearchableFilterSelect({
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-sx font-medium uppercase tracking-wide text-gray-500">
+      <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
         {label}
       </label>
 
@@ -276,7 +275,7 @@ function SearchableFilterSelect({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="h-10 w-full justify-between border-gray-300 bg-white px-3 text-sm font-normal"
+            className="h-10 w-full justify-between rounded-md border border-gray-300 bg-white px-3 text-sm font-normal"
           >
             <span className="truncate">
               {selectedOption ? selectedOption.label : placeholder}
@@ -285,7 +284,10 @@ function SearchableFilterSelect({
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className="w-[320px] p-0" align="start">
+        <PopoverContent
+          className="w-[--radix-popover-trigger-width] p-0"
+          align="start"
+        >
           <Command>
             <CommandInput placeholder={searchPlaceholder} />
             <CommandList>
@@ -374,12 +376,10 @@ export default function RelatorioRh() {
         if (dashboardData.projetos.length > 0) {
           setSelectedProjectId((current) => {
             const projetoExiste =
-              current &&
+              current !== null &&
               dashboardData.projetos.some((p) => p.projeto_id === current)
 
-            return projetoExiste
-              ? current
-              : dashboardData.projetos[0].projeto_id
+            return projetoExiste ? current : null
           })
         } else {
           setSelectedProjectId(null)
@@ -416,19 +416,44 @@ export default function RelatorioRh() {
   const colaboradoresOrdenados = useMemo(() => {
     let filtered = [...colaboradores]
 
-    if (selectedProjectId) {
-      filtered = filtered.filter(
-        (item) => item.projeto_id === selectedProjectId,
-      )
-    }
-
     if (selectedColaboradorFiltro !== "all") {
       filtered = filtered.filter(
         (item) => item.user_id === selectedColaboradorFiltro,
       )
     }
 
-    return filtered.sort((a, b) => b.horas_feitas - a.horas_feitas)
+    if (selectedProjectId !== null) {
+      return filtered
+        .filter((item) => item.projeto_id === selectedProjectId)
+        .sort((a, b) => b.horas_feitas - a.horas_feitas)
+    }
+
+    const agrupadoPorColaborador = new Map<
+      string,
+      DashboardHorasColaboradorProjeto
+    >()
+
+    for (const item of filtered) {
+      const existente = agrupadoPorColaborador.get(item.user_id)
+
+      if (!existente) {
+        agrupadoPorColaborador.set(item.user_id, {
+          ...item,
+          projeto_id: 0,
+          projeto_codigo: "GERAL",
+          projeto_nome: "Todos os projetos",
+          horas_feitas: item.horas_feitas,
+          total_horas_projeto: item.total_horas_projeto,
+          percentual_participacao_projeto: 0,
+        })
+      } else {
+        existente.horas_feitas += item.horas_feitas
+      }
+    }
+
+    return [...agrupadoPorColaborador.values()].sort(
+      (a, b) => b.horas_feitas - a.horas_feitas,
+    )
   }, [colaboradores, selectedColaboradorFiltro, selectedProjectId])
 
   const projetoSelecionado = useMemo(() => {
@@ -502,9 +527,12 @@ export default function RelatorioRh() {
         nome: truncateLabel(item.user_name, 18),
         nomeCompleto: item.user_name,
         horas: Number(item.horas_feitas.toFixed(2)),
-        percentual: item.percentual_participacao_projeto,
+        percentual:
+          selectedProjectId !== null
+            ? item.percentual_participacao_projeto
+            : undefined,
       }))
-  }, [colaboradoresOrdenados])
+  }, [colaboradoresOrdenados, selectedProjectId])
 
   const yearOptions = useMemo(() => {
     return [
@@ -620,7 +648,7 @@ export default function RelatorioRh() {
           </div>
         }
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6 items-end">
           <FilterSelect
             label="Ano"
             value={selectedYear}
@@ -648,6 +676,7 @@ export default function RelatorioRh() {
             onChange={setSelectedWeek}
             options={weekOptions}
           />
+
           <SearchableFilterSelect
             label="Projeto"
             value={selectedProjetoFiltro}
@@ -834,11 +863,15 @@ export default function RelatorioRh() {
         </SectionCard>
 
         <SectionCard
-          title="Top colaboradores do projeto selecionado"
+          title={
+            selectedProjectId !== null
+              ? "Top colaboradores do projeto selecionado"
+              : "Top colaboradores por horas"
+          }
           subtitle={
-            projetoSelecionado
+            selectedProjectId !== null && projetoSelecionado
               ? `${projetoSelecionado.projeto_codigo} • ${projetoSelecionado.projeto_nome}`
-              : "Selecione um projeto"
+              : "Somatório geral de todos os projetos"
           }
         >
           <div className="h-[360px]">

@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Check, ChevronsUpDown } from "lucide-react"
+
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,10 +19,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-export type ComboboxItem = { value: string; label: string }
+export type ComboboxItem = {
+  value: string
+  label: string
+}
 
 type Props = {
-  name?: string // <- importante para enviar no FormData
+  name?: string
   items: ComboboxItem[]
   value: string
   onValueChange: (value: string) => void
@@ -40,17 +44,20 @@ export function ComboboxSelect({
   onValueChange,
   placeholder = "Selecione...",
   emptyText = "Nada encontrado.",
+  className,
   disabled,
-  contentClassName = "w-[--radix-popover-trigger-width] p-0 ",
+  buttonClassName,
+  contentClassName = "w-[--radix-popover-trigger-width] p-0",
 }: Props) {
   const [open, setOpen] = React.useState(false)
-  const selected = items.find((i) => i.value === value)
+
+  const selected = items.find((item) => item.value === value)
 
   return (
     <>
       {name ? <input type="hidden" name={name} value={value} /> : null}
 
-      <Popover open={open} onOpenChange={setOpen} >
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -58,29 +65,38 @@ export function ComboboxSelect({
             role="combobox"
             aria-expanded={open}
             disabled={disabled}
-            className="w-full"
+            className={cn(
+              "w-full justify-between",
+              className,
+              buttonClassName
+            )}
           >
-            {selected ? selected.label : placeholder}
+            <span className="truncate">
+              {selected ? selected.label : placeholder}
+            </span>
+
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
+
         <PopoverContent className={contentClassName}>
           <Command>
             <CommandInput placeholder="Pesquisar..." />
             <CommandList>
               <CommandEmpty>{emptyText}</CommandEmpty>
+
               <CommandGroup>
                 {items.map((item) => (
                   <CommandItem
                     key={item.value}
                     value={item.label}
-                    // onSelect retorna o label; vamos mapear de volta para o value
                     onSelect={() => {
                       onValueChange(item.value === value ? "" : item.value)
                       setOpen(false)
                     }}
                   >
                     {item.label}
+
                     <Check
                       className={cn(
                         "ml-auto h-4 w-4",
@@ -94,6 +110,6 @@ export function ComboboxSelect({
           </Command>
         </PopoverContent>
       </Popover>
-  </>
+    </>
   )
 }
