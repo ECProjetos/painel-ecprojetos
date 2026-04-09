@@ -71,6 +71,9 @@ type ColaboradorOption = {
   status: string
 }
 
+type OrderField = "horas_feitas" | "saldo" | "percentual" | null
+type OrderDirection = "asc" | "desc"
+
 function getStatusConsumo(percentual: number) {
   if (percentual >= 100) {
     return {
@@ -138,7 +141,7 @@ function KpiCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="mt-3 text-3xl font-semibold tracking-tight text-gray-900">
+          <p className="mt-3 text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 break-words">
             {value}
           </p>
           {subtitle ? (
@@ -344,6 +347,25 @@ export default function RelatorioRh() {
   const [selectedColaboradorFiltro, setSelectedColaboradorFiltro] =
     useState<string>("all")
 
+  const [orderField, setOrderField] = useState<OrderField>(null)
+  const [orderDirection, setOrderDirection] = useState<OrderDirection>("desc")
+
+  function handleSort(field: Exclude<OrderField, null>) {
+    if (orderField !== field) {
+      setOrderField(field)
+      setOrderDirection("desc")
+      return
+    }
+
+    if (orderDirection === "desc") {
+      setOrderDirection("asc")
+      return
+    }
+
+    setOrderField(null)
+    setOrderDirection("desc")
+  }
+
   useEffect(() => {
     const loadDashboard = async () => {
       setLoading(true)
@@ -410,8 +432,32 @@ export default function RelatorioRh() {
       )
     }
 
-    return filtered.sort((a, b) => b.horas_feitas - a.horas_feitas)
-  }, [projetos, selectedProjetoFiltro])
+    if (!orderField) {
+      return filtered
+    }
+
+    return filtered.sort((a, b) => {
+      let valueA = 0
+      let valueB = 0
+
+      if (orderField === "horas_feitas") {
+        valueA = a.horas_feitas
+        valueB = b.horas_feitas
+      }
+
+      if (orderField === "saldo") {
+        valueA = a.saldo_horas
+        valueB = b.saldo_horas
+      }
+
+      if (orderField === "percentual") {
+        valueA = a.percentual_consumido
+        valueB = b.percentual_consumido
+      }
+
+      return orderDirection === "asc" ? valueA - valueB : valueB - valueA
+    })
+  }, [projetos, selectedProjetoFiltro, orderField, orderDirection])
 
   const colaboradoresOrdenados = useMemo(() => {
     let filtered = [...colaboradores]
@@ -466,6 +512,18 @@ export default function RelatorioRh() {
     return projetosFiltrados.reduce((acc, item) => acc + item.horas_feitas, 0)
   }, [projetosFiltrados])
 
+  const totalHorasInt = useMemo(() => {
+    return projetosFiltrados
+      .filter((item) => item.projeto_codigo?.toUpperCase().startsWith("INT-"))
+      .reduce((acc, item) => acc + item.horas_feitas, 0)
+  }, [projetosFiltrados])
+
+  const totalHorasExt = useMemo(() => {
+    return projetosFiltrados
+      .filter((item) => item.projeto_codigo?.toUpperCase().startsWith("EXT-"))
+      .reduce((acc, item) => acc + item.horas_feitas, 0)
+  }, [projetosFiltrados])
+
   const totalProjetosAtivos = projetosFiltrados.length
 
   const projetosCriticos = useMemo(() => {
@@ -491,11 +549,11 @@ export default function RelatorioRh() {
     )[0]
   }, [projetosFiltrados])
 
-  const projetosCriticosTop = useMemo(() => {
-    return [...projetosCriticos]
+  const projetosQueExigemAtencao = useMemo(() => {
+    return [...projetosFiltrados]
+      .filter((p) => p.percentual_consumido >= 80)
       .sort((a, b) => b.percentual_consumido - a.percentual_consumido)
-      .slice(0, 5)
-  }, [projetosCriticos])
+  }, [projetosFiltrados])
 
   const statusChartData = useMemo(() => {
     return [
@@ -605,7 +663,7 @@ export default function RelatorioRh() {
 
         <Skeleton className="h-28 w-full rounded-2xl" />
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <Skeleton className="h-32 w-full rounded-2xl" />
           <Skeleton className="h-32 w-full rounded-2xl" />
           <Skeleton className="h-32 w-full rounded-2xl" />
@@ -628,7 +686,7 @@ export default function RelatorioRh() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="min-w-0 space-y-6 p-4 md:p-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold text-gray-900">
           Relatórios Gerenciais
@@ -648,7 +706,7 @@ export default function RelatorioRh() {
           </div>
         }
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6 items-end">
+        <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <FilterSelect
             label="Ano"
             value={selectedYear}
@@ -699,12 +757,26 @@ export default function RelatorioRh() {
         </div>
       </SectionCard>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <KpiCard
           title="Horas realizadas"
           value={formatHours(totalHorasProjetos)}
           subtitle="Somatório de horas registradas no recorte selecionado"
           icon={<Clock3 className="h-5 w-5" />}
+        />
+
+        <KpiCard
+          title="Horas em projetos INT"
+          value={formatHours(totalHorasInt)}
+          subtitle="Somatório das horas em projetos internos no recorte selecionado"
+          icon={<BriefcaseBusiness className="h-5 w-5" />}
+        />
+
+        <KpiCard
+          title="Horas em projetos EXT"
+          value={formatHours(totalHorasExt)}
+          subtitle="Somatório das horas em projetos externos no recorte selecionado"
+          icon={<BriefcaseBusiness className="h-5 w-5" />}
         />
 
         <KpiCard
@@ -738,9 +810,9 @@ export default function RelatorioRh() {
           title="Projetos que exigem atenção"
           subtitle="Foco imediato da liderança"
         >
-          {projetosCriticosTop.length > 0 ? (
-            <div className="space-y-3">
-              {projetosCriticosTop.map((item) => {
+          {projetosQueExigemAtencao.length > 0 ? (
+            <div className="max-h-[520px] space-y-3 overflow-y-auto pr-2">
+              {projetosQueExigemAtencao.map((item) => {
                 const status = getStatusConsumo(item.percentual_consumido)
 
                 return (
@@ -776,7 +848,7 @@ export default function RelatorioRh() {
             </div>
           ) : (
             <div className="rounded-2xl border border-green-100 bg-green-50 p-5 text-sm text-green-700">
-              Nenhum projeto acima de 100% no momento.
+              Nenhum projeto em atenção ou estourado no momento.
             </div>
           )}
         </SectionCard>
@@ -911,15 +983,43 @@ export default function RelatorioRh() {
         }
       >
         <div className="overflow-x-auto rounded-xl border border-gray-100">
-          <Table>
+          <Table className="min-w-[1100px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Projeto</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Horas estimadas</TableHead>
-                <TableHead>Horas feitas</TableHead>
-                <TableHead>Saldo</TableHead>
-                <TableHead>% consumido</TableHead>
+                <TableHead>
+                  <div
+                    className="flex items-center gap-1 cursor-pointer select-none"
+                    onClick={() => handleSort("horas_feitas")}
+                  >
+                    Horas feitas
+                    {orderField === "horas_feitas" &&
+                      (orderDirection === "asc" ? "↑" : "↓")}
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div
+                    className="flex items-center gap-1 cursor-pointer"
+                    onClick={() => handleSort("saldo")}
+                  >
+                    Saldo
+                    {orderField === "saldo" &&
+                      (orderDirection === "asc" ? "↑" : "↓")}
+                  </div>
+                </TableHead>
+
+                <TableHead>
+                  <div
+                    className="flex items-center gap-1 cursor-pointer"
+                    onClick={() => handleSort("percentual")}
+                  >
+                    % consumido
+                    {orderField === "percentual" &&
+                      (orderDirection === "asc" ? "↑" : "↓")}
+                  </div>
+                </TableHead>
                 <TableHead>Colaborador destaque</TableHead>
               </TableRow>
             </TableHeader>
@@ -928,9 +1028,12 @@ export default function RelatorioRh() {
                 projetosFiltrados.map((item) => {
                   const status = getStatusConsumo(item.percentual_consumido)
 
-                  const colaboradoresProjeto = colaboradoresOrdenados.filter(
-                    (colaborador) => colaborador.projeto_id === item.projeto_id,
-                  )
+                  const colaboradoresProjeto = colaboradores
+                    .filter(
+                      (colaborador) =>
+                        colaborador.projeto_id === item.projeto_id,
+                    )
+                    .sort((a, b) => b.horas_feitas - a.horas_feitas)
 
                   const colaboradorDestaque =
                     colaboradoresProjeto.length > 0
@@ -965,7 +1068,26 @@ export default function RelatorioRh() {
                         {formatHours(item.saldo_horas)}
                       </TableCell>
                       <TableCell>
-                        {formatPercent(item.percentual_consumido)}
+                        <div className="flex items-center gap-2 min-w-[120px] max-w-[140px]">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full ${
+                                item.percentual_consumido >= 100
+                                  ? "bg-red-500"
+                                  : item.percentual_consumido >= 80
+                                    ? "bg-yellow-500"
+                                    : "bg-green-500"
+                              }`}
+                              style={{
+                                width: `${Math.min(item.percentual_consumido, 100)}%`,
+                              }}
+                            />
+                          </div>
+
+                          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                            {formatPercent(item.percentual_consumido)}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

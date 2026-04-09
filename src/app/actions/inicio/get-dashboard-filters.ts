@@ -8,7 +8,6 @@ export async function getProjetosDashboardOptions() {
   const { data, error } = await supabase
     .from("projects")
     .select("id, code, name, status")
-    .eq("status", "ativo")
     .order("code", { ascending: true })
 
   if (error) {
