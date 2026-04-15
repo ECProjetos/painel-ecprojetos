@@ -1,14 +1,16 @@
-import React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+"use client"
+
+import React from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
 
 import {
-  ColaboradorUpdateSchema,
-  type ColaboradorUpdate,
-} from "@/types/colaboradores";
-import { rolesListDynamic, type RoleOption } from "@/constants/roles";
+  EditColaboradorSchema,
+  type EditColaboradorFormValues,
+} from "@/types/colaboradores"
+import { rolesListDynamic, type RoleOption } from "@/constants/roles"
 
-// shadcn/ui components
 import {
   Form,
   FormField,
@@ -16,25 +18,25 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import Link from "next/link";
+} from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 interface EditColaboradorFormProps {
-  initialValues: ColaboradorUpdate & { id: string };
-  cargos: { id: number; nome: string }[];
-  departamentos: { id: number; name: string }[];
-  onSubmit: (values: ColaboradorUpdate) => void;
+  initialValues: EditColaboradorFormValues & { id: string }
+  cargos: { id: number; nome: string }[]
+  departamentos: { id: number; name: string }[]
+  onSubmit: (values: EditColaboradorFormValues) => void
 }
 
 export function EditColaboradorForm({
@@ -43,21 +45,54 @@ export function EditColaboradorForm({
   departamentos,
   onSubmit,
 }: EditColaboradorFormProps) {
-  const form = useForm<ColaboradorUpdate>({
-    resolver: zodResolver(ColaboradorUpdateSchema),
+  const form = useForm<EditColaboradorFormValues>({
+    resolver: zodResolver(EditColaboradorSchema),
     defaultValues: initialValues,
-    mode: "onBlur",
-  });
+    mode: "onSubmit",
+  })
+  console.log("initialValues recebidos no form:", initialValues)
+  console.log("status inicial:", initialValues.status)
+  console.log("cargoId inicial:", initialValues.cargoId)
+  console.log("departamentoId inicial:", initialValues.departamentoId)
+  console.log(
+    "working_hours_per_day inicial:",
+    initialValues.working_hours_per_day,
+  )
+
+  const submitForm = form.handleSubmit(
+    (values) => {
+      console.log("EditColaboradorForm submit válido:", values)
+      onSubmit(values)
+    },
+    (errors) => {
+      console.log("EditColaboradorForm erros de validação:", errors)
+
+      const firstError =
+        errors.nome?.message ||
+        errors.email?.message ||
+        errors.cargoId?.message ||
+        errors.departamentoId?.message ||
+        errors.role?.message ||
+        errors.working_hours_per_day?.message ||
+        errors.status?.message ||
+        "Formulário inválido. Verifique os campos obrigatórios."
+
+      toast.error(String(firstError))
+    },
+  )
 
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          void submitForm()
+        }}
         className="space-y-6"
         noValidate
       >
         <div className="grid grid-cols-2 gap-4">
-          {/* Nome */}
           <FormField
             control={form.control}
             name="nome"
@@ -72,7 +107,6 @@ export function EditColaboradorForm({
             )}
           />
 
-          {/* Email */}
           <FormField
             control={form.control}
             name="email"
@@ -91,7 +125,6 @@ export function EditColaboradorForm({
             )}
           />
 
-          {/* Cargo */}
           <FormField
             control={form.control}
             name="cargoId"
@@ -120,7 +153,6 @@ export function EditColaboradorForm({
             )}
           />
 
-          {/* Departamento */}
           <FormField
             control={form.control}
             name="departamentoId"
@@ -149,7 +181,6 @@ export function EditColaboradorForm({
             )}
           />
 
-          {/* Role */}
           <FormField
             control={form.control}
             name="role"
@@ -178,7 +209,6 @@ export function EditColaboradorForm({
             )}
           />
 
-          {/* Carga Horária */}
           <FormField
             control={form.control}
             name="working_hours_per_day"
@@ -198,7 +228,6 @@ export function EditColaboradorForm({
             )}
           />
 
-          {/* Status */}
           <FormField
             control={form.control}
             name="status"
@@ -227,7 +256,6 @@ export function EditColaboradorForm({
           />
         </div>
 
-        {/* Actions */}
         <div className="flex w-full justify-between">
           <Link
             href="/controle-horarios/inicio"
@@ -235,9 +263,17 @@ export function EditColaboradorForm({
           >
             Cancelar
           </Link>
-          <Button type="submit">Salvar</Button>
+
+          <Button
+            type="button"
+            onClick={() => {
+              void submitForm()
+            }}
+          >
+            Salvar
+          </Button>
         </div>
       </form>
     </Form>
-  );
+  )
 }

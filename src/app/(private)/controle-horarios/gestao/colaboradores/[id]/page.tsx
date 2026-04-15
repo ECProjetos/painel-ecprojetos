@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useTransition } from "react"
 import {
   Breadcrumb,
   BreadcrumbEllipsis,
@@ -13,7 +13,7 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { getAllCargos } from "@/app/actions/get-cargos"
 import { getAllDepartments } from "@/app/actions/get-departamentos"
-import { Colaborador, ColaboradorUpdate } from "@/types/colaboradores"
+import { Colaborador, EditColaboradorFormValues } from "@/types/colaboradores"
 import {
   getColaboradorById,
   updateColaborador,
@@ -33,6 +33,7 @@ export default function EditColaboradorPage() {
   >([])
   const [loading, setLoading] = useState(true)
   const [colaborador, setColaborador] = useState<Colaborador | null>(null)
+  const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
     async function fetchData() {
@@ -46,6 +47,7 @@ export default function EditColaboradorPage() {
 
         setCargos(cargosData)
         setDepartamentos(departamentosData)
+
         const mapped = {
           id: colaboradorData.id,
           nome: colaboradorData.nome,
@@ -77,9 +79,11 @@ export default function EditColaboradorPage() {
           orgao_emissor: colaboradorData.orgao_emissor,
           uf_rg: colaboradorData.uf_rg,
         }
+
         setColaborador(mapped)
       } catch (err) {
         console.error("Erro ao carregar dados:", err)
+        toast.error("Erro ao carregar dados do colaborador.")
       } finally {
         setLoading(false)
       }
@@ -88,17 +92,23 @@ export default function EditColaboradorPage() {
     fetchData()
   }, [params.id])
 
-  const handleFormSubmit = async (values: ColaboradorUpdate) => {
-    try {
-      await updateColaborador(params.id as string, values)
-      toast.success("Colaborador atualizado com sucesso!")
-      setTimeout(() => {
-        window.location.href = "/controle-horarios/inicio"
-      }, 2000) // Redireciona após 2 segundos
-    } catch (error) {
-      toast.error("Erro ao atualizar colaborador.")
-      console.error("Erro ao atualizar colaborador:", error)
-    }
+  const handleFormSubmit = (values: EditColaboradorFormValues) => {
+    startTransition(async () => {
+      try {
+        console.log("handleFormSubmit chamado com:", values)
+
+        await updateColaborador(params.id as string, values)
+
+        toast.success("Colaborador atualizado com sucesso!")
+
+        setTimeout(() => {
+          window.location.href = "/controle-horarios/inicio"
+        }, 2000)
+      } catch (error) {
+        toast.error("Erro ao atualizar colaborador.")
+        console.error("Erro ao atualizar colaborador:", error)
+      }
+    })
   }
 
   return (
@@ -119,9 +129,7 @@ export default function EditColaboradorPage() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="/controle-horarios/inicio">
-                  Colaboradores
-                </Link>
+                <Link href="/controle-horarios/inicio">Colaboradores</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
@@ -131,6 +139,7 @@ export default function EditColaboradorPage() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
+
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">
           {loading ? (
@@ -139,6 +148,13 @@ export default function EditColaboradorPage() {
             `Editar Colaborador ${colaborador?.nome}`
           )}
         </h1>
+
+        {isPending && (
+          <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            Salvando alterações...
+          </div>
+        )}
+
         {loading ? (
           <SkeletonTable />
         ) : (

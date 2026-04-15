@@ -7,12 +7,9 @@ export const ColaboradorSchema = z.object({
   email: z.string().email({ message: "Email inválido" }),
   cargoId: z.number().int().positive({ message: "Cargo é obrigatório" }),
   role: roleEnum,
-  working_hours_per_day: z
-    .number()
-    .int()
-    .min(1, {
-      message: "Horas de trabalho por dia devem ser um número positivo",
-    }),
+  working_hours_per_day: z.number().int().min(1, {
+    message: "Horas de trabalho por dia devem ser um número positivo",
+  }),
   status: z.enum(["ativo", "inativo"]),
   departamentoId: z
     .number()
@@ -42,17 +39,36 @@ export const ColaboradorSchema = z.object({
     .min(1, { message: "Data de admissão é obrigatória" }), // pode ser z.coerce.date()
   horario: z.string().min(1, { message: "Horário é obrigatório" }),
 })
+export const EditColaboradorSchema = z.object({
+  nome: z.string().min(1, "Nome é obrigatório"),
+  email: z.string().email("Email inválido"),
+  cargoId: z.number({
+    required_error: "Cargo é obrigatório",
+    invalid_type_error: "Cargo é obrigatório",
+  }),
+  departamentoId: z.number({
+    required_error: "Departamento é obrigatório",
+    invalid_type_error: "Departamento é obrigatório",
+  }),
+  role: z.string().min(1, "Role é obrigatória"),
+  working_hours_per_day: z
+    .number({
+      required_error: "Carga horária é obrigatória",
+      invalid_type_error: "Carga horária é obrigatória",
+    })
+    .min(1, "Carga horária deve ser maior que zero"),
+  status: z.enum(["ativo", "inativo"]),
+})
 
+export type EditColaboradorFormValues = z.infer<typeof EditColaboradorSchema>
 export const NewColaboradorSchema = ColaboradorSchema.omit({ id: true })
   .extend({
     password: z
       .string()
       .min(8, { message: "Senha deve ter pelo menos 8 caracteres" }),
-    confirmPassword: z
-      .string()
-      .min(8, {
-        message: "Confirmação de senha deve ter pelo menos 8 caracteres",
-      }),
+    confirmPassword: z.string().min(8, {
+      message: "Confirmação de senha deve ter pelo menos 8 caracteres",
+    }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "As senhas não coincidem",

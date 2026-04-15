@@ -46,20 +46,23 @@ export async function createColaborador(
 ) {
   await ensureDiretorPermission()
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/colaboradores`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      nome,
-      email,
-      cargoId,
-      departamentoId,
-      role,
-      working_hours_per_day,
-      status,
-      password,
-    }),
-  })
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/colaboradores`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nome,
+        email,
+        cargoId,
+        departamentoId,
+        role,
+        working_hours_per_day,
+        status,
+        password,
+      }),
+    },
+  )
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -70,6 +73,13 @@ export async function createColaborador(
 }
 
 export async function updateColaborador(id: string, data: ColaboradorUpdate) {
+  console.log("========================================")
+  console.log("ENTROU EM updateColaborador")
+  console.log("ID recebido:", id)
+  console.log("DATA recebida:", data)
+  console.log("STATUS recebido:", data.status)
+  console.log("========================================")
+
   await ensureDiretorPermission()
 
   const userPayload: Record<string, unknown> = {}
@@ -88,26 +98,48 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
   if (data.cidade !== undefined) userPayload.cidade = data.cidade
   if (data.estado !== undefined) userPayload.estado = data.estado
   if (data.telefone !== undefined) userPayload.telefone = data.telefone
-  if (data.data_nascimento !== undefined) userPayload.data_nascimento = data.data_nascimento
-  if (data.naturalidade !== undefined) userPayload.naturalidade = data.naturalidade
+  if (data.data_nascimento !== undefined) {
+    userPayload.data_nascimento = data.data_nascimento
+  }
+  if (data.naturalidade !== undefined) {
+    userPayload.naturalidade = data.naturalidade
+  }
   if (data.grau_escolaridade !== undefined) {
     userPayload.grau_escolaridade = data.grau_escolaridade
   }
   if (data.pis !== undefined) userPayload.pis = data.pis
   if (data.cpf !== undefined) userPayload.cpf = data.cpf
   if (data.rg !== undefined) userPayload.rg = data.rg
-  if (data.orgao_emissor !== undefined) userPayload.orgao_emissor = data.orgao_emissor
+  if (data.orgao_emissor !== undefined) {
+    userPayload.orgao_emissor = data.orgao_emissor
+  }
   if (data.uf_rg !== undefined) userPayload.uf_rg = data.uf_rg
-  if (data.data_admissao !== undefined) userPayload.data_admissao = data.data_admissao
+  if (data.data_admissao !== undefined) {
+    userPayload.data_admissao = data.data_admissao
+  }
   if (data.horario !== undefined) userPayload.horario = data.horario
 
+  console.log("userPayload montado:", userPayload)
+  console.log("status dentro do payload:", userPayload.status)
+
   if (Object.keys(userPayload).length > 0) {
-    const { error } = await supabaseAdmin.from("users").update(userPayload).eq("id", id)
+    const { data: updatedUser, error } = await supabaseAdmin
+      .from("users")
+      .update(userPayload)
+      .eq("id", id)
+      .select("id, nome, status")
+      .single()
+
+    console.log("Payload enviado para updateColaborador:", userPayload)
+    console.log("Usuário retornado após update:", updatedUser)
+    console.log("Erro no update:", error)
 
     if (error) {
       console.error("Erro ao atualizar users:", error)
       throw new Error(error.message)
     }
+  } else {
+    console.log("Nenhum campo para atualizar em users.")
   }
 
   if (data.departamentoId !== undefined) {
@@ -117,8 +149,14 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
       .eq("user_id", id)
       .maybeSingle()
 
+    console.log("Departamento existente:", existingDept)
+    console.log("Erro ao buscar departamento:", deptSearchError)
+
     if (deptSearchError) {
-      console.error("Erro ao buscar departamento do colaborador:", deptSearchError)
+      console.error(
+        "Erro ao buscar departamento do colaborador:",
+        deptSearchError,
+      )
       throw new Error(deptSearchError.message)
     }
 
@@ -127,6 +165,8 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
         .from("user_departments")
         .update({ department_id: data.departamentoId })
         .eq("user_id", id)
+
+      console.log("Erro ao atualizar departamento:", deptUpdateError)
 
       if (deptUpdateError) {
         console.error("Erro ao atualizar departamento:", deptUpdateError)
@@ -137,6 +177,8 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
         .from("user_departments")
         .insert({ user_id: id, department_id: data.departamentoId })
 
+      console.log("Erro ao inserir departamento:", deptInsertError)
+
       if (deptInsertError) {
         console.error("Erro ao inserir departamento:", deptInsertError)
         throw new Error(deptInsertError.message)
@@ -145,9 +187,12 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
   }
 
   if (data.email !== undefined) {
-    const { error: authEmailError } = await supabaseAdmin.auth.admin.updateUserById(id, {
-      email: data.email,
-    })
+    const { error: authEmailError } =
+      await supabaseAdmin.auth.admin.updateUserById(id, {
+        email: data.email,
+      })
+
+    console.log("Erro ao atualizar email no Auth:", authEmailError)
 
     if (authEmailError) {
       console.error("Erro ao atualizar email no Auth:", authEmailError)
@@ -155,17 +200,32 @@ export async function updateColaborador(id: string, data: ColaboradorUpdate) {
     }
   }
 
+  const { data: userAfterUpdate, error: readBackError } = await supabaseAdmin
+    .from("users")
+    .select("id, nome, status")
+    .eq("id", id)
+    .single()
+
+  console.log("Leitura após salvar:", userAfterUpdate)
+  console.log("Erro ao reler usuário:", readBackError)
+  console.log("========================================")
+  console.log("FIM updateColaborador")
+  console.log("========================================")
+
   return { success: true }
 }
 
 export async function deleteColaborador(id: string) {
   await ensureDiretorPermission()
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/colaboradores`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
-  })
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/colaboradores`,
+    {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    },
+  )
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -191,7 +251,9 @@ export async function getAllColaboradores() {
   return data
 }
 
-export async function getColaboradoresByDepartamento(nome_departamento: string) {
+export async function getColaboradoresByDepartamento(
+  nome_departamento: string,
+) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
