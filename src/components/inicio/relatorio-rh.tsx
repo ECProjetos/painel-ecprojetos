@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import {
   AlertTriangle,
+  Bell,
   BriefcaseBusiness,
   CalendarDays,
   Clock3,
@@ -141,7 +142,7 @@ function KpiCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="mt-3 text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 break-words">
+          <p className="mt-3 break-words text-2xl font-semibold tracking-tight text-gray-900 md:text-3xl">
             {value}
           </p>
           {subtitle ? (
@@ -566,8 +567,6 @@ export default function RelatorioRh() {
   const projetosGrafico = useMemo(() => {
     return [...projetosFiltrados]
       .sort((a, b) => b.horas_feitas - a.horas_feitas)
-      .slice(0, 10)
-      .reverse()
       .map((item) => ({
         nome: item.projeto_codigo,
         nomeCompleto: `${item.projeto_codigo} • ${item.projeto_nome}`,
@@ -591,6 +590,17 @@ export default function RelatorioRh() {
             : undefined,
       }))
   }, [colaboradoresOrdenados, selectedProjectId])
+
+  const totalAlertas = useMemo(() => {
+    return projetosCriticos.length + projetosAtencao.length
+  }, [projetosCriticos.length, projetosAtencao.length])
+
+  const notificationBadgeClass =
+    projetosCriticos.length > 0
+      ? "bg-red-500 text-white"
+      : projetosAtencao.length > 0
+        ? "bg-yellow-500 text-white"
+        : "bg-gray-300 text-gray-700"
 
   const yearOptions = useMemo(() => {
     return [
@@ -654,6 +664,8 @@ export default function RelatorioRh() {
     ]
   }, [colaboradorOptions])
 
+  const projetosChartHeight = Math.max(projetosGrafico.length * 42, 360)
+
   if (loading) {
     return (
       <div className="space-y-6 p-6">
@@ -687,14 +699,131 @@ export default function RelatorioRh() {
 
   return (
     <div className="min-w-0 space-y-6 p-4 md:p-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Relatórios Gerenciais
-        </h1>
-        <p className="text-sm text-gray-500">
-          Painel executivo para acompanhamento de horas, risco de consumo e
-          alocação por projeto.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Relatórios Gerenciais
+          </h1>
+          <p className="text-sm text-gray-500">
+            Painel executivo para acompanhamento de horas, risco de consumo e
+            alocação por projeto.
+          </p>
+        </div>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="relative h-10 w-10 shrink-0 rounded-full border border-gray-300 p-0"
+            >
+              <Bell className="h-5 w-5 text-gray-700" />
+              <span
+                className={cn(
+                  "absolute -right-1 -top-1 inline-flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full px-1 text-[11px] font-semibold",
+                  notificationBadgeClass,
+                )}
+              >
+                {totalAlertas}
+              </span>
+            </Button>
+          </PopoverTrigger>
+
+          <PopoverContent
+            align="end"
+            className="w-[360px] rounded-2xl border border-gray-200 p-0 shadow-lg"
+          >
+            <div className="border-b border-gray-100 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Alertas de projetos
+                </h3>
+                <span className="text-xs text-gray-500">
+                  {totalAlertas} alerta(s)
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Projetos que exigem atenção da gestão.
+              </p>
+            </div>
+
+            <div className="max-h-[420px] overflow-y-auto px-4 py-3">
+              {totalAlertas === 0 ? (
+                <div className="rounded-2xl border border-green-100 bg-green-50 p-4 text-sm text-green-700">
+                  Nenhum alerta no momento.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {projetosCriticos.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                        <p className="text-sm font-semibold text-red-700">
+                          Projetos críticos
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        {projetosCriticos.slice(0, 6).map((item) => (
+                          <div
+                            key={`critico-${item.projeto_id}`}
+                            className="rounded-xl border border-red-100 bg-red-50 p-3"
+                          >
+                            <p className="text-sm font-medium text-gray-900">
+                              {item.projeto_codigo} • {item.projeto_nome}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-600">
+                              Consumo:{" "}
+                              <span className="font-semibold text-red-700">
+                                {formatPercent(item.percentual_consumido)}
+                              </span>
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Horas feitas: {formatHours(item.horas_feitas)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {projetosAtencao.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                        <p className="text-sm font-semibold text-yellow-700">
+                          Projetos em atenção
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        {projetosAtencao.slice(0, 6).map((item) => (
+                          <div
+                            key={`atencao-${item.projeto_id}`}
+                            className="rounded-xl border border-yellow-100 bg-yellow-50 p-3"
+                          >
+                            <p className="text-sm font-medium text-gray-900">
+                              {item.projeto_codigo} • {item.projeto_nome}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-600">
+                              Consumo:{" "}
+                              <span className="font-semibold text-yellow-700">
+                                {formatPercent(item.percentual_consumido)}
+                              </span>
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Horas feitas: {formatHours(item.horas_feitas)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <SectionCard
@@ -908,29 +1037,37 @@ export default function RelatorioRh() {
           title="Top projetos por horas"
           subtitle="Projetos com maior volume de esforço acumulado"
         >
-          <div className="h-[360px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={projetosGrafico}
-                layout="vertical"
-                margin={{ left: 10 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tick={{ fontSize: 12 }} />
-                <YAxis
-                  type="category"
-                  dataKey="nome"
-                  width={105}
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip content={<CustomHoursTooltip />} />
-                <Bar dataKey="horas" radius={[0, 8, 8, 0]}>
-                  {projetosGrafico.map((entry) => (
-                    <Cell key={entry.nome} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-[360px] overflow-y-auto pr-2">
+            <div style={{ height: projetosChartHeight, minWidth: "100%" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={projetosGrafico}
+                  layout="vertical"
+                  margin={{ top: 8, right: 20, left: 10, bottom: 8 }}
+                  barCategoryGap={10}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    horizontal={true}
+                    vertical={false}
+                  />
+                  <XAxis type="number" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="nome"
+                    width={105}
+                    interval={0}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip content={<CustomHoursTooltip />} />
+                  <Bar dataKey="horas" radius={[0, 8, 8, 0]}>
+                    {projetosGrafico.map((entry) => (
+                      <Cell key={entry.nomeCompleto} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </SectionCard>
 

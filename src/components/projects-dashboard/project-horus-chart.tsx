@@ -1,35 +1,70 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  CartesianGrid,
-  Legend,
-} from "recharts";
+} from "recharts"
 
 interface DataPoint {
-  name: string;
-  hours: number;
+  name: string
+  hours: number
 }
 
-export function ProjectHoursChart({ data }: { data: DataPoint[] }) {
+type ProjectHoursChartProps = {
+  data: DataPoint[]
+}
+
+export function ProjectHoursChart({ data }: ProjectHoursChartProps) {
+  const sortedData = [...data].sort((a, b) => b.hours - a.hours)
+
+  const rowHeight = 42
+  const chartHeight = Math.max(sortedData.length * rowHeight, 320)
+
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
-        <CardTitle>Horas por Projeto</CardTitle>
+        <CardTitle>Top projetos por horas</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Projetos com maior volume de esforço acumulado
+        </p>
       </CardHeader>
+
       <CardContent>
-        <BarChart width={500} height={300} data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Bar dataKey="hours" />
-        </BarChart>
+        <div className="h-[420px] overflow-y-auto pr-2">
+          <div style={{ height: chartHeight, minWidth: "100%" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={sortedData}
+                layout="vertical"
+                margin={{ top: 8, right: 20, left: 20, bottom: 8 }}
+                barCategoryGap={10}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                <XAxis type="number" />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={120}
+                  interval={0}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip
+                  formatter={(value: number) => [`${value.toFixed(1)}h`, "Horas"]}
+                  cursor={{ opacity: 0.15 }}
+                />
+                <Bar
+                  dataKey="hours"
+                  radius={[0, 6, 6, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </CardContent>
     </Card>
-  );
+  )
 }
