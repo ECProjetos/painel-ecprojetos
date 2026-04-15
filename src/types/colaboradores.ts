@@ -50,7 +50,7 @@ export const EditColaboradorSchema = z.object({
     required_error: "Departamento é obrigatório",
     invalid_type_error: "Departamento é obrigatório",
   }),
-  role: z.string().min(1, "Role é obrigatória"),
+  role: roleEnum,
   working_hours_per_day: z
     .number({
       required_error: "Carga horária é obrigatória",
