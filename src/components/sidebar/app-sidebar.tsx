@@ -3,6 +3,7 @@
 import { useUserStore } from "@/stores/userStore";
 import { usePathname } from "next/navigation";
 import { ComponentProps } from "react";
+import { BarChart3 } from "lucide-react";
 
 import Image from "next/image";
 
@@ -80,6 +81,12 @@ const createData = (pathname: string, userId?: string) => ({
       isActive: pathname.startsWith("/controle-horarios"),
     },
     {
+      title: "Indicadores",
+      url: "/indicadores-de-desempenho",
+      icon: BarChart3,
+      isActive: pathname.startsWith("/indicadores-de-desempenho"),
+    },
+    {
       title: "Plano de Carreira",
       url: "/plano-carreira",
       icon: Briefcase,
@@ -128,6 +135,12 @@ const createData = (pathname: string, userId?: string) => ({
       url: "/controle-horarios/inicio",
       icon: Clock,
       isActive: pathname.startsWith("/controle-horarios"),
+    },
+    {
+      title: "Indicadores",
+      url: "/indicadores-de-desempenho",
+      icon: BarChart3,
+      isActive: pathname.startsWith("/indicadores-de-desempenho"),
     },
     {
       title: "Plano de Carreira",
