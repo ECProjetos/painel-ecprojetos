@@ -1,4 +1,6 @@
 import IndicadoresForm from "@/components/indicadores/indicadores-form"
+import IndicadoresEvolucaoForm from "@/components/indicadores/indicadores-evolucao-form"
+import IndicadoresDashboard from "@/components/indicadores/indicadores-dashboard"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,7 +11,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart3, ClipboardCheck, FileText } from "lucide-react"
+import { BarChart3, ClipboardCheck, FileText, TrendingUp } from "lucide-react"
 
 export default function IndicadoresDeDesempenhoPage() {
   return (
@@ -40,6 +42,14 @@ export default function IndicadoresDeDesempenhoPage() {
           </TabsTrigger>
 
           <TabsTrigger
+            value="evolucao"
+            className="rounded-none border-b-2 border-transparent px-4 py-3 text-base font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent"
+          >
+            <TrendingUp className="mr-2 h-5 w-5 text-amber-500" />
+            Evolução
+          </TabsTrigger>
+
+          <TabsTrigger
             value="indicadores"
             className="rounded-none border-b-2 border-transparent px-4 py-3 text-base font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent"
           >
@@ -60,31 +70,12 @@ export default function IndicadoresDeDesempenhoPage() {
           <IndicadoresForm />
         </TabsContent>
 
+        <TabsContent value="evolucao" className="mt-4">
+          <IndicadoresEvolucaoForm />
+        </TabsContent>
+
         <TabsContent value="indicadores" className="mt-4">
-          <div className="rounded-2xl border bg-card p-6 shadow-sm">
-            <h2 className="text-2xl font-bold tracking-tight">Indicadores</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Aqui vamos mostrar o dashboard com os indicadores calculados por
-              colaborador, equipe, período e média geral da empresa.
-            </p>
-
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="rounded-xl border p-4">
-                <p className="text-sm text-muted-foreground">Indicador de Esforço</p>
-                <p className="mt-2 text-2xl font-semibold">--</p>
-              </div>
-
-              <div className="rounded-xl border p-4">
-                <p className="text-sm text-muted-foreground">Indicador de Prazo</p>
-                <p className="mt-2 text-2xl font-semibold">--</p>
-              </div>
-
-              <div className="rounded-xl border p-4">
-                <p className="text-sm text-muted-foreground">Indicador Individual (IDI)</p>
-                <p className="mt-2 text-2xl font-semibold">--</p>
-              </div>
-            </div>
-          </div>
+          <IndicadoresDashboard />
         </TabsContent>
 
         <TabsContent value="relatorios" className="mt-4">

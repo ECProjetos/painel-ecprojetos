@@ -57,6 +57,8 @@ type IndicadoresFormValues = {
   entrega_avaliada: string
   data_entrega: string
   data_revisao: string
+  ies_aprovado_primeira: string
+  ip_no_prazo: string
   clareza_estrutura: string
   profundidade_rigor: string
   alinhamento_demanda: string
@@ -72,6 +74,11 @@ const opcoesNotas = [
   { value: "3", titulo: "3", descricao: "Atendeu" },
   { value: "4", titulo: "4", descricao: "Atendeu plenamente" },
   { value: "5", titulo: "5", descricao: "Excedeu expectativas" },
+]
+
+const opcoesBinarias = [
+  { value: "true", titulo: "Sim" },
+  { value: "false", titulo: "Não" },
 ]
 
 type CampoNotaProps = {
@@ -130,6 +137,56 @@ function CampoNota({
   )
 }
 
+type CampoBinarioProps = {
+  titulo: string
+  descricao: string
+  value: string
+  onChange: (value: string) => void
+  error?: string
+  name: string
+}
+
+function CampoBinario({
+  titulo,
+  descricao,
+  value,
+  onChange,
+  error,
+  name,
+}: CampoBinarioProps) {
+  return (
+    <div className="rounded-2xl border bg-background p-5 shadow-sm">
+      <div className="mb-4">
+        <h3 className="text-base font-semibold">{titulo}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">{descricao}</p>
+      </div>
+
+      <RadioGroup
+        value={value}
+        onValueChange={onChange}
+        className="grid grid-cols-1 gap-3 md:grid-cols-2"
+      >
+        {opcoesBinarias.map((opcao) => {
+          const id = `${name}-${opcao.value}`
+
+          return (
+            <label
+              key={opcao.value}
+              htmlFor={id}
+              className="flex min-h-[72px] cursor-pointer items-center gap-3 rounded-xl border p-4 transition hover:bg-muted/40"
+            >
+              <RadioGroupItem value={opcao.value} id={id} />
+              <span className="font-medium">{opcao.titulo}</span>
+            </label>
+          )
+        })}
+      </RadioGroup>
+
+      {error ? <p className="mt-3 text-sm text-red-500">{error}</p> : null}
+    </div>
+  )
+}
+
 export default function IndicadoresForm() {
   const [openProjeto, setOpenProjeto] = useState(false)
   const [setores, setSetores] = useState<Setor[]>([])
@@ -146,6 +203,8 @@ export default function IndicadoresForm() {
     entrega_avaliada: "",
     data_entrega: "",
     data_revisao: "",
+    ies_aprovado_primeira: "",
+    ip_no_prazo: "",
     clareza_estrutura: "",
     profundidade_rigor: "",
     alinhamento_demanda: "",
@@ -205,7 +264,7 @@ export default function IndicadoresForm() {
     return projetos.find((item) => String(item.id) === formData.projeto_id)
   }, [projetos, formData.projeto_id])
 
-  const updateField = <K extends keyof IndicadoresFormValues,>(
+  const updateField = <K extends keyof IndicadoresFormValues>(
     field: K,
     value: IndicadoresFormValues[K],
   ) => {
@@ -293,6 +352,14 @@ export default function IndicadoresForm() {
       newErrors.data_revisao = "Informe a data de revisão."
     }
 
+    if (!formData.ies_aprovado_primeira) {
+      newErrors.ies_aprovado_primeira = "Selecione Sim ou Não."
+    }
+
+    if (!formData.ip_no_prazo) {
+      newErrors.ip_no_prazo = "Selecione Sim ou Não."
+    }
+
     if (!formData.clareza_estrutura) {
       newErrors.clareza_estrutura = "Selecione uma nota."
     }
@@ -330,6 +397,8 @@ export default function IndicadoresForm() {
           entrega_avaliada: formData.entrega_avaliada,
           data_entrega: formData.data_entrega,
           data_revisao: formData.data_revisao,
+          ies_aprovado_primeira: formData.ies_aprovado_primeira === "true",
+          ip_no_prazo: formData.ip_no_prazo === "true",
           clareza_estrutura: Number(formData.clareza_estrutura),
           profundidade_rigor: Number(formData.profundidade_rigor),
           alinhamento_demanda: Number(formData.alinhamento_demanda),
@@ -349,6 +418,8 @@ export default function IndicadoresForm() {
           entrega_avaliada: "",
           data_entrega: "",
           data_revisao: "",
+          ies_aprovado_primeira: "",
+          ip_no_prazo: "",
           clareza_estrutura: "",
           profundidade_rigor: "",
           alinhamento_demanda: "",
@@ -517,7 +588,12 @@ export default function IndicadoresForm() {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="entrega_avaliada">Entrega avaliada</Label>
+                <Label htmlFor="entrega_avaliada">
+                  Entrega avaliada{" "}
+                  <span className="text-muted-foreground fonr-normal">
+                    (conforme nomeada no Planner)
+                  </span>
+                </Label>
                 <Input
                   id="entrega_avaliada"
                   placeholder="Ex.: Relatório técnico, memorial, planilha, mapa, apresentação..."
@@ -572,6 +648,33 @@ export default function IndicadoresForm() {
                 </div>
               </div>
             </div>
+          </section>
+
+          <section className="space-y-5">
+            <div>
+              <h2 className="text-xl font-semibold">Indicadores binários</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Marque Sim ou Não para esforço e prazo.
+              </p>
+            </div>
+
+            <CampoBinario
+              name="ies_aprovado_primeira"
+              titulo="IES • A entrega foi aprovada na primeira submissão?"
+              descricao="Considere se a entrega foi aprovada sem retrabalho significativo."
+              value={formData.ies_aprovado_primeira}
+              onChange={(value) => updateField("ies_aprovado_primeira", value)}
+              error={errors.ies_aprovado_primeira}
+            />
+
+            <CampoBinario
+              name="ip_no_prazo"
+              titulo="IP • A entrega foi concluída dentro do prazo combinado?"
+              descricao="Use o prazo efetivamente combinado para a entrega avaliada."
+              value={formData.ip_no_prazo}
+              onChange={(value) => updateField("ip_no_prazo", value)}
+              error={errors.ip_no_prazo}
+            />
           </section>
 
           <section className="space-y-5">

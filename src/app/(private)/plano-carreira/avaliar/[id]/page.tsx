@@ -1,4 +1,4 @@
-// app/plano-carreira/[id]/page.tsx
+// app/plano-carreira/[id]/
 "use client"
 
 import { useState, useEffect } from "react"
