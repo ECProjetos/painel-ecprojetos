@@ -17,34 +17,16 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-type RelatorioEntrega = {
-  id: string
-  created_at: string
-  sequencia_geral: number
-  numero_relatorio: string
-  titulo_revisao: string
-  ano: number
-  trimestre: number
-  avaliador_nome: string | null
-  colaborador_id: string
-  colaborador_nome: string
-  equipe_colaborador: string
-  codigo_projeto: string
-  projeto_codigo: string
-  projeto_nome: string
-  entrega_avaliada: string
-  data_entrega: string
-  data_revisao: string
-  ies_aprovado_primeira: boolean
-  ip_no_prazo: boolean
-  clareza_estrutura: number
-  profundidade_rigor: number
-  alinhamento_demanda: number
-  forma_profissionalismo: number
-  iq: number
-  pontos_fortes: string | null
-  pontos_fracos: string | null
-  comentario_geral: string | null
+type RelatorioEntregaBase = Awaited<
+  ReturnType<typeof getRelatoriosEntregasIndicadores>
+>[number]
+
+type RelatorioEntrega = RelatorioEntregaBase & {
+  sequencia_geral?: number
+  titulo_revisao?: string
+  ano?: number
+  trimestre?: number
+  projeto_codigo?: string | null
 }
 
 type StatusRelatorio = "OK" | "Atenção" | "Crítico"
@@ -62,7 +44,9 @@ function formatDate(date?: string | null) {
 }
 
 function formatNumber(value?: number | null) {
-  return Number(value ?? 0).toFixed(1).replace(".", ",")
+  return Number(value ?? 0)
+    .toFixed(1)
+    .replace(".", ",")
 }
 
 function sanitizeFileName(value: string) {
@@ -244,7 +228,10 @@ async function gerarPdfRelatorio(item: RelatorioEntrega) {
     setTextColor(pdf, "dark")
 
     const valueX = 72
-    const lines = pdf.splitTextToSize(value || "-", 210 - valueX - marginRight) as string[]
+    const lines = pdf.splitTextToSize(
+      value || "-",
+      210 - valueX - marginRight,
+    ) as string[]
     pdf.text(lines, valueX, y)
 
     y += Math.max(7, lines.length * 5)
@@ -381,8 +368,11 @@ export default function IndicadoresRelatorios() {
     async function loadRelatorios() {
       try {
         setLoading(true)
+
         const data = await getRelatoriosEntregasIndicadores()
-        setRelatorios(data as RelatorioEntrega[])
+        
+        setRelatorios(data)
+
       } catch (error) {
         console.error(error)
         toast.error("Não foi possível carregar os relatórios.")
@@ -433,17 +423,21 @@ export default function IndicadoresRelatorios() {
       const matchAno = !anoFiltro || item.ano === Number(anoFiltro)
       const matchTrimestre =
         !trimestreFiltro || item.trimestre === Number(trimestreFiltro)
-      const matchEquipe = !equipeFiltro || item.equipe_colaborador === equipeFiltro
+      const matchEquipe =
+        !equipeFiltro || item.equipe_colaborador === equipeFiltro
 
       return (
-        matchBusca &&
-        matchStatus &&
-        matchAno &&
-        matchTrimestre &&
-        matchEquipe
+        matchBusca && matchStatus && matchAno && matchTrimestre && matchEquipe
       )
     })
-  }, [relatorios, busca, statusFiltro, anoFiltro, trimestreFiltro, equipeFiltro])
+  }, [
+    relatorios,
+    busca,
+    statusFiltro,
+    anoFiltro,
+    trimestreFiltro,
+    equipeFiltro,
+  ])
 
   const totalRelatorios = relatoriosFiltrados.length
 
@@ -544,7 +538,9 @@ export default function IndicadoresRelatorios() {
 
         <div className="mt-6 grid gap-4 md:grid-cols-4">
           <div className="rounded-xl border bg-muted/30 p-4">
-            <p className="text-sm text-muted-foreground">Relatórios filtrados</p>
+            <p className="text-sm text-muted-foreground">
+              Relatórios filtrados
+            </p>
             <p className="mt-1 text-2xl font-bold">{totalRelatorios}</p>
           </div>
 
@@ -710,18 +706,12 @@ export default function IndicadoresRelatorios() {
             <table className="w-full min-w-[1250px] text-sm">
               <thead className="sticky top-0 z-10 bg-muted">
                 <tr className="border-b">
-                  <th className="px-4 py-3 text-left font-semibold">
-                    Código
-                  </th>
-                  <th className="px-4 py-3 text-left font-semibold">
-                    Entrega
-                  </th>
+                  <th className="px-4 py-3 text-left font-semibold">Código</th>
+                  <th className="px-4 py-3 text-left font-semibold">Entrega</th>
                   <th className="px-4 py-3 text-left font-semibold">
                     Colaborador
                   </th>
-                  <th className="px-4 py-3 text-left font-semibold">
-                    Equipe
-                  </th>
+                  <th className="px-4 py-3 text-left font-semibold">Equipe</th>
                   <th className="px-4 py-3 text-center font-semibold">
                     Revisão
                   </th>
@@ -729,9 +719,7 @@ export default function IndicadoresRelatorios() {
                   <th className="px-4 py-3 text-center font-semibold">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-center font-semibold">
-                    PDF
-                  </th>
+                  <th className="px-4 py-3 text-center font-semibold">PDF</th>
                 </tr>
               </thead>
 
