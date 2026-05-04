@@ -1,257 +1,609 @@
 "use client"
 
-import { useEffect, useMemo, useState, useTransition } from "react"
-import {
-  getIndicadoresDashboard,
-  getIndicadoresDashboardFiltros,
-  type IndicadorDashboardItem,
-} from "@/app/actions/indicadores-dashboard"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { toast } from "sonner"
+import { useEffect, useMemo, useState } from "react"
+import jsPDF from "jspdf"
 import {
   AlertTriangle,
-  CheckCircle2,
-  CircleAlert,
-  TrendingUp,
+  Download,
+  FileText,
+  Loader2,
+  Search,
 } from "lucide-react"
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts"
+import { toast } from "sonner"
 
-type DashboardFiltros = {
-  anos: number[]
-  trimestres: number[]
-  equipes: string[]
-  colaboradores: {
-    id: string
-    nome: string
-  }[]
+import { getRelatoriosEntregasIndicadores } from "@/app/actions/indicadores"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+
+type RelatorioEntrega = {
+  id: string
+  created_at: string
+  sequencia_geral: number
+  numero_relatorio: string
+  titulo_revisao: string
+  ano: number
+  trimestre: number
+  avaliador_nome: string | null
+  colaborador_id: string
+  colaborador_nome: string
+  equipe_colaborador: string
+  codigo_projeto: string
+  projeto_codigo: string
+  projeto_nome: string
+  entrega_avaliada: string
+  data_entrega: string
+  data_revisao: string
+  ies_aprovado_primeira: boolean
+  ip_no_prazo: boolean
+  clareza_estrutura: number
+  profundidade_rigor: number
+  alinhamento_demanda: number
+  forma_profissionalismo: number
+  iq: number
+  pontos_fortes: string | null
+  pontos_fracos: string | null
+  comentario_geral: string | null
 }
 
-type FiltrosState = {
-  ano: string
-  trimestre: string
-  equipe: string
-  colaboradorId: string
+type StatusRelatorio = "OK" | "Atenção" | "Crítico"
+
+function formatDate(date?: string | null) {
+  if (!date) return "-"
+
+  const parsed = new Date(`${date}T00:00:00`)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return date
+  }
+
+  return parsed.toLocaleDateString("pt-BR")
 }
 
-function formatPercent(value: number) {
-  return `${value.toFixed(2)}%`
+function formatNumber(value?: number | null) {
+  return Number(value ?? 0).toFixed(1).replace(".", ",")
 }
 
-function getStatus(idi: number) {
-  if (idi < 60) {
-    return {
-      label: "Crítico",
-      textClass: "text-red-600",
-      bgClass: "bg-red-50 border-red-200",
-      fill: "#ef4444",
-      icon: AlertTriangle,
+function sanitizeFileName(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+}
+
+function getStatusRelatorio(item: RelatorioEntrega): StatusRelatorio {
+  const aprovado = item.ies_aprovado_primeira
+  const noPrazo = item.ip_no_prazo
+  const iq = Number(item.iq ?? 0)
+
+  if (aprovado && noPrazo && iq >= 4) {
+    return "OK"
+  }
+
+  if (iq >= 3) {
+    return "Atenção"
+  }
+
+  return "Crítico"
+}
+
+function getStatusClass(status: StatusRelatorio) {
+  if (status === "OK") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700"
+  }
+
+  if (status === "Atenção") {
+    return "border-amber-200 bg-amber-50 text-amber-700"
+  }
+
+  return "border-rose-200 bg-rose-50 text-rose-700"
+}
+
+function getStatusDotClass(status: StatusRelatorio) {
+  if (status === "OK") return "bg-emerald-500"
+  if (status === "Atenção") return "bg-amber-500"
+  return "bg-rose-500"
+}
+
+function getDescricaoIES(item: RelatorioEntrega) {
+  if (item.ies_aprovado_primeira) {
+    return "Aprovado na primeira revisão, pois não houve necessidade de ajustes significativos."
+  }
+
+  return "Não aprovado na primeira revisão, pois haverá necessidade de ajustes significativos."
+}
+
+function getDescricaoIP(item: RelatorioEntrega) {
+  if (item.ip_no_prazo) {
+    return "Aprovado, pois foi entregue no prazo interno acordado com o gestor."
+  }
+
+  return "Não aprovado, pois não foi entregue no prazo interno acordado com o gestor."
+}
+
+function setTextColor(pdf: jsPDF, color: "dark" | "muted") {
+  if (color === "dark") {
+    pdf.setTextColor(0, 0, 0)
+    return
+  }
+
+  pdf.setTextColor(70, 70, 70)
+}
+
+async function loadImageAsDataUrl(src: string) {
+  try {
+    const response = await fetch(src)
+
+    if (!response.ok) {
+      return null
+    }
+
+    const blob = await response.blob()
+
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
+function getImageFormat(dataUrl: string) {
+  if (dataUrl.startsWith("data:image/jpeg")) return "JPEG"
+  if (dataUrl.startsWith("data:image/jpg")) return "JPEG"
+  return "PNG"
+}
+
+function drawFooter(pdf: jsPDF) {
+  const pages = pdf.getNumberOfPages()
+
+  for (let page = 1; page <= pages; page += 1) {
+    pdf.setPage(page)
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(9)
+    setTextColor(pdf, "muted")
+    pdf.text(String(page), 190, 287)
+  }
+}
+
+async function gerarPdfRelatorio(item: RelatorioEntrega) {
+  const pdf = new jsPDF("p", "mm", "a4")
+  const logo = await loadImageAsDataUrl("/logo.png")
+
+  const marginLeft = 24
+  const marginRight = 24
+  const contentWidth = 210 - marginLeft - marginRight
+  const bottomLimit = 276
+
+  let y = 20
+
+  function ensureSpace(height: number) {
+    if (y + height > bottomLimit) {
+      pdf.addPage()
+      y = 20
     }
   }
 
-  if (idi < 75) {
-    return {
-      label: "Atenção",
-      textClass: "text-amber-600",
-      bgClass: "bg-amber-50 border-amber-200",
-      fill: "#f59e0b",
-      icon: CircleAlert,
+  function addWrappedText(
+    text: string,
+    x: number,
+    maxWidth: number,
+    options?: {
+      fontSize?: number
+      bold?: boolean
+      lineHeight?: number
+      color?: "dark" | "muted"
+      align?: "left" | "center"
+    },
+  ) {
+    const fontSize = options?.fontSize ?? 11
+    const lineHeight = options?.lineHeight ?? 5
+
+    pdf.setFont("helvetica", options?.bold ? "bold" : "normal")
+    pdf.setFontSize(fontSize)
+    setTextColor(pdf, options?.color ?? "dark")
+
+    const lines = pdf.splitTextToSize(text || "-", maxWidth) as string[]
+    ensureSpace(lines.length * lineHeight + 2)
+
+    pdf.text(lines, x, y, {
+      align: options?.align ?? "left",
+      maxWidth,
+    })
+
+    y += lines.length * lineHeight
+  }
+
+  function addSectionTitle(title: string) {
+    ensureSpace(12)
+    y += 5
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(12)
+    setTextColor(pdf, "dark")
+    pdf.text(title, marginLeft, y)
+    y += 8
+  }
+
+  function addInfoRow(label: string, value: string) {
+    ensureSpace(7)
+
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(10)
+    setTextColor(pdf, "dark")
+    pdf.text(label, marginLeft, y)
+
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(10)
+    setTextColor(pdf, "dark")
+
+    const valueX = 72
+    const lines = pdf.splitTextToSize(value || "-", 210 - valueX - marginRight) as string[]
+    pdf.text(lines, valueX, y)
+
+    y += Math.max(7, lines.length * 5)
+  }
+
+  function addParagraphBox(text: string) {
+    ensureSpace(12)
+
+    const lines = pdf.splitTextToSize(text || "-", contentWidth) as string[]
+
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(10)
+    setTextColor(pdf, "dark")
+
+    pdf.text(lines, marginLeft, y)
+    y += lines.length * 5 + 2
+  }
+
+  function addIqHeader() {
+    ensureSpace(10)
+
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(10)
+    setTextColor(pdf, "dark")
+
+    pdf.text("Indicadores", marginLeft + 28, y)
+    pdf.text("Avaliação", 148, y)
+
+    y += 7
+  }
+
+  function addIqRow(label: string, value: string) {
+    ensureSpace(7)
+
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(10)
+    setTextColor(pdf, "dark")
+
+    pdf.text(label, marginLeft, y)
+    pdf.text(value, 154, y)
+
+    y += 7
+  }
+
+  function addLongTopic(title: string, text: string) {
+    ensureSpace(12)
+
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(10)
+    setTextColor(pdf, "dark")
+    pdf.text(title, marginLeft, y)
+    y += 8
+
+    const cleanText = text?.trim() || "Não informado."
+    const paragraphs = cleanText.split(/\n+/).filter(Boolean)
+
+    for (const paragraph of paragraphs) {
+      addWrappedText(paragraph, marginLeft, contentWidth, {
+        fontSize: 10,
+        lineHeight: 5,
+      })
+      y += 3
     }
   }
 
-  return {
-    label: "Ok",
-    textClass: "text-emerald-600",
-    bgClass: "bg-emerald-50 border-emerald-200",
-    fill: "#22c55e",
-    icon: CheckCircle2,
+  if (logo) {
+    pdf.addImage(logo, getImageFormat(logo), marginLeft, 10, 28, 14)
   }
+
+  pdf.setFont("helvetica", "bold")
+  pdf.setFontSize(15)
+  setTextColor(pdf, "dark")
+  pdf.text(`REVISÃO TÉCNICA - ${item.titulo_revisao}`, 105, y, {
+    align: "center",
+  })
+
+  y += 12
+
+  addSectionTitle("1. DADOS GERAIS")
+  addInfoRow("Revisor:", item.avaliador_nome ?? "Não informado")
+  addInfoRow("Colaborador:", item.colaborador_nome)
+  addInfoRow("Equipe:", item.equipe_colaborador)
+  addInfoRow("Projeto:", item.projeto_codigo)
+  addInfoRow("Produto:", item.entrega_avaliada)
+  addInfoRow("Data da entrega:", formatDate(item.data_entrega))
+  addInfoRow("Data da revisão:", formatDate(item.data_revisao))
+
+  addSectionTitle("2. INDICADOR DE ESFORÇO (IES)")
+  addParagraphBox(getDescricaoIES(item))
+
+  addSectionTitle("3. INDICADOR DE PRAZO (IP)")
+  addParagraphBox(getDescricaoIP(item))
+
+  addSectionTitle("4. INDICADOR DE QUALIDADE (IQ)")
+  addIqHeader()
+  addIqRow("1. Clareza e estrutura:", formatNumber(item.clareza_estrutura))
+  addIqRow("2. Profundidade e rigor:", formatNumber(item.profundidade_rigor))
+  addIqRow(
+    "3. Alinhamento à demanda do cliente:",
+    formatNumber(item.alinhamento_demanda),
+  )
+  addIqRow(
+    "4. Forma e profissionalismo:",
+    formatNumber(item.forma_profissionalismo),
+  )
+
+  y += 2
+  addLongTopic("5. Pontos fracos:", item.pontos_fracos ?? "")
+  addLongTopic("6. Pontos fortes:", item.pontos_fortes ?? "")
+
+  ensureSpace(8)
+  pdf.setFont("helvetica", "bold")
+  pdf.setFontSize(10)
+  setTextColor(pdf, "dark")
+  pdf.text("IQ MÉDIO:", marginLeft, y)
+  pdf.text(formatNumber(item.iq), 154, y)
+
+  drawFooter(pdf)
+
+  return pdf
 }
 
-function getMedia(
-  items: IndicadorDashboardItem[],
-  field: keyof Pick<
-    IndicadorDashboardItem,
-    "ies" | "ip" | "iq" | "iev" | "idi"
-  >,
-) {
-  if (!items.length) return 0
-
-  const soma = items.reduce((acc, item) => acc + Number(item[field] ?? 0), 0)
-  return soma / items.length
-}
-
-export default function IndicadoresDashboard() {
-  const [items, setItems] = useState<IndicadorDashboardItem[]>([])
-  const [filtrosOpcoes, setFiltrosOpcoes] = useState<DashboardFiltros>({
-    anos: [],
-    trimestres: [],
-    equipes: [],
-    colaboradores: [],
-  })
-  const [filtros, setFiltros] = useState<FiltrosState>({
-    ano: "",
-    trimestre: "",
-    equipe: "",
-    colaboradorId: "",
-  })
-  const [isPending, startTransition] = useTransition()
-  const [isLoadingInitial, setIsLoadingInitial] = useState(true)
+export default function IndicadoresRelatorios() {
+  const [relatorios, setRelatorios] = useState<RelatorioEntrega[]>([])
+  const [loading, setLoading] = useState(true)
+  const [gerandoPdfId, setGerandoPdfId] = useState<string | null>(null)
+  const [busca, setBusca] = useState("")
+  const [statusFiltro, setStatusFiltro] = useState("")
+  const [anoFiltro, setAnoFiltro] = useState("")
+  const [trimestreFiltro, setTrimestreFiltro] = useState("")
+  const [equipeFiltro, setEquipeFiltro] = useState("")
 
   useEffect(() => {
-    async function loadInitial() {
+    async function loadRelatorios() {
       try {
-        setIsLoadingInitial(true)
-
-        const [filtrosData, indicadoresData] = await Promise.all([
-          getIndicadoresDashboardFiltros(),
-          getIndicadoresDashboard(),
-        ])
-
-        setFiltrosOpcoes(filtrosData)
-        setItems(indicadoresData)
+        setLoading(true)
+        const data = await getRelatoriosEntregasIndicadores()
+        setRelatorios(data as RelatorioEntrega[])
       } catch (error) {
         console.error(error)
-        toast.error("Não foi possível carregar os indicadores.")
+        toast.error("Não foi possível carregar os relatórios.")
       } finally {
-        setIsLoadingInitial(false)
+        setLoading(false)
       }
     }
 
-    loadInitial()
+    loadRelatorios()
   }, [])
 
-  function updateFiltro<K extends keyof FiltrosState>(
-    field: K,
-    value: FiltrosState[K],
-  ) {
-    setFiltros((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
-  }
+  const anos = useMemo(() => {
+    return Array.from(new Set(relatorios.map((item) => item.ano))).sort(
+      (a, b) => b - a,
+    )
+  }, [relatorios])
 
-  function aplicarFiltros() {
-    startTransition(async () => {
-      try {
-        const data = await getIndicadoresDashboard({
-          ano: filtros.ano ? Number(filtros.ano) : undefined,
-          trimestre: filtros.trimestre ? Number(filtros.trimestre) : undefined,
-          equipe: filtros.equipe || undefined,
-          colaboradorId: filtros.colaboradorId || undefined,
-        })
+  const trimestres = useMemo(() => {
+    return Array.from(new Set(relatorios.map((item) => item.trimestre))).sort(
+      (a, b) => a - b,
+    )
+  }, [relatorios])
 
-        setItems(data)
-      } catch (error) {
-        console.error(error)
-        toast.error("Não foi possível aplicar os filtros.")
-      }
+  const equipes = useMemo(() => {
+    return Array.from(
+      new Set(
+        relatorios
+          .map((item) => item.equipe_colaborador)
+          .filter((value) => Boolean(value && value.trim())),
+      ),
+    ).sort((a, b) => a.localeCompare(b, "pt-BR"))
+  }, [relatorios])
+
+  const relatoriosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+
+    return relatorios.filter((item) => {
+      const status = getStatusRelatorio(item)
+
+      const matchBusca =
+        !termo ||
+        item.numero_relatorio.toLowerCase().includes(termo) ||
+        item.entrega_avaliada.toLowerCase().includes(termo) ||
+        item.colaborador_nome.toLowerCase().includes(termo) ||
+        item.projeto_nome.toLowerCase().includes(termo)
+
+      const matchStatus = !statusFiltro || status === statusFiltro
+      const matchAno = !anoFiltro || item.ano === Number(anoFiltro)
+      const matchTrimestre =
+        !trimestreFiltro || item.trimestre === Number(trimestreFiltro)
+      const matchEquipe = !equipeFiltro || item.equipe_colaborador === equipeFiltro
+
+      return (
+        matchBusca &&
+        matchStatus &&
+        matchAno &&
+        matchTrimestre &&
+        matchEquipe
+      )
     })
-  }
+  }, [relatorios, busca, statusFiltro, anoFiltro, trimestreFiltro, equipeFiltro])
+
+  const totalRelatorios = relatoriosFiltrados.length
+
+  const totalOk = useMemo(
+    () =>
+      relatoriosFiltrados.filter((item) => getStatusRelatorio(item) === "OK")
+        .length,
+    [relatoriosFiltrados],
+  )
+
+  const totalAtencao = useMemo(
+    () =>
+      relatoriosFiltrados.filter(
+        (item) => getStatusRelatorio(item) === "Atenção",
+      ).length,
+    [relatoriosFiltrados],
+  )
+
+  const totalCritico = useMemo(
+    () =>
+      relatoriosFiltrados.filter(
+        (item) => getStatusRelatorio(item) === "Crítico",
+      ).length,
+    [relatoriosFiltrados],
+  )
+
+  const relatoriosPrioritarios = useMemo(() => {
+    return relatoriosFiltrados
+      .filter((item) => getStatusRelatorio(item) !== "OK")
+      .slice(0, 5)
+  }, [relatoriosFiltrados])
 
   function limparFiltros() {
-    setFiltros({
-      ano: "",
-      trimestre: "",
-      equipe: "",
-      colaboradorId: "",
-    })
-
-    startTransition(async () => {
-      try {
-        const data = await getIndicadoresDashboard()
-        setItems(data)
-      } catch (error) {
-        console.error(error)
-        toast.error("Não foi possível limpar os filtros.")
-      }
-    })
+    setBusca("")
+    setStatusFiltro("")
+    setAnoFiltro("")
+    setTrimestreFiltro("")
+    setEquipeFiltro("")
   }
 
-  const mediaIES = useMemo(() => getMedia(items, "ies"), [items])
-  const mediaIP = useMemo(() => getMedia(items, "ip"), [items])
-  const mediaIQ = useMemo(() => getMedia(items, "iq"), [items])
-  const mediaIEV = useMemo(() => getMedia(items, "iev"), [items])
-  const mediaIDI = useMemo(() => getMedia(items, "idi"), [items])
+  async function baixarPdf(item: RelatorioEntrega) {
+    try {
+      setGerandoPdfId(item.id)
 
-  const itemsOrdenadosPorRisco = useMemo(() => {
-    return [...items].sort((a, b) => a.idi - b.idi)
-  }, [items])
+      const pdf = await gerarPdfRelatorio(item)
 
-  const colaboradoresEmAtencao = useMemo(() => {
-    return [...items]
-      .filter((item) => item.idi < 75)
-      .sort((a, b) => a.idi - b.idi)
-  }, [items])
+      const fileName = sanitizeFileName(
+        `${item.sequencia_geral}. ${item.numero_relatorio}`,
+      )
 
-  const rankingColaboradores = useMemo(() => {
-    return [...items]
-      .sort((a, b) => b.idi - a.idi)
-      .map((item) => ({
-        nome: item.colaborador_nome,
-        idi: Number(item.idi.toFixed(2)),
-      }))
-  }, [items])
+      pdf.save(`${fileName}.pdf`)
 
-  const mediaPorEquipe = useMemo(() => {
-    const mapa = new Map<string, { soma: number; quantidade: number }>()
-
-    for (const item of items) {
-      const equipe = item.equipe?.trim() || "Sem equipe"
-      const atual = mapa.get(equipe) ?? { soma: 0, quantidade: 0 }
-
-      atual.soma += item.idi
-      atual.quantidade += 1
-
-      mapa.set(equipe, atual)
+      toast.success("PDF gerado com sucesso.")
+    } catch (error) {
+      console.error(error)
+      toast.error("Não foi possível gerar o PDF.")
+    } finally {
+      setGerandoPdfId(null)
     }
+  }
 
-    return Array.from(mapa.entries())
-      .map(([equipe, valores]) => ({
-        equipe,
-        idi: Number((valores.soma / valores.quantidade).toFixed(2)),
-      }))
-      .sort((a, b) => b.idi - a.idi)
-  }, [items])
+  async function baixarTodosFiltrados() {
+    if (!relatoriosFiltrados.length) return
 
-  const totalCriticos = items.filter((item) => item.idi < 60).length
-  const totalAtencao = items.filter(
-    (item) => item.idi >= 60 && item.idi < 75,
-  ).length
-  const totalOk = items.filter((item) => item.idi >= 75).length
+    toast.info("Iniciando geração dos PDFs filtrados.")
+
+    for (const item of relatoriosFiltrados) {
+      await baixarPdf(item)
+    }
+  }
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-2xl border bg-card p-5 shadow-sm md:p-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold tracking-tight">Indicadores</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Visualização consolidada dos indicadores por colaborador, equipe e
-            período.
-          </p>
+      <Card className="rounded-2xl border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Relatórios de Revisão Técnica
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+              Acompanhamento estratégico das entregas avaliadas. Use os filtros
+              para localizar relatórios por colaborador, equipe, projeto, status
+              e período.
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={baixarTodosFiltrados}
+            disabled={!relatoriosFiltrados.length || Boolean(gerandoPdfId)}
+            className="rounded-xl"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Baixar filtrados
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <div className="rounded-xl border bg-muted/30 p-4">
+            <p className="text-sm text-muted-foreground">Relatórios filtrados</p>
+            <p className="mt-1 text-2xl font-bold">{totalRelatorios}</p>
+          </div>
+
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
+            <p className="text-sm">OK</p>
+            <p className="mt-1 text-2xl font-bold">{totalOk}</p>
+          </div>
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-700">
+            <p className="text-sm">Atenção</p>
+            <p className="mt-1 text-2xl font-bold">{totalAtencao}</p>
+          </div>
+
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700">
+            <p className="text-sm">Crítico</p>
+            <p className="mt-1 text-2xl font-bold">{totalCritico}</p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="rounded-2xl border bg-card p-6 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-5">
+          <div className="space-y-2 lg:col-span-2">
+            <Label htmlFor="busca_relatorio">Buscar</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="busca_relatorio"
+                value={busca}
+                onChange={(event) => setBusca(event.target.value)}
+                placeholder="Código, entrega, colaborador ou projeto"
+                className="h-11 rounded-xl pl-9"
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="filtro_ano">Ano</Label>
+            <Label>Status</Label>
             <select
-              id="filtro_ano"
-              value={filtros.ano}
-              onChange={(e) => updateFiltro("ano", e.target.value)}
+              value={statusFiltro}
+              onChange={(event) => setStatusFiltro(event.target.value)}
               className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
             >
               <option value="">Todos</option>
-              {filtrosOpcoes.anos.map((ano) => (
+              <option value="OK">OK</option>
+              <option value="Atenção">Atenção</option>
+              <option value="Crítico">Crítico</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Ano</Label>
+            <select
+              value={anoFiltro}
+              onChange={(event) => setAnoFiltro(event.target.value)}
+              className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Todos</option>
+              {anos.map((ano) => (
                 <option key={ano} value={String(ano)}>
                   {ano}
                 </option>
@@ -260,32 +612,32 @@ export default function IndicadoresDashboard() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="filtro_trimestre">Trimestre</Label>
+            <Label>Trimestre</Label>
             <select
-              id="filtro_trimestre"
-              value={filtros.trimestre}
-              onChange={(e) => updateFiltro("trimestre", e.target.value)}
+              value={trimestreFiltro}
+              onChange={(event) => setTrimestreFiltro(event.target.value)}
               className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
             >
               <option value="">Todos</option>
-              {filtrosOpcoes.trimestres.map((tri) => (
-                <option key={tri} value={String(tri)}>
-                  {tri}º trimestre
+              {trimestres.map((trimestre) => (
+                <option key={trimestre} value={String(trimestre)}>
+                  {trimestre}º trimestre
                 </option>
               ))}
             </select>
           </div>
+        </div>
 
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_auto]">
           <div className="space-y-2">
-            <Label htmlFor="filtro_equipe">Equipe</Label>
+            <Label>Equipe</Label>
             <select
-              id="filtro_equipe"
-              value={filtros.equipe}
-              onChange={(e) => updateFiltro("equipe", e.target.value)}
+              value={equipeFiltro}
+              onChange={(event) => setEquipeFiltro(event.target.value)}
               className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
             >
               <option value="">Todas</option>
-              {filtrosOpcoes.equipes.map((equipe) => (
+              {equipes.map((equipe) => (
                 <option key={equipe} value={equipe}>
                   {equipe}
                 </option>
@@ -293,342 +645,166 @@ export default function IndicadoresDashboard() {
             </select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="filtro_colaborador">Colaborador</Label>
-            <select
-              id="filtro_colaborador"
-              value={filtros.colaboradorId}
-              onChange={(e) => updateFiltro("colaboradorId", e.target.value)}
-              className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
+          <div className="flex items-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={limparFiltros}
+              className="h-11 rounded-xl"
             >
-              <option value="">Todos</option>
-              {filtrosOpcoes.colaboradores.map((colaborador) => (
-                <option key={colaborador.id} value={colaborador.id}>
-                  {colaborador.nome}
-                </option>
-              ))}
-            </select>
+              Limpar filtros
+            </Button>
           </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Button
-            type="button"
-            onClick={aplicarFiltros}
-            disabled={isPending}
-            className="rounded-xl"
-          >
-            {isPending ? "Aplicando..." : "Aplicar filtros"}
-          </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={limparFiltros}
-            disabled={isPending}
-            className="rounded-xl"
-          >
-            Limpar filtros
-          </Button>
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-        <Card className="rounded-2xl border p-4 shadow-sm">
-          <p className="text-sm text-muted-foreground">Média IES</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {formatPercent(mediaIES)}
-          </p>
-        </Card>
-
-        <Card className="rounded-2xl border p-4 shadow-sm">
-          <p className="text-sm text-muted-foreground">Média IP</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {formatPercent(mediaIP)}
-          </p>
-        </Card>
-
-        <Card className="rounded-2xl border p-4 shadow-sm">
-          <p className="text-sm text-muted-foreground">Média IQ</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {formatPercent(mediaIQ)}
-          </p>
-        </Card>
-
-        <Card className="rounded-2xl border p-4 shadow-sm">
-          <p className="text-sm text-muted-foreground">Média IEV</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {formatPercent(mediaIEV)}
-          </p>
-        </Card>
-
-        <Card className="rounded-2xl border p-4 shadow-sm">
-          <p className="text-sm text-muted-foreground">Média IDI</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {formatPercent(mediaIDI)}
-          </p>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-red-600" />
-            <div>
-              <p className="text-sm font-medium text-red-700">Crítico</p>
-              <p className="text-2xl font-semibold text-red-700">
-                {totalCriticos}
-              </p>
-              <p className="text-xs text-red-600">IDI abaixo de 60%</p>
-            </div>
+      {relatoriosPrioritarios.length > 0 && (
+        <Card className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 text-amber-800">
+            <AlertTriangle className="h-5 w-5" />
+            <h3 className="font-semibold">Entregas que precisam de atenção</h3>
           </div>
-        </Card>
 
-        <Card className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <CircleAlert className="h-5 w-5 text-amber-600" />
-            <div>
-              <p className="text-sm font-medium text-amber-700">Atenção</p>
-              <p className="text-2xl font-semibold text-amber-700">
-                {totalAtencao}
-              </p>
-              <p className="text-xs text-amber-600">IDI entre 60% e 75%</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            <div>
-              <p className="text-sm font-medium text-emerald-700">Ok</p>
-              <p className="text-2xl font-semibold text-emerald-700">
-                {totalOk}
-              </p>
-              <p className="text-xs text-emerald-600">IDI igual ou acima de 75%</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <Card className="rounded-2xl border bg-card p-5 shadow-sm md:p-6">
-        <div className="mb-4 flex items-start gap-3">
-          <TrendingUp className="mt-1 h-5 w-5 text-amber-500" />
-          <div>
-            <h3 className="text-xl font-semibold">Colaboradores em atenção</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Lista automática com colaboradores cujo IDI está abaixo de 75%.
-            </p>
-          </div>
-        </div>
-
-        {colaboradoresEmAtencao.length === 0 ? (
-          <div className="rounded-xl border p-4">
-            <p className="text-sm text-muted-foreground">
-              Nenhum colaborador em atenção nos filtros selecionados.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {colaboradoresEmAtencao.map((item) => {
-              const status = getStatus(item.idi)
-              const Icon = status.icon
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {relatoriosPrioritarios.map((item) => {
+              const status = getStatusRelatorio(item)
 
               return (
                 <div
-                  key={`${item.colaborador_id}-${item.ano}-${item.trimestre}-alerta`}
-                  className={`rounded-xl border p-4 ${status.bgClass}`}
+                  key={`prioritario-${item.id}`}
+                  className="rounded-xl border bg-white/70 p-4"
                 >
-                  <div className="flex items-start gap-3">
-                    <Icon className={`mt-0.5 h-5 w-5 ${status.textClass}`} />
-                    <div>
-                      <p className="font-semibold">{item.colaborador_nome}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {item.equipe ?? "Sem equipe"} · {item.trimestre}º tri.{" "}
-                        {item.ano}
-                      </p>
-                      <p className={`mt-2 text-lg font-bold ${status.textClass}`}>
-                        {formatPercent(item.idi)} · {status.label}
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(
+                        status,
+                      )}`}
+                    />
+                    <span className="text-xs font-semibold">{status}</span>
                   </div>
+                  <p className="mt-2 text-sm font-semibold">
+                    {item.entrega_avaliada}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {item.colaborador_nome} · {item.numero_relatorio}
+                  </p>
                 </div>
               )
             })}
           </div>
-        )}
-      </Card>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <Card className="rounded-2xl border bg-card p-5 shadow-sm md:p-6">
-          <div className="mb-4">
-            <h3 className="text-xl font-semibold">IDI por colaborador</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Ranking dos colaboradores conforme os filtros aplicados.
-            </p>
-          </div>
-
-          {rankingColaboradores.length === 0 ? (
-            <div className="rounded-xl border p-4">
-              <p className="text-sm text-muted-foreground">
-                Nenhum dado disponível para o gráfico.
-              </p>
-            </div>
-          ) : (
-            <div className="h-[380px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={rankingColaboradores}
-                  layout="vertical"
-                  margin={{ left: 24, right: 16 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={[0, 100]} />
-                  <YAxis
-                    type="category"
-                    dataKey="nome"
-                    width={150}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip
-                    formatter={(value: number) => `${value.toFixed(2)}%`}
-                  />
-                  <Bar dataKey="idi" radius={[0, 8, 8, 0]}>
-                    {rankingColaboradores.map((entry, index) => (
-                      <Cell
-                        key={`cell-colab-${index}`}
-                        fill={getStatus(entry.idi).fill}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
         </Card>
+      )}
 
-        <Card className="rounded-2xl border bg-card p-5 shadow-sm md:p-6">
-          <div className="mb-4">
-            <h3 className="text-xl font-semibold">Média de IDI por equipe</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Comparação entre equipes conforme os filtros aplicados.
-            </p>
+      <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        {loading ? (
+          <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Carregando relatórios...
           </div>
-
-          {mediaPorEquipe.length === 0 ? (
-            <div className="rounded-xl border p-4">
-              <p className="text-sm text-muted-foreground">
-                Nenhum dado disponível para o gráfico.
-              </p>
-            </div>
-          ) : (
-            <div className="h-[380px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={mediaPorEquipe}
-                  margin={{ top: 8, right: 16, left: 8, bottom: 32 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="equipe"
-                    angle={-15}
-                    textAnchor="end"
-                    height={80}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip
-                    formatter={(value: number) => `${value.toFixed(2)}%`}
-                  />
-                  <Bar dataKey="idi" radius={[8, 8, 0, 0]}>
-                    {mediaPorEquipe.map((entry, index) => (
-                      <Cell
-                        key={`cell-equipe-${index}`}
-                        fill={getStatus(entry.idi).fill}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      <Card className="rounded-2xl border bg-card p-5 shadow-sm md:p-6">
-        <div className="mb-4">
-          <h3 className="text-xl font-semibold">Resultados por colaborador</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Base consolidada por ano e trimestre. A tabela está ordenada do menor
-            para o maior IDI.
-          </p>
-        </div>
-
-        {isLoadingInitial ? (
-          <div className="rounded-xl border p-4">
-            <p className="text-sm text-muted-foreground">Carregando dados...</p>
-          </div>
-        ) : itemsOrdenadosPorRisco.length === 0 ? (
-          <div className="rounded-xl border p-4">
-            <p className="text-sm text-muted-foreground">
-              Nenhum indicador encontrado para os filtros selecionados.
-            </p>
+        ) : relatoriosFiltrados.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground">
+            Nenhuma entrega avaliada encontrada para os filtros selecionados.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border">
-            <table className="min-w-full border-collapse text-sm">
-              <thead className="bg-muted/40">
-                <tr>
+          <div className="max-h-[660px] overflow-auto">
+            <table className="w-full min-w-[1250px] text-sm">
+              <thead className="sticky top-0 z-10 bg-muted">
+                <tr className="border-b">
+                  <th className="px-4 py-3 text-left font-semibold">
+                    Código
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold">
+                    Entrega
+                  </th>
                   <th className="px-4 py-3 text-left font-semibold">
                     Colaborador
                   </th>
-                  <th className="px-4 py-3 text-left font-semibold">Equipe</th>
-                  <th className="px-4 py-3 text-left font-semibold">Ano</th>
                   <th className="px-4 py-3 text-left font-semibold">
-                    Trimestre
+                    Equipe
                   </th>
-                  <th className="px-4 py-3 text-left font-semibold">
-                    Entregas
+                  <th className="px-4 py-3 text-center font-semibold">
+                    Revisão
                   </th>
-                  <th className="px-4 py-3 text-left font-semibold">IES</th>
-                  <th className="px-4 py-3 text-left font-semibold">IP</th>
-                  <th className="px-4 py-3 text-left font-semibold">IQ</th>
-                  <th className="px-4 py-3 text-left font-semibold">IEV</th>
-                  <th className="px-4 py-3 text-left font-semibold">IDI</th>
-                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="px-4 py-3 text-center font-semibold">IQ</th>
+                  <th className="px-4 py-3 text-center font-semibold">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-center font-semibold">
+                    PDF
+                  </th>
                 </tr>
               </thead>
+
               <tbody>
-                {itemsOrdenadosPorRisco.map((item) => {
-                  const status = getStatus(item.idi)
-                  const Icon = status.icon
+                {relatoriosFiltrados.map((item) => {
+                  const status = getStatusRelatorio(item)
 
                   return (
                     <tr
-                      key={`${item.colaborador_id}-${item.ano}-${item.trimestre}`}
-                      className="border-t"
+                      key={item.id}
+                      className="border-b last:border-b-0 hover:bg-muted/40"
                     >
-                      <td className="px-4 py-3">{item.colaborador_nome}</td>
-                      <td className="px-4 py-3">{item.equipe ?? "-"}</td>
-                      <td className="px-4 py-3">{item.ano}</td>
-                      <td className="px-4 py-3">{item.trimestre}º</td>
-                      <td className="px-4 py-3">{item.total_entregas}</td>
-                      <td className="px-4 py-3">{formatPercent(item.ies)}</td>
-                      <td className="px-4 py-3">{formatPercent(item.ip)}</td>
-                      <td className="px-4 py-3">{formatPercent(item.iq)}</td>
-                      <td className="px-4 py-3">{formatPercent(item.iev)}</td>
-                      <td
-                        className={`px-4 py-3 font-semibold ${status.textClass}`}
-                      >
-                        {formatPercent(item.idi)}
-                      </td>
                       <td className="px-4 py-3">
+                        <p className="font-semibold">{item.numero_relatorio}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.trimestre}º tri. {item.ano}
+                        </p>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <div className="flex items-start gap-2">
+                          <FileText className="mt-0.5 h-4 w-4 text-violet-500" />
+                          <div>
+                            <p className="font-medium">
+                              {item.entrega_avaliada}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Projeto: {item.projeto_codigo}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3">{item.colaborador_nome}</td>
+
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {item.equipe_colaborador}
+                      </td>
+
+                      <td className="px-4 py-3 text-center">
+                        {formatDate(item.data_revisao)}
+                      </td>
+
+                      <td className="px-4 py-3 text-center font-semibold">
+                        {formatNumber(item.iq)}
+                      </td>
+
+                      <td className="px-4 py-3 text-center">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-medium ${status.bgClass} ${status.textClass}`}
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClass(
+                            status,
+                          )}`}
                         >
-                          <Icon className="h-3.5 w-3.5" />
-                          {status.label}
+                          {status}
                         </span>
+                      </td>
+
+                      <td className="px-4 py-3 text-center">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => baixarPdf(item)}
+                          disabled={gerandoPdfId === item.id}
+                          className="rounded-xl"
+                        >
+                          {gerandoPdfId === item.id ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="mr-2 h-4 w-4" />
+                          )}
+                          Baixar PDF
+                        </Button>
                       </td>
                     </tr>
                   )

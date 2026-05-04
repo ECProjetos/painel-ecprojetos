@@ -12,6 +12,7 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChart3, ClipboardCheck, FileText, TrendingUp } from "lucide-react"
+import IndicadoresRelatorios from "@/components/indicadores/indicadores-relatorios"
 
 export default function IndicadoresDeDesempenhoPage() {
   return (
@@ -79,19 +80,7 @@ export default function IndicadoresDeDesempenhoPage() {
         </TabsContent>
 
         <TabsContent value="relatorios" className="mt-4">
-          <div className="rounded-2xl border bg-card p-6 shadow-sm">
-            <h2 className="text-2xl font-bold tracking-tight">Relatórios</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Aqui vamos listar os relatórios gerados, com opção de visualizar,
-              baixar e futuramente enviar automaticamente.
-            </p>
-
-            <div className="mt-6 rounded-xl border p-4">
-              <p className="text-sm text-muted-foreground">
-                Nenhum relatório gerado ainda.
-              </p>
-            </div>
-          </div>
+          <IndicadoresRelatorios />
         </TabsContent>
       </Tabs>
     </div>
