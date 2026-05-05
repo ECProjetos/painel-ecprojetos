@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import type { ChangeEvent } from "react"
 import jsPDF from "jspdf"
 import {
+  AlertTriangle,
   Download,
   FileText,
   Loader2,
   Search,
-  SlidersHorizontal,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -17,55 +18,39 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-type RelatorioEntrega = {
-  id: string
-  created_at: string
-  numero_relatorio: number
-  codigo_relatorio_base: string
-  codigo_relatorio_arquivo: string
-  codigo_revisao_titulo: string
-  avaliador_nome: string | null
-  colaborador_id: string
-  colaborador_nome: string
-  equipe_colaborador: string
-  codigo_projeto: string
-  projeto_nome: string
-  entrega_avaliada: string
-  data_entrega: string
-  data_revisao: string
-  ies_aprovado_primeira: boolean
-  ip_no_prazo: boolean
-  clareza_estrutura: number
-  profundidade_rigor: number
-  alinhamento_demanda: number
-  forma_profissionalismo: number
-  iq: number
-  pontos_fortes: string | null
-  pontos_fracos: string | null
-  comentario_geral: string | null
+type RelatorioEntregaBase = Awaited<
+  ReturnType<typeof getRelatoriosEntregasIndicadores>
+>[number]
+
+type RelatorioEntrega = RelatorioEntregaBase & {
+  sequencia_geral?: number | null
+  sequencia_relatorio?: number | null
+  numero_sequencial?: number | null
+  titulo_revisao?: string | null
+  numero_relatorio?: string | null
+  codigo_relatorio?: string | null
+  arquivo_nome?: string | null
+  ano?: number | null
+  trimestre?: number | null
+  projeto_codigo?: string | null
+  codigo_projeto?: string | null
+  projeto_nome?: string | null
+  data_revisao?: string | null
+  data_entrega?: string | null
 }
 
-type FiltrosRelatorios = {
-  busca: string
-  projeto: string
-  equipe: string
-  status: string
+type CodigoRelatorio = {
+  sequencia: number
+  sequenciaFormatada: string
+  projetoCodigo: string
+  ano: number
+  tituloRevisao: string
+  numeroArquivo: string
+  nomeDownload: string
 }
 
-const PAGE = {
-  width: 210,
-  height: 297,
-  marginX: 28,
-  tableW: 154,
-  contentTop: 46,
-  contentBottom: 276,
-}
+type StatusRelatorio = "OK" | "Atenção" | "Crítico"
 
-const BLUE = {
-  dark: [17, 54, 111] as const,
-  mid: [46, 104, 168] as const,
-  light: [123, 167, 205] as const,
-}
 function formatDate(date?: string | null) {
   if (!date) return "-"
 
@@ -84,7 +69,184 @@ function formatNumber(value?: number | null) {
     .replace(".", ",")
 }
 
-function getStatusRelatorio(item: RelatorioEntrega) {
+function sanitizeFileName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "-")
+    .replace(/\s+/g, " ")
+    .replace(/-+/g, "-")
+    .trim()
+}
+
+function getNullableText(value: unknown) {
+  if (value === null || value === undefined) return null
+
+  const text = String(value).trim()
+  return text || null
+}
+
+function getNumberFromUnknown(value: unknown) {
+  if (value === null || value === undefined || value === "") return null
+
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function getAnoFromDate(value?: string | null) {
+  if (!value) return null
+
+  const parsed = new Date(`${value}T00:00:00`)
+
+  if (Number.isNaN(parsed.getTime())) return null
+
+  return parsed.getFullYear()
+}
+
+function getAnoRelatorio(item: RelatorioEntrega) {
+  return (
+    getNumberFromUnknown(item.ano) ??
+    getAnoFromDate(item.data_revisao) ??
+    getAnoFromDate(item.data_entrega) ??
+    new Date().getFullYear()
+  )
+}
+
+function extractProjetoCodigoFromText(value?: string | null) {
+  const text = getNullableText(value)?.toUpperCase()
+
+  if (!text) return null
+
+  const patterns = [
+    /EC-REV-([A-Z]{2,6}[0-9]{1,4})-/i,
+    /REV-([A-Z]{2,6}[0-9]{1,4})-/i,
+    /([A-Z]{2,6}[0-9]{1,4})-\d{3}/i,
+  ]
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern)
+    if (match?.[1]) return match[1]
+  }
+
+  return null
+}
+
+function getProjetoCodigo(item: RelatorioEntrega) {
+  const candidates = [
+    item.projeto_codigo,
+    item.codigo_projeto,
+    item.numero_relatorio,
+    item.codigo_relatorio,
+    item.titulo_revisao,
+    item.arquivo_nome,
+  ]
+
+  for (const candidate of candidates) {
+    const parsed = extractProjetoCodigoFromText(candidate)
+    if (parsed) return parsed
+
+    const text = getNullableText(candidate)
+    if (text && /^[A-Za-z]{2,6}[0-9]{1,4}$/.test(text)) {
+      return text.toUpperCase()
+    }
+  }
+
+  return "PROJETO"
+}
+
+function extractSequenciaFromText(value?: string | null) {
+  const text = getNullableText(value)
+
+  if (!text) return null
+
+  const patterns = [
+    /EC-REV-[A-Z]{2,6}[0-9]{1,4}-(\d{1,3})-/i,
+    /REV-[A-Z]{2,6}[0-9]{1,4}-(\d{1,3})-/i,
+    /[A-Z]{2,6}[0-9]{1,4}-(\d{1,3})\/?/i,
+  ]
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern)
+    const sequence = getNumberFromUnknown(match?.[1])
+
+    if (sequence) return sequence
+  }
+
+  return null
+}
+
+function getExistingSequencia(item: RelatorioEntrega) {
+  return (
+    getNumberFromUnknown(item.sequencia_relatorio) ??
+    getNumberFromUnknown(item.numero_sequencial) ??
+    extractSequenciaFromText(item.numero_relatorio) ??
+    extractSequenciaFromText(item.codigo_relatorio) ??
+    extractSequenciaFromText(item.titulo_revisao) ??
+    extractSequenciaFromText(item.arquivo_nome)
+  )
+}
+
+function getItemSortKey(item: RelatorioEntrega) {
+  return [
+    item.data_revisao ?? "",
+    item.data_entrega ?? "",
+    String(item.id ?? ""),
+  ].join("|")
+}
+
+function getSequenciaRelatorio(
+  item: RelatorioEntrega,
+  relatorios: RelatorioEntrega[],
+) {
+  const existing = getExistingSequencia(item)
+
+  if (existing) return existing
+
+  const projetoCodigo = getProjetoCodigo(item)
+  const ano = getAnoRelatorio(item)
+
+  const grupo = relatorios
+    .filter(
+      (relatorio) =>
+        getProjetoCodigo(relatorio) === projetoCodigo &&
+        getAnoRelatorio(relatorio) === ano,
+    )
+    .sort((a, b) => getItemSortKey(a).localeCompare(getItemSortKey(b)))
+
+  const index = grupo.findIndex(
+    (relatorio) => String(relatorio.id) === String(item.id),
+  )
+
+  return index >= 0 ? index + 1 : 1
+}
+
+function getCodigoRelatorio(
+  item: RelatorioEntrega,
+  relatorios: RelatorioEntrega[],
+): CodigoRelatorio {
+  const projetoCodigo = getProjetoCodigo(item)
+  const ano = getAnoRelatorio(item)
+  const sequencia = getSequenciaRelatorio(item, relatorios)
+  const sequenciaFormatada = String(sequencia).padStart(3, "0")
+  const tituloRevisao = `${projetoCodigo}-${sequenciaFormatada}/${ano}`
+  const numeroArquivo = `EC-REV-${projetoCodigo}-${sequenciaFormatada}-${ano}`
+  const prefixoLista = getNumberFromUnknown(item.sequencia_geral)
+  const nomeDownload = prefixoLista
+    ? `${prefixoLista}. ${numeroArquivo}`
+    : numeroArquivo
+
+  return {
+    sequencia,
+    sequenciaFormatada,
+    projetoCodigo,
+    ano,
+    tituloRevisao,
+    numeroArquivo,
+    nomeDownload,
+  }
+}
+
+function getStatusRelatorio(item: RelatorioEntrega): StatusRelatorio {
   const aprovado = item.ies_aprovado_primeira
   const noPrazo = item.ip_no_prazo
   const iq = Number(item.iq ?? 0)
@@ -100,44 +262,63 @@ function getStatusRelatorio(item: RelatorioEntrega) {
   return "Crítico"
 }
 
-function getStatusClass(status: string) {
+function getStatusClass(status: StatusRelatorio) {
   if (status === "OK") {
-    return "bg-emerald-50 text-emerald-700 border-emerald-200"
+    return "border-emerald-200 bg-emerald-50 text-emerald-700"
   }
 
   if (status === "Atenção") {
-    return "bg-amber-50 text-amber-700 border-amber-200"
+    return "border-amber-200 bg-amber-50 text-amber-700"
   }
 
-  return "bg-rose-50 text-rose-700 border-rose-200"
+  return "border-rose-200 bg-rose-50 text-rose-700"
 }
 
-function normalizarTexto(value?: string | null) {
-  return String(value ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+function getStatusDotClass(status: StatusRelatorio) {
+  if (status === "OK") return "bg-emerald-500"
+  if (status === "Atenção") return "bg-amber-500"
+  return "bg-rose-500"
 }
 
-function sanitizeFileName(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\\/:*?"<>|]/g, "")
-    .trim()
+function getDescricaoIES(item: RelatorioEntrega) {
+  if (item.ies_aprovado_primeira) {
+    return "Aprovado na primeira revisão, pois não houve necessidade de ajustes significativos."
+  }
+
+  return "Não aprovado na primeira revisão, pois haverá necessidade de ajustes significativos."
+}
+
+function getDescricaoIP(item: RelatorioEntrega) {
+  if (item.ip_no_prazo) {
+    return "Aprovado, pois foi entregue no prazo interno acordado com o gestor."
+  }
+
+  return "Não aprovado, pois não foi entregue no prazo interno acordado com o gestor."
+}
+
+function setTextColor(pdf: jsPDF, color: "dark" | "muted") {
+  if (color === "dark") {
+    pdf.setTextColor(0, 0, 0)
+    return
+  }
+
+  pdf.setTextColor(70, 70, 70)
 }
 
 async function loadImageAsDataUrl(src: string) {
   try {
     const response = await fetch(src)
 
-    if (!response.ok) return null
+    if (!response.ok) {
+      return null
+    }
 
     const blob = await response.blob()
 
     return await new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
-      reader.onloadend = () => resolve(String(reader.result))
+
+      reader.onload = () => resolve(String(reader.result))
       reader.onerror = reject
       reader.readAsDataURL(blob)
     })
@@ -146,12 +327,10 @@ async function loadImageAsDataUrl(src: string) {
   }
 }
 
-function setBlack(pdf: jsPDF) {
-  pdf.setTextColor(0, 0, 0)
-}
-
-function setBlue(pdf: jsPDF) {
-  pdf.setTextColor(BLUE.dark[0], BLUE.dark[1], BLUE.dark[2])
+function getImageFormat(dataUrl: string) {
+  if (dataUrl.startsWith("data:image/jpeg")) return "JPEG"
+  if (dataUrl.startsWith("data:image/jpg")) return "JPEG"
+  return "PNG"
 }
 
 function drawParallelogram(
@@ -161,554 +340,330 @@ function drawParallelogram(
   width: number,
   height: number,
   skew: number,
-  color: readonly [number, number, number],
+  color: [number, number, number],
 ) {
   pdf.setFillColor(color[0], color[1], color[2])
-
-  pdf.triangle(x + skew, y, x + width + skew, y, x + width, y + height, "F")
-  pdf.triangle(x + skew, y, x, y + height, x + width, y + height, "F")
+  ;(pdf as any).triangle(
+    x + skew,
+    y,
+    x + width,
+    y,
+    x + width - skew,
+    y + height,
+    "F",
+  )
+  ;(pdf as any).triangle(
+    x + skew,
+    y,
+    x + width - skew,
+    y + height,
+    x,
+    y + height,
+    "F",
+  )
 }
 
-function drawHeader(pdf: jsPDF, logoDataUrl: string | null) {
-  if (logoDataUrl) {
-    pdf.addImage(logoDataUrl, "PNG", 21, 8, 28, 13)
-  } else {
-    pdf.setFont("helvetica", "bold")
-    pdf.setFontSize(11)
-    setBlue(pdf)
-    pdf.text("EC projetos", 21, 17)
-  }
+function drawReportHeader(pdf: jsPDF) {
+  const headerY = 7.5
+  const headerHeight = 13
 
-  drawParallelogram(pdf, 62, 8, 17, 15, 7, BLUE.dark)
-  drawParallelogram(pdf, 81, 8, 17, 15, 7, BLUE.mid)
-  drawParallelogram(pdf, 100, 8, 17, 15, 7, BLUE.light)
+  pdf.setDrawColor(255, 255, 255)
 
-  pdf.setFillColor(BLUE.light[0], BLUE.light[1], BLUE.light[2])
-  pdf.rect(118, 8, 74, 15, "F")
+  pdf.setFont("helvetica", "bold")
+  pdf.setFontSize(16)
+  pdf.setTextColor(23, 72, 129)
+  pdf.text("EC", 22, 16.5)
+
+  pdf.setFont("helvetica", "bold")
+  pdf.setFontSize(10)
+  pdf.setTextColor(55, 55, 55)
+  pdf.text("projetos", 34, 16.5)
+
+  drawParallelogram(pdf, 67, headerY, 16, headerHeight, 5, [11, 42, 96])
+  drawParallelogram(pdf, 83, headerY, 16, headerHeight, 5, [38, 86, 157])
+  drawParallelogram(pdf, 99, headerY, 16, headerHeight, 5, [71, 122, 184])
+
+  pdf.setFillColor(117, 159, 198)
+  pdf.rect(111, headerY, 91, headerHeight, "F")
 }
 
-function drawFooter(pdf: jsPDF) {
-  const pageCount = pdf.getNumberOfPages()
+function drawReportFooter(pdf: jsPDF) {
+  const pageWidth = 210
+  const pageHeight = 297
 
-  for (let page = 1; page <= pageCount; page++) {
+  pdf.setFillColor(37, 91, 151)
+  pdf.rect(0, pageHeight - 5, pageWidth, 3, "F")
+}
+
+function drawPageNumbers(pdf: jsPDF) {
+  const pages = pdf.getNumberOfPages()
+
+  for (let page = 1; page <= pages; page += 1) {
     pdf.setPage(page)
-
-    pdf.setFillColor(BLUE.dark[0], BLUE.dark[1], BLUE.dark[2])
-    pdf.rect(0, 291, 210, 2.4, "F")
-
     pdf.setFont("helvetica", "normal")
-    pdf.setFontSize(8)
-    pdf.setTextColor(70, 86, 110)
-    pdf.text(String(page), 179, 283)
+    pdf.setFontSize(9)
+    setTextColor(pdf, "muted")
+    pdf.text(String(page), 182, 280)
   }
 }
 
-function addPage(pdf: jsPDF, logoDataUrl: string | null) {
-  pdf.addPage()
-  drawHeader(pdf, logoDataUrl)
-  return 42
-}
-
-function ensureSpace(
-  pdf: jsPDF,
-  y: number,
-  neededHeight: number,
-  logoDataUrl: string | null,
+async function gerarPdfRelatorio(
+  item: RelatorioEntrega,
+  codigo: CodigoRelatorio,
 ) {
-  if (y + neededHeight <= PAGE.contentBottom) {
-    return y
-  }
-
-  return addPage(pdf, logoDataUrl)
-}
-
-function drawSectionTitle(
-  pdf: jsPDF,
-  number: string,
-  title: string,
-  y: number,
-) {
-  pdf.setFont("helvetica", "bold")
-  pdf.setFontSize(12.4)
-  setBlue(pdf)
-  pdf.text(`${number}. ${title}`, PAGE.marginX, y)
-}
-
-function drawCell(
-  pdf: jsPDF,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  text: string,
-  options?: {
-    bold?: boolean
-    align?: "left" | "center"
-    fontSize?: number
-  },
-) {
-  pdf.setDrawColor(0, 0, 0)
-  pdf.setLineWidth(0.12)
-  pdf.rect(x, y, width, height)
-
-  pdf.setFont("helvetica", options?.bold ? "bold" : "normal")
-  pdf.setFontSize(options?.fontSize ?? 8.1)
-  setBlack(pdf)
-
-  const align = options?.align ?? "left"
-  const textX = align === "center" ? x + width / 2 : x + 1.8
-  const lines = pdf.splitTextToSize(text || "-", width - 3.5)
-
-  pdf.text(lines.slice(0, 2), textX, y + 3.9, { align })
-}
-
-function drawHeaderRow(pdf: jsPDF, y: number) {
-  const x = PAGE.marginX
-  const colW = PAGE.tableW / 2
-  const rowH = 6.6
-
-  pdf.setFont("helvetica", "bold")
-  pdf.setFontSize(8.8)
-
-  drawCell(pdf, x, y, colW, rowH, "Indicadores", {
-    bold: true,
-    align: "center",
-    fontSize: 8.8,
-  })
-  drawCell(pdf, x + colW, y, colW, rowH, "Avaliação", {
-    bold: true,
-    align: "center",
-    fontSize: 8.8,
-  })
-
-  return y + rowH
-}
-
-function drawSimpleBox(
-  pdf: jsPDF,
-  text: string,
-  y: number,
-  logoDataUrl: string | null,
-) {
-  const x = PAGE.marginX
-  const width = PAGE.tableW
-  const lines = pdf.splitTextToSize(text || "Não informado.", width - 4)
-  const height = Math.max(7, 3.8 + lines.length * 3.7)
-
-  y = ensureSpace(pdf, y, height + 4, logoDataUrl)
-
-  pdf.setDrawColor(0, 0, 0)
-  pdf.setLineWidth(0.12)
-  pdf.rect(x, y, width, height)
-
-  pdf.setFont("helvetica", "normal")
-  pdf.setFontSize(8.2)
-  setBlack(pdf)
-  pdf.text(lines, x + 2, y + 4.5)
-
-  return y + height
-}
-
-function drawFullWidthTextRow(
-  pdf: jsPDF,
-  label: string,
-  value: string | null,
-  y: number,
-  logoDataUrl: string | null,
-  showTableHeaderOnNewPage = true,
-) {
-  const x = PAGE.marginX
-  const width = PAGE.tableW
-  const text = value?.trim() || "Não informado."
-  const lines = pdf.splitTextToSize(text, width - 4)
-  const labelH = 5.7
-  const lineH = 3.85
-
-  y = ensureSpace(pdf, y, labelH + 12, logoDataUrl)
-
-  pdf.setDrawColor(0, 0, 0)
-  pdf.setLineWidth(0.12)
-  pdf.rect(x, y, width, labelH)
-
-  pdf.setFont("helvetica", "normal")
-  pdf.setFontSize(8.1)
-  setBlack(pdf)
-  pdf.text(label, x + 2, y + 4)
-
-  y += labelH
-
-  let currentLines = [...lines]
-
-  while (currentLines.length) {
-    const availableHeight = PAGE.contentBottom - y
-    const maxLines = Math.max(1, Math.floor((availableHeight - 4) / lineH))
-    const linesForPage = currentLines.slice(0, maxLines)
-    currentLines = currentLines.slice(maxLines)
-
-    const boxHeight = Math.max(8, 3.8 + linesForPage.length * lineH)
-
-    pdf.setDrawColor(0, 0, 0)
-    pdf.setLineWidth(0.12)
-    pdf.rect(x, y, width, boxHeight)
-
-    pdf.setFont("helvetica", "normal")
-    pdf.setFontSize(8.1)
-    setBlack(pdf)
-    pdf.text(linesForPage, x + 2, y + 4.6)
-
-    y += boxHeight
-
-    if (currentLines.length) {
-      y = addPage(pdf, logoDataUrl)
-
-      if (showTableHeaderOnNewPage) {
-        y = drawHeaderRow(pdf, y)
-      }
-    }
-  }
-
-  return y
-}
-
-async function gerarPdfModeloOficial(item: RelatorioEntrega) {
   const pdf = new jsPDF("p", "mm", "a4")
-  const logoDataUrl = await loadImageAsDataUrl("/ec-projetos-logo.png")
 
-  pdf.setProperties({
-    title: item.codigo_relatorio_arquivo,
-    subject: "Relatório de Revisão Técnica",
-    author: "Sistema Interno EC Projetos",
-  })
+  const marginLeft = 29
+  const marginRight = 29
+  const contentWidth = 210 - marginLeft - marginRight
+  const bottomLimit = 274
 
-  const margemX = 27
-  const larguraTabela = 156
-  const limiteInferior = 276
-  const azulEscuro: [number, number, number] = [18, 57, 112]
-  const azulMedio: [number, number, number] = [47, 104, 166]
-  const azulClaro: [number, number, number] = [123, 167, 205]
+  let y = 34
 
-  function setAzul() {
-    pdf.setTextColor(azulEscuro[0], azulEscuro[1], azulEscuro[2])
-  }
+  function startPage(options?: { showTitle?: boolean }) {
+    drawReportHeader(pdf)
+    drawReportFooter(pdf)
 
-  function setPreto() {
-    pdf.setTextColor(0, 0, 0)
-  }
-
-  function header() {
-    if (logoDataUrl) {
-      pdf.addImage(logoDataUrl, "PNG", 22, 10.5, 28, 9.8)
-    } else {
+    if (options?.showTitle) {
       pdf.setFont("helvetica", "bold")
-      pdf.setFontSize(9)
-      setAzul()
-      pdf.text("EC projetos", 22, 17)
+      pdf.setFontSize(13)
+      pdf.setTextColor(29, 93, 140)
+      pdf.text(`REVISÃO TÉCNICA - ${codigo.tituloRevisao}`, 105, 33, {
+        align: "center",
+      })
+      y = 45
+      return
     }
-  
-    pdf.setFillColor(azulEscuro[0], azulEscuro[1], azulEscuro[2])
-    pdf.triangle(62, 8, 78, 8, 70, 24, "F")
-    pdf.triangle(62, 8, 54, 24, 70, 24, "F")
-  
-    pdf.setFillColor(azulMedio[0], azulMedio[1], azulMedio[2])
-    pdf.triangle(81, 8, 97, 8, 89, 24, "F")
-    pdf.triangle(81, 8, 73, 24, 89, 24, "F")
-  
-    pdf.setFillColor(azulClaro[0], azulClaro[1], azulClaro[2])
-    pdf.triangle(100, 8, 116, 8, 108, 24, "F")
-    pdf.triangle(100, 8, 92, 24, 108, 24, "F")
-  
-    pdf.setFillColor(azulClaro[0], azulClaro[1], azulClaro[2])
-    pdf.rect(116, 8, 78, 16, "F")
+
+    y = 33
   }
 
-  function footer() {
-    const totalPaginas = pdf.getNumberOfPages()
-
-    for (let pagina = 1; pagina <= totalPaginas; pagina++) {
-      pdf.setPage(pagina)
-
-      pdf.setFillColor(azulEscuro[0], azulEscuro[1], azulEscuro[2])
-      pdf.rect(0, 291, 210, 2.4, "F")
-
-      pdf.setFont("helvetica", "normal")
-      pdf.setFontSize(8)
-      pdf.setTextColor(70, 86, 110)
-      pdf.text(String(pagina), 178, 283)
+  function ensureSpace(height: number) {
+    if (y + height > bottomLimit) {
+      pdf.addPage()
+      startPage()
     }
   }
 
-  function novaPagina() {
-    pdf.addPage()
-    header()
-    return 42
-  }
-
-  function garantirEspaco(y: number, alturaNecessaria: number) {
-    if (y + alturaNecessaria <= limiteInferior) {
-      return y
-    }
-
-    return novaPagina()
-  }
-
-  function tituloSecao(numero: string, titulo: string, y: number) {
-    pdf.setFont("helvetica", "bold")
-    pdf.setFontSize(12.5)
-    setAzul()
-    pdf.text(`${numero}. ${titulo}`, margemX, y)
-  }
-
-  function celula(
+  function addWrappedText(
+    text: string,
     x: number,
-    y: number,
-    largura: number,
-    altura: number,
-    texto: string,
-    opcoes?: {
-      bold?: boolean
-      align?: "left" | "center"
+    maxWidth: number,
+    options?: {
       fontSize?: number
+      bold?: boolean
+      lineHeight?: number
+      color?: "dark" | "muted"
+      align?: "left" | "center"
     },
   ) {
-    pdf.setDrawColor(0, 0, 0)
-    pdf.setLineWidth(0.12)
-    pdf.rect(x, y, largura, altura)
+    const fontSize = options?.fontSize ?? 10
+    const lineHeight = options?.lineHeight ?? 5
 
-    pdf.setFont("helvetica", opcoes?.bold ? "bold" : "normal")
-    pdf.setFontSize(opcoes?.fontSize ?? 8.1)
-    setPreto()
+    pdf.setFont("helvetica", options?.bold ? "bold" : "normal")
+    pdf.setFontSize(fontSize)
+    setTextColor(pdf, options?.color ?? "dark")
 
-    const align = opcoes?.align ?? "left"
-    const textX = align === "center" ? x + largura / 2 : x + 1.8
-    const linhas = pdf.splitTextToSize(texto || "-", largura - 3.6)
+    const lines = pdf.splitTextToSize(text || "-", maxWidth) as string[]
 
-    pdf.text(linhas.slice(0, 2), textX, y + 3.9, { align })
+    for (const line of lines) {
+      ensureSpace(lineHeight + 2)
+      pdf.text(line, x, y, {
+        align: options?.align ?? "left",
+        maxWidth,
+      })
+      y += lineHeight
+    }
   }
 
-  function linhaCabecalhoTabela(y: number) {
-    const larguraColuna = larguraTabela / 2
-    const alturaLinha = 5.8
+  function addSectionTitle(title: string) {
+    ensureSpace(12)
+    y += 5
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(12)
+    pdf.setTextColor(29, 93, 140)
+    pdf.text(title, marginLeft, y)
+    y += 8
+  }
 
-    celula(margemX, y, larguraColuna, alturaLinha, "Indicadores", {
-      bold: true,
+  function formatInfoValue(value: string | number | null | undefined) {
+    if (value === null || value === undefined) return "Não informado"
+
+    const text = String(value).trim()
+    return text || "Não informado"
+  }
+
+  function addInfoRow(
+    label: string,
+    value: string | number | null | undefined,
+  ) {
+    const valueText = formatInfoValue(value)
+    const valueX = 100
+    const rowHeight = 5
+    const lines = pdf.splitTextToSize(
+      valueText,
+      210 - valueX - marginRight,
+    ) as string[]
+    const height = Math.max(rowHeight, lines.length * rowHeight)
+
+    ensureSpace(height)
+
+    pdf.setDrawColor(0, 0, 0)
+    pdf.setLineWidth(0.15)
+    pdf.rect(marginLeft, y - 4, valueX - marginLeft, height, "S")
+    pdf.rect(valueX, y - 4, 210 - marginRight - valueX, height, "S")
+
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(9.5)
+    setTextColor(pdf, "dark")
+    pdf.text(label, marginLeft + 2, y)
+
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(9.5)
+    setTextColor(pdf, "dark")
+    pdf.text(lines, valueX + 2, y)
+
+    y += height
+  }
+
+  function addParagraphBox(text: string) {
+    const lines = pdf.splitTextToSize(text || "-", contentWidth - 4) as string[]
+    const lineHeight = 5
+    const height = Math.max(8, lines.length * lineHeight + 4)
+
+    ensureSpace(height)
+
+    pdf.setDrawColor(0, 0, 0)
+    pdf.setLineWidth(0.15)
+    pdf.rect(marginLeft, y - 4, contentWidth, height, "S")
+
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(10)
+    setTextColor(pdf, "dark")
+    pdf.text(lines, marginLeft + 2, y)
+
+    y += height + 2
+  }
+
+  function addIqHeader() {
+    const labelWidth = 78
+    const valueWidth = contentWidth - labelWidth
+
+    ensureSpace(7)
+
+    pdf.setDrawColor(0, 0, 0)
+    pdf.setLineWidth(0.15)
+    pdf.rect(marginLeft, y - 4, labelWidth, 7, "S")
+    pdf.rect(marginLeft + labelWidth, y - 4, valueWidth, 7, "S")
+
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(9.5)
+    setTextColor(pdf, "dark")
+    pdf.text("Indicadores", marginLeft + labelWidth / 2, y, { align: "center" })
+    pdf.text("Avaliação", marginLeft + labelWidth + valueWidth / 2, y, {
       align: "center",
-      fontSize: 8.4,
     })
 
-    celula(
-      margemX + larguraColuna,
-      y,
-      larguraColuna,
-      alturaLinha,
-      "Avaliação",
-      {
-        bold: true,
-        align: "center",
-        fontSize: 8.4,
-      },
-    )
-
-    return y + alturaLinha
+    y += 7
   }
 
-  function caixaTextoSimples(texto: string, y: number) {
-    const linhas = pdf.splitTextToSize(
-      texto || "Não informado.",
-      larguraTabela - 4,
-    )
-    const altura = Math.max(7.5, 4 + linhas.length * 3.8)
+  function addIqRow(label: string, value: string) {
+    const labelWidth = 78
+    const valueWidth = contentWidth - labelWidth
 
-    y = garantirEspaco(y, altura + 4)
+    ensureSpace(7)
 
     pdf.setDrawColor(0, 0, 0)
-    pdf.setLineWidth(0.12)
-    pdf.rect(margemX, y, larguraTabela, altura)
+    pdf.setLineWidth(0.15)
+    pdf.rect(marginLeft, y - 4, labelWidth, 7, "S")
+    pdf.rect(marginLeft + labelWidth, y - 4, valueWidth, 7, "S")
 
     pdf.setFont("helvetica", "normal")
-    pdf.setFontSize(8.3)
-    setPreto()
-    pdf.text(linhas, margemX + 2, y + 4.6)
+    pdf.setFontSize(9.5)
+    setTextColor(pdf, "dark")
+    pdf.text(label, marginLeft + 2, y)
+    pdf.text(value, marginLeft + labelWidth + valueWidth / 2, y, {
+      align: "center",
+    })
 
-    return y + altura
+    y += 7
   }
 
-  function linhaTextoGrande(label: string, valor: string | null, y: number) {
-    const texto = valor?.trim() || "Não informado."
-    const linhas = pdf.splitTextToSize(texto, larguraTabela - 4)
-    const alturaLabel = 5.7
-    const alturaLinha = 3.85
-
-    y = garantirEspaco(y, alturaLabel + 12)
-
-    pdf.setDrawColor(0, 0, 0)
-    pdf.setLineWidth(0.12)
-    pdf.rect(margemX, y, larguraTabela, alturaLabel)
+  function addLongTopic(title: string, text: string) {
+    ensureSpace(8)
 
     pdf.setFont("helvetica", "normal")
-    pdf.setFontSize(8.1)
-    setPreto()
-    pdf.text(label, margemX + 2, y + 4)
+    pdf.setFontSize(10)
+    setTextColor(pdf, "dark")
+    pdf.text(title, marginLeft, y)
+    y += 7
 
-    y += alturaLabel
+    const cleanText = text?.trim() || "Não informado."
+    const paragraphs = cleanText.split(/\n+/).filter(Boolean)
 
-    let linhasRestantes = [...linhas]
-
-    while (linhasRestantes.length) {
-      const alturaDisponivel = limiteInferior - y
-      const maxLinhas = Math.max(
-        1,
-        Math.floor((alturaDisponivel - 4) / alturaLinha),
-      )
-      const linhasDaPagina = linhasRestantes.slice(0, maxLinhas)
-
-      linhasRestantes = linhasRestantes.slice(maxLinhas)
-
-      const alturaCaixa = Math.max(8, 3.8 + linhasDaPagina.length * alturaLinha)
-
-      pdf.setDrawColor(0, 0, 0)
-      pdf.setLineWidth(0.12)
-      pdf.rect(margemX, y, larguraTabela, alturaCaixa)
-
-      pdf.setFont("helvetica", "normal")
-      pdf.setFontSize(8.1)
-      setPreto()
-      pdf.text(linhasDaPagina, margemX + 2, y + 4.6)
-
-      y += alturaCaixa
-
-      if (linhasRestantes.length) {
-        y = novaPagina()
-        y = linhaCabecalhoTabela(y)
-      }
+    for (const paragraph of paragraphs) {
+      addWrappedText(paragraph, marginLeft, contentWidth, {
+        fontSize: 10,
+        lineHeight: 5,
+      })
+      y += 3
     }
-
-    return y
   }
 
-  header()
+  startPage({ showTitle: true })
+
+  addSectionTitle("1. DADOS GERAIS")
+  addInfoRow("Revisor:", item.avaliador_nome ?? "Não informado")
+  addInfoRow("Colaborador:", item.colaborador_nome)
+  addInfoRow("Equipe:", item.equipe_colaborador)
+  addInfoRow("Projeto:", codigo.projetoCodigo)
+  addInfoRow("Produto:", item.entrega_avaliada)
+  addInfoRow("Data da entrega:", formatDate(item.data_entrega))
+  addInfoRow("Data da revisão:", formatDate(item.data_revisao))
+
+  addSectionTitle("2. INDICADOR DE ESFORÇO (IES)")
+  addParagraphBox(getDescricaoIES(item))
+
+  addSectionTitle("3. INDICADOR DE PRAZO (IP)")
+  addParagraphBox(getDescricaoIP(item))
+
+  addSectionTitle("4. INDICADOR DE QUALIDADE (IQ)")
+  addIqHeader()
+  addIqRow("1. Clareza e estrutura:", formatNumber(item.clareza_estrutura))
+  addIqRow("2. Profundidade e rigor:", formatNumber(item.profundidade_rigor))
+  addIqRow(
+    "3. Alinhamento à demanda do cliente:",
+    formatNumber(item.alinhamento_demanda),
+  )
+  addIqRow(
+    "4. Forma e profissionalismo:",
+    formatNumber(item.forma_profissionalismo),
+  )
+
+  y += 2
+  addLongTopic("5. Pontos fracos:", item.pontos_fracos ?? "")
+  addLongTopic("6. Pontos fortes:", item.pontos_fortes ?? "")
+
+  ensureSpace(8)
+  pdf.setDrawColor(0, 0, 0)
+  pdf.setLineWidth(0.15)
+  pdf.rect(marginLeft, y - 4, 78, 7, "S")
+  pdf.rect(marginLeft + 78, y - 4, contentWidth - 78, 7, "S")
 
   pdf.setFont("helvetica", "bold")
-  pdf.setFontSize(11.8)
-  setAzul()
-  pdf.text(`REVISÃO TÉCNICA - ${item.codigo_revisao_titulo}`, 105, 36, {
-    align: "center",
-  })
-
-  let y = 48
-
-  tituloSecao("1", "DADOS GERAIS", y)
-  y += 8.5
-
-  const labelW = 74
-  const valueW = 82
-  const rowH = 5.3
-
-  const dadosGerais = [
-    ["Revisor:", item.avaliador_nome ?? "Não informado"],
-    ["Colaborador:", item.colaborador_nome],
-    ["Equipe:", item.equipe_colaborador],
-    ["Projeto:", item.codigo_projeto],
-    ["Produto:", item.entrega_avaliada],
-    ["Data da entrega:", formatDate(item.data_entrega)],
-    ["Data da revisão:", formatDate(item.data_revisao)],
-  ]
-
-  dadosGerais.forEach(([label, value]) => {
-    celula(margemX, y, labelW, rowH, label, {
-      bold: true,
-      fontSize: 8.1,
-    })
-
-    celula(margemX + labelW, y, valueW, rowH, value, {
-      fontSize: 8.1,
-    })
-
-    y += rowH
-  })
-
-  y += 12
-
-  tituloSecao("2", "INDICADOR DE ESFORÇO (IES)", y)
-  y += 5.3
-
-  y = caixaTextoSimples(
-    item.ies_aprovado_primeira
-      ? "Aprovado, pois foi aprovado na primeira revisão."
-      : "Não aprovado na primeira revisão, pois haverá necessidade de ajustes significativos.",
-    y,
-  )
-
-  y += 11.5
-
-  tituloSecao("3", "INDICADOR DE PRAZO (IP)", y)
-  y += 5.3
-
-  y = caixaTextoSimples(
-    item.ip_no_prazo
-      ? "Aprovado, pois foi entregue no prazo interno acordado com o gestor."
-      : "Não aprovado, pois não foi entregue no prazo interno acordado com o gestor.",
-    y,
-  )
-
-  y += 11.5
-
-  tituloSecao("4", "INDICADOR DE QUALIDADE (IQ)", y)
-  y += 6.2
-
-  y = linhaCabecalhoTabela(y)
-
-  const larguraColuna = larguraTabela / 2
-  const qRowH = 5.6
-
-  const indicadores = [
-    ["1. Clareza e estrutura:", formatNumber(item.clareza_estrutura)],
-    ["2. Profundidade e rigor:", formatNumber(item.profundidade_rigor)],
-    [
-      "3. Alinhamento à demanda do cliente:",
-      formatNumber(item.alinhamento_demanda),
-    ],
-    ["4. Forma e profissionalismo:", formatNumber(item.forma_profissionalismo)],
-  ]
-
-  indicadores.forEach(([label, value]) => {
-    y = garantirEspaco(y, qRowH)
-
-    celula(margemX, y, larguraColuna, qRowH, label, {
-      fontSize: 8,
-    })
-
-    celula(margemX + larguraColuna, y, larguraColuna, qRowH, value, {
-      align: "center",
-      fontSize: 8,
-    })
-
-    y += qRowH
-  })
-
-  y = linhaTextoGrande("5. Pontos fracos:", item.pontos_fracos, y)
-  y = linhaTextoGrande("6. Pontos fortes:", item.pontos_fortes, y)
-
-  y = garantirEspaco(y, qRowH)
-
-  celula(margemX, y, larguraColuna, qRowH, "IQ MÉDIO:", {
-    bold: true,
-    fontSize: 8.3,
-  })
-
-  celula(
-    margemX + larguraColuna,
-    y,
-    larguraColuna,
-    qRowH,
+  pdf.setFontSize(10)
+  setTextColor(pdf, "dark")
+  pdf.text("IQ MÉDIO:", marginLeft + 2, y)
+  pdf.text(
     formatNumber(item.iq),
+    marginLeft + 78 + (contentWidth - 78) / 2,
+    y,
     {
-      bold: true,
       align: "center",
-      fontSize: 8.3,
     },
   )
 
-  footer()
+  drawPageNumbers(pdf)
 
   return pdf
 }
@@ -717,18 +672,19 @@ export default function IndicadoresRelatorios() {
   const [relatorios, setRelatorios] = useState<RelatorioEntrega[]>([])
   const [loading, setLoading] = useState(true)
   const [gerandoPdfId, setGerandoPdfId] = useState<string | null>(null)
-  const [filtros, setFiltros] = useState<FiltrosRelatorios>({
-    busca: "",
-    projeto: "",
-    equipe: "",
-    status: "",
-  })
+  const [busca, setBusca] = useState("")
+  const [statusFiltro, setStatusFiltro] = useState("")
+  const [anoFiltro, setAnoFiltro] = useState("")
+  const [trimestreFiltro, setTrimestreFiltro] = useState("")
+  const [equipeFiltro, setEquipeFiltro] = useState("")
 
   useEffect(() => {
     async function loadRelatorios() {
       try {
         setLoading(true)
+
         const data = await getRelatoriosEntregasIndicadores()
+
         setRelatorios(data as RelatorioEntrega[])
       } catch (error) {
         console.error(error)
@@ -741,44 +697,73 @@ export default function IndicadoresRelatorios() {
     loadRelatorios()
   }, [])
 
-  const projetos = useMemo(() => {
-    return Array.from(new Set(relatorios.map((item) => item.codigo_projeto)))
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+  const anos = useMemo(() => {
+    return Array.from(
+      new Set(
+        relatorios
+          .map((item) => getNumberFromUnknown(item.ano))
+          .filter((value): value is number => value !== null),
+      ),
+    ).sort((a, b) => b - a)
+  }, [relatorios])
+
+  const trimestres = useMemo(() => {
+    return Array.from(
+      new Set(
+        relatorios
+          .map((item) => getNumberFromUnknown(item.trimestre))
+          .filter((value): value is number => value !== null),
+      ),
+    ).sort((a, b) => a - b)
   }, [relatorios])
 
   const equipes = useMemo(() => {
     return Array.from(
-      new Set(relatorios.map((item) => item.equipe_colaborador)),
-    )
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+      new Set(
+        relatorios
+          .map((item) => getNullableText(item.equipe_colaborador))
+          .filter((value): value is string => value !== null),
+      ),
+    ).sort((a, b) => a.localeCompare(b, "pt-BR"))
   }, [relatorios])
 
   const relatoriosFiltrados = useMemo(() => {
-    const busca = normalizarTexto(filtros.busca)
+    const termo = busca.trim().toLowerCase()
 
     return relatorios.filter((item) => {
       const status = getStatusRelatorio(item)
 
-      const matchesBusca =
-        !busca ||
-        normalizarTexto(item.codigo_relatorio_arquivo).includes(busca) ||
-        normalizarTexto(item.colaborador_nome).includes(busca) ||
-        normalizarTexto(item.entrega_avaliada).includes(busca) ||
-        normalizarTexto(item.codigo_projeto).includes(busca)
+      const matchBusca =
+        !termo ||
+        getCodigoRelatorio(item, relatorios)
+          .numeroArquivo.toLowerCase()
+          .includes(termo) ||
+        (item.numero_relatorio ?? "").toLowerCase().includes(termo) ||
+        (item.codigo_relatorio ?? "").toLowerCase().includes(termo) ||
+        item.entrega_avaliada.toLowerCase().includes(termo) ||
+        item.colaborador_nome.toLowerCase().includes(termo) ||
+        (item.projeto_nome ?? "").toLowerCase().includes(termo) ||
+        getProjetoCodigo(item).toLowerCase().includes(termo)
 
-      const matchesProjeto =
-        !filtros.projeto || item.codigo_projeto === filtros.projeto
+      const matchStatus = !statusFiltro || status === statusFiltro
+      const matchAno = !anoFiltro || item.ano === Number(anoFiltro)
+      const matchTrimestre =
+        !trimestreFiltro || item.trimestre === Number(trimestreFiltro)
+      const matchEquipe =
+        !equipeFiltro || item.equipe_colaborador === equipeFiltro
 
-      const matchesEquipe =
-        !filtros.equipe || item.equipe_colaborador === filtros.equipe
-
-      const matchesStatus = !filtros.status || status === filtros.status
-
-      return matchesBusca && matchesProjeto && matchesEquipe && matchesStatus
+      return (
+        matchBusca && matchStatus && matchAno && matchTrimestre && matchEquipe
+      )
     })
-  }, [relatorios, filtros])
+  }, [
+    relatorios,
+    busca,
+    statusFiltro,
+    anoFiltro,
+    trimestreFiltro,
+    equipeFiltro,
+  ])
 
   const totalRelatorios = relatoriosFiltrados.length
 
@@ -805,31 +790,27 @@ export default function IndicadoresRelatorios() {
     [relatoriosFiltrados],
   )
 
-  function atualizarFiltro<K extends keyof FiltrosRelatorios>(
-    campo: K,
-    valor: FiltrosRelatorios[K],
-  ) {
-    setFiltros((prev) => ({
-      ...prev,
-      [campo]: valor,
-    }))
-  }
+  const relatoriosPrioritarios = useMemo(() => {
+    return relatoriosFiltrados
+      .filter((item) => getStatusRelatorio(item) !== "OK")
+      .slice(0, 5)
+  }, [relatoriosFiltrados])
 
   function limparFiltros() {
-    setFiltros({
-      busca: "",
-      projeto: "",
-      equipe: "",
-      status: "",
-    })
+    setBusca("")
+    setStatusFiltro("")
+    setAnoFiltro("")
+    setTrimestreFiltro("")
+    setEquipeFiltro("")
   }
 
   async function baixarPdf(item: RelatorioEntrega) {
     try {
-      setGerandoPdfId(item.id)
+      setGerandoPdfId(String(item.id))
 
-      const pdf = await gerarPdfModeloOficial(item)
-      const fileName = sanitizeFileName(item.codigo_relatorio_arquivo)
+      const codigo = getCodigoRelatorio(item, relatorios)
+      const pdf = await gerarPdfRelatorio(item, codigo)
+      const fileName = sanitizeFileName(codigo.nomeDownload)
 
       pdf.save(`${fileName}.pdf`)
 
@@ -842,96 +823,146 @@ export default function IndicadoresRelatorios() {
     }
   }
 
+  async function baixarTodosFiltrados() {
+    if (!relatoriosFiltrados.length) return
+
+    toast.info("Iniciando geração dos PDFs filtrados.")
+
+    for (const item of relatoriosFiltrados) {
+      await baixarPdf(item)
+    }
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-full space-y-6 overflow-x-hidden">
       <Card className="rounded-2xl border bg-card p-6 shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">
               Relatórios de Revisão Técnica
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Relatórios por entrega no padrão EC-REV, com numeração, projeto,
-              revisão e download em PDF.
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+              Acompanhamento estratégico das entregas avaliadas. Use os filtros
+              para localizar relatórios por colaborador, equipe, projeto, status
+              e período.
             </p>
           </div>
 
           <Button
             type="button"
             variant="outline"
-            onClick={limparFiltros}
-            className="w-fit rounded-xl"
+            onClick={baixarTodosFiltrados}
+            disabled={!relatoriosFiltrados.length || Boolean(gerandoPdfId)}
+            className="rounded-xl"
           >
-            <SlidersHorizontal className="mr-2 h-4 w-4" />
-            Limpar filtros
+            <Download className="mr-2 h-4 w-4" />
+            Baixar filtrados
           </Button>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-4">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-xl border bg-muted/30 p-4">
-            <p className="text-sm text-muted-foreground">Relatórios</p>
+            <p className="text-sm text-muted-foreground">
+              Relatórios filtrados
+            </p>
             <p className="mt-1 text-2xl font-bold">{totalRelatorios}</p>
           </div>
 
-          <div className="rounded-xl border bg-emerald-50 p-4 text-emerald-700">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
             <p className="text-sm">OK</p>
             <p className="mt-1 text-2xl font-bold">{totalOk}</p>
           </div>
 
-          <div className="rounded-xl border bg-amber-50 p-4 text-amber-700">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-700">
             <p className="text-sm">Atenção</p>
             <p className="mt-1 text-2xl font-bold">{totalAtencao}</p>
           </div>
 
-          <div className="rounded-xl border bg-rose-50 p-4 text-rose-700">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700">
             <p className="text-sm">Crítico</p>
             <p className="mt-1 text-2xl font-bold">{totalCritico}</p>
           </div>
         </div>
+      </Card>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr_0.8fr]">
-          <div className="space-y-2">
+      <Card className="rounded-2xl border bg-card p-6 shadow-sm">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="space-y-2 lg:col-span-2">
             <Label htmlFor="busca_relatorio">Buscar</Label>
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="busca_relatorio"
-                value={filtros.busca}
-                onChange={(event) =>
-                  atualizarFiltro("busca", event.target.value)
+                value={busca}
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  setBusca(event.target.value)
                 }
-                placeholder="Código, colaborador, produto ou projeto"
+                placeholder="Código, entrega, colaborador ou projeto"
                 className="h-11 rounded-xl pl-9"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="filtro_projeto_relatorio">Projeto</Label>
+            <Label>Status</Label>
             <select
-              id="filtro_projeto_relatorio"
-              value={filtros.projeto}
-              onChange={(event) =>
-                atualizarFiltro("projeto", event.target.value)
+              value={statusFiltro}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                setStatusFiltro(event.target.value)
               }
               className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
             >
               <option value="">Todos</option>
-              {projetos.map((projeto) => (
-                <option key={projeto} value={projeto}>
-                  {projeto}
+              <option value="OK">OK</option>
+              <option value="Atenção">Atenção</option>
+              <option value="Crítico">Crítico</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Ano</Label>
+            <select
+              value={anoFiltro}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                setAnoFiltro(event.target.value)
+              }
+              className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Todos</option>
+              {anos.map((ano) => (
+                <option key={ano} value={String(ano)}>
+                  {ano}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="filtro_equipe_relatorio">Equipe</Label>
+            <Label>Trimestre</Label>
             <select
-              id="filtro_equipe_relatorio"
-              value={filtros.equipe}
-              onChange={(event) =>
-                atualizarFiltro("equipe", event.target.value)
+              value={trimestreFiltro}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                setTrimestreFiltro(event.target.value)
+              }
+              className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
+            >
+              <option value="">Todos</option>
+              {trimestres.map((trimestre) => (
+                <option key={trimestre} value={String(trimestre)}>
+                  {trimestre}º trimestre
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_auto]">
+          <div className="space-y-2">
+            <Label>Equipe</Label>
+            <select
+              value={equipeFiltro}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                setEquipeFiltro(event.target.value)
               }
               className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
             >
@@ -944,24 +975,56 @@ export default function IndicadoresRelatorios() {
             </select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="filtro_status_relatorio">Status</Label>
-            <select
-              id="filtro_status_relatorio"
-              value={filtros.status}
-              onChange={(event) =>
-                atualizarFiltro("status", event.target.value)
-              }
-              className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
+          <div className="flex items-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={limparFiltros}
+              className="h-11 rounded-xl"
             >
-              <option value="">Todos</option>
-              <option value="OK">OK</option>
-              <option value="Atenção">Atenção</option>
-              <option value="Crítico">Crítico</option>
-            </select>
+              Limpar filtros
+            </Button>
           </div>
         </div>
       </Card>
+
+      {relatoriosPrioritarios.length > 0 && (
+        <Card className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 text-amber-800">
+            <AlertTriangle className="h-5 w-5" />
+            <h3 className="font-semibold">Entregas que precisam de atenção</h3>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {relatoriosPrioritarios.map((item) => {
+              const status = getStatusRelatorio(item)
+
+              return (
+                <div
+                  key={`prioritario-${item.id}`}
+                  className="rounded-xl border bg-white/70 p-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(
+                        status,
+                      )}`}
+                    />
+                    <span className="text-xs font-semibold">{status}</span>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold">
+                    {item.entrega_avaliada}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {item.colaborador_nome} ·{" "}
+                    {getCodigoRelatorio(item, relatorios).numeroArquivo}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         {loading ? (
@@ -971,88 +1034,76 @@ export default function IndicadoresRelatorios() {
           </div>
         ) : relatoriosFiltrados.length === 0 ? (
           <div className="p-6 text-sm text-muted-foreground">
-            Nenhum relatório encontrado para os filtros selecionados.
+            Nenhuma entrega avaliada encontrada para os filtros selecionados.
           </div>
         ) : (
-          <div className="max-h-[680px] overflow-auto">
-            <table className="w-full min-w-[1250px] text-sm">
+          <div className="max-h-[660px] w-full overflow-y-auto overflow-x-hidden">
+            <table className="w-full table-fixed text-sm">
               <thead className="sticky top-0 z-10 bg-muted">
                 <tr className="border-b">
-                  <th className="px-4 py-3 text-left font-semibold">Código</th>
-                  <th className="px-4 py-3 text-left font-semibold">Produto</th>
-                  <th className="px-4 py-3 text-left font-semibold">
+                  <th className="w-[15%] px-3 py-3 text-left font-semibold">Código</th>
+                  <th className="w-[28%] px-3 py-3 text-left font-semibold">Entrega</th>
+                  <th className="w-[17%] px-3 py-3 text-left font-semibold">
                     Colaborador
                   </th>
-                  <th className="px-4 py-3 text-center font-semibold">
-                    Projeto
-                  </th>
-                  <th className="px-4 py-3 text-center font-semibold">
-                    Entrega
-                  </th>
-                  <th className="px-4 py-3 text-center font-semibold">
+                  <th className="w-[18%] px-3 py-3 text-left font-semibold">Equipe</th>
+                  <th className="w-[8%] px-3 py-3 text-center font-semibold">
                     Revisão
                   </th>
-                  <th className="px-4 py-3 text-center font-semibold">IQ</th>
-                  <th className="px-4 py-3 text-center font-semibold">
+                  <th className="w-[5%] px-3 py-3 text-center font-semibold">IQ</th>
+                  <th className="w-[9%] px-3 py-3 text-center font-semibold">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-center font-semibold">PDF</th>
+                  <th className="w-[10%] px-3 py-3 text-center font-semibold">PDF</th>
                 </tr>
               </thead>
 
               <tbody>
                 {relatoriosFiltrados.map((item) => {
                   const status = getStatusRelatorio(item)
+                  const codigo = getCodigoRelatorio(item, relatorios)
 
                   return (
                     <tr
                       key={item.id}
                       className="border-b last:border-b-0 hover:bg-muted/40"
                     >
-                      <td className="px-4 py-3">
+                      <td className="break-words px-3 py-3 align-top">
+                        <p className="font-semibold">{codigo.numeroArquivo}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.trimestre}º tri. {item.ano}
+                        </p>
+                      </td>
+
+                      <td className="break-words px-3 py-3 align-top">
                         <div className="flex items-start gap-2">
-                          <FileText className="mt-0.5 h-4 w-4 text-blue-700" />
+                          <FileText className="mt-0.5 h-4 w-4 text-violet-500" />
                           <div>
-                            <p className="font-semibold">
-                              {item.codigo_relatorio_arquivo}
+                            <p className="font-medium">
+                              {item.entrega_avaliada}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {item.codigo_revisao_titulo}
+                              Projeto: {codigo.projetoCodigo}
                             </p>
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-4 py-3">
-                        <p className="max-w-[280px] font-medium">
-                          {item.entrega_avaliada}
-                        </p>
+                      <td className="break-words px-3 py-3 align-top">{item.colaborador_nome}</td>
+
+                      <td className="break-words px-3 py-3 align-top text-muted-foreground">
+                        {item.equipe_colaborador}
                       </td>
 
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{item.colaborador_nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.equipe_colaborador}
-                        </p>
-                      </td>
-
-                      <td className="px-4 py-3 text-center font-medium">
-                        {item.codigo_projeto}
-                      </td>
-
-                      <td className="px-4 py-3 text-center">
-                        {formatDate(item.data_entrega)}
-                      </td>
-
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-3 text-center align-top">
                         {formatDate(item.data_revisao)}
                       </td>
 
-                      <td className="px-4 py-3 text-center font-semibold">
+                      <td className="px-3 py-3 text-center align-top font-semibold">
                         {formatNumber(item.iq)}
                       </td>
 
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-3 text-center align-top">
                         <span
                           className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClass(
                             status,
@@ -1062,16 +1113,16 @@ export default function IndicadoresRelatorios() {
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-3 text-center align-top">
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
                           onClick={() => baixarPdf(item)}
-                          disabled={gerandoPdfId === item.id}
-                          className="rounded-xl"
+                          disabled={gerandoPdfId === String(item.id)}
+                          className="w-full rounded-xl px-2"
                         >
-                          {gerandoPdfId === item.id ? (
+                          {gerandoPdfId === String(item.id) ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           ) : (
                             <Download className="mr-2 h-4 w-4" />
