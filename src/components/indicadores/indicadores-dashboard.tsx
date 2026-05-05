@@ -49,6 +49,18 @@ function formatNumber(value?: number | null) {
     .replace(".", ",")
 }
 
+type InfoValue = string | number | boolean | null | undefined
+
+function formatInfoValue(value: InfoValue) {
+  if (value === null || value === undefined) {
+    return "Não informado"
+  }
+
+  const text = String(value).trim()
+
+  return text || "Não informado"
+}
+
 function sanitizeFileName(value: string) {
   return value
     .toLowerCase()
@@ -215,7 +227,7 @@ async function gerarPdfRelatorio(item: RelatorioEntrega) {
     y += 8
   }
 
-  function addInfoRow(label: string, value: string) {
+  function addInfoRow(label: string, value: InfoValue) {
     ensureSpace(7)
 
     pdf.setFont("helvetica", "bold")
@@ -229,7 +241,7 @@ async function gerarPdfRelatorio(item: RelatorioEntrega) {
 
     const valueX = 72
     const lines = pdf.splitTextToSize(
-      value || "-",
+      formatInfoValue(value),
       210 - valueX - marginRight,
     ) as string[]
     pdf.text(lines, valueX, y)
@@ -385,15 +397,25 @@ export default function IndicadoresRelatorios() {
   }, [])
 
   const anos = useMemo(() => {
-    return Array.from(new Set(relatorios.map((item) => item.ano))).sort(
-      (a, b) => b - a,
-    )
+    return Array.from(
+      new Set(
+        relatorios
+          .map((item) => item.ano)
+          .filter((ano): ano is number => typeof ano === "number"),
+      ),
+    ).sort((a, b) => b - a)
   }, [relatorios])
 
   const trimestres = useMemo(() => {
-    return Array.from(new Set(relatorios.map((item) => item.trimestre))).sort(
-      (a, b) => a - b,
-    )
+    return Array.from(
+      new Set(
+        relatorios
+          .map((item) => item.trimestre)
+          .filter(
+            (trimestre): trimestre is number => typeof trimestre === "number",
+          ),
+      ),
+    ).sort((a, b) => a - b)
   }, [relatorios])
 
   const equipes = useMemo(() => {
@@ -401,7 +423,10 @@ export default function IndicadoresRelatorios() {
       new Set(
         relatorios
           .map((item) => item.equipe_colaborador)
-          .filter((value) => Boolean(value && value.trim())),
+          .filter(
+            (equipe): equipe is string =>
+              typeof equipe === "string" && equipe.trim().length > 0,
+          ),
       ),
     ).sort((a, b) => a.localeCompare(b, "pt-BR"))
   }, [relatorios])
@@ -414,10 +439,11 @@ export default function IndicadoresRelatorios() {
 
       const matchBusca =
         !termo ||
-        item.numero_relatorio.toLowerCase().includes(termo) ||
-        item.entrega_avaliada.toLowerCase().includes(termo) ||
-        item.colaborador_nome.toLowerCase().includes(termo) ||
-        item.projeto_nome.toLowerCase().includes(termo)
+        formatInfoValue(item.numero_relatorio).toLowerCase().includes(termo) ||
+        formatInfoValue(item.entrega_avaliada).toLowerCase().includes(termo) ||
+        formatInfoValue(item.colaborador_nome).toLowerCase().includes(termo) ||
+        formatInfoValue(item.projeto_nome).toLowerCase().includes(termo) ||
+        formatInfoValue(item.projeto_codigo).toLowerCase().includes(termo)
 
       const matchStatus = !statusFiltro || status === statusFiltro
       const matchAno = !anoFiltro || item.ano === Number(anoFiltro)
@@ -485,7 +511,7 @@ export default function IndicadoresRelatorios() {
       const pdf = await gerarPdfRelatorio(item)
 
       const fileName = sanitizeFileName(
-        `${item.sequencia_geral}. ${item.numero_relatorio}`,
+        `${item.sequencia_geral ?? ""}. ${item.numero_relatorio ?? "relatorio"}`,
       )
 
       pdf.save(`${fileName}.pdf`)
@@ -747,7 +773,7 @@ export default function IndicadoresRelatorios() {
                               {item.entrega_avaliada}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Projeto: {item.projeto_codigo}
+                              Projeto: {item.projeto_codigo ?? "Não informado"}
                             </p>
                           </div>
                         </div>
