@@ -86,6 +86,10 @@ function getNullableText(value: unknown) {
   return text || null
 }
 
+function getRelatorioTextField(item: RelatorioEntrega, field: string) {
+  return getNullableText((item as Record<string, unknown>)[field]) ?? ""
+}
+
 function getNumberFromUnknown(value: unknown) {
   if (value === null || value === undefined || value === "") return null
 
@@ -887,11 +891,21 @@ export default function IndicadoresRelatorios() {
         getCodigoRelatorio(item, relatorios)
           .numeroArquivo.toLowerCase()
           .includes(termo) ||
-        (item.numero_relatorio ?? "").toLowerCase().includes(termo) ||
-        (item.codigo_relatorio ?? "").toLowerCase().includes(termo) ||
-        item.entrega_avaliada.toLowerCase().includes(termo) ||
-        item.colaborador_nome.toLowerCase().includes(termo) ||
-        (item.projeto_nome ?? "").toLowerCase().includes(termo) ||
+        getRelatorioTextField(item, "numero_relatorio")
+          .toLowerCase()
+          .includes(termo) ||
+        getRelatorioTextField(item, "codigo_relatorio")
+          .toLowerCase()
+          .includes(termo) ||
+        getRelatorioTextField(item, "entrega_avaliada")
+          .toLowerCase()
+          .includes(termo) ||
+        getRelatorioTextField(item, "colaborador_nome")
+          .toLowerCase()
+          .includes(termo) ||
+        getRelatorioTextField(item, "projeto_nome")
+          .toLowerCase()
+          .includes(termo) ||
         getProjetoCodigo(item).toLowerCase().includes(termo)
 
       const matchStatus = !statusFiltro || status === statusFiltro
