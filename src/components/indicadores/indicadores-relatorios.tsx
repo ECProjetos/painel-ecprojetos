@@ -296,41 +296,32 @@ function getDescricaoIP(item: RelatorioEntrega) {
   return "Não aprovado, pois não foi entregue no prazo interno acordado com o gestor."
 }
 
-function setTextColor(pdf: jsPDF, color: "dark" | "muted") {
-  if (color === "dark") {
-    pdf.setTextColor(0, 0, 0)
+const PAGE_WIDTH = 210
+const PAGE_HEIGHT = 297
+
+const REPORT_MARGIN_LEFT = 29
+const REPORT_MARGIN_RIGHT = 29
+const REPORT_CONTENT_WIDTH =
+  PAGE_WIDTH - REPORT_MARGIN_LEFT - REPORT_MARGIN_RIGHT
+
+const REPORT_BLUE: [number, number, number] = [33, 94, 153]
+const REPORT_FOOTER_BLUE: [number, number, number] = [37, 91, 151]
+const REPORT_LIGHT_BLUE: [number, number, number] = [180, 204, 228]
+const REPORT_MEDIUM_BLUE: [number, number, number] = [118, 159, 199]
+const REPORT_DARK_BLUE: [number, number, number] = [11, 42, 96]
+
+function setTextColor(pdf: jsPDF, color: "dark" | "muted" | "blue") {
+  if (color === "blue") {
+    pdf.setTextColor(REPORT_BLUE[0], REPORT_BLUE[1], REPORT_BLUE[2])
     return
   }
 
-  pdf.setTextColor(70, 70, 70)
-}
-
-async function loadImageAsDataUrl(src: string) {
-  try {
-    const response = await fetch(src)
-
-    if (!response.ok) {
-      return null
-    }
-
-    const blob = await response.blob()
-
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-
-      reader.onload = () => resolve(String(reader.result))
-      reader.onerror = reject
-      reader.readAsDataURL(blob)
-    })
-  } catch {
-    return null
+  if (color === "muted") {
+    pdf.setTextColor(70, 70, 70)
+    return
   }
-}
 
-function getImageFormat(dataUrl: string) {
-  if (dataUrl.startsWith("data:image/jpeg")) return "JPEG"
-  if (dataUrl.startsWith("data:image/jpg")) return "JPEG"
-  return "PNG"
+  pdf.setTextColor(0, 0, 0)
 }
 
 function drawParallelogram(
@@ -363,36 +354,81 @@ function drawParallelogram(
   )
 }
 
+let reportBackgroundCache: string | null = null
+
+async function loadReportBackgroundImage() {
+  if (reportBackgroundCache) return reportBackgroundCache
+
+  try {
+    const response = await fetch("/modelo-pdf-fundo.png")
+
+    if (!response.ok) {
+      return null
+    }
+
+    const blob = await response.blob()
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = reject
+
+      reader.readAsDataURL(blob)
+    })
+
+    reportBackgroundCache = dataUrl
+    return dataUrl
+  } catch {
+    return null
+  }
+}
+
+function drawReportBackground(pdf: jsPDF, backgroundImage: string | null) {
+  if (backgroundImage) {
+    pdf.addImage(backgroundImage, "PNG", 0, 0, PAGE_WIDTH, PAGE_HEIGHT)
+    return
+  }
+
+  drawReportHeader(pdf)
+  drawReportFooter(pdf)
+}
+
 function drawReportHeader(pdf: jsPDF) {
-  const headerY = 7.5
+  const headerY = 8
   const headerHeight = 13
 
   pdf.setDrawColor(255, 255, 255)
 
   pdf.setFont("helvetica", "bold")
-  pdf.setFontSize(16)
-  pdf.setTextColor(23, 72, 129)
+  pdf.setFontSize(15)
+  pdf.setTextColor(44, 91, 159)
   pdf.text("EC", 22, 16.5)
 
   pdf.setFont("helvetica", "bold")
   pdf.setFontSize(10)
-  pdf.setTextColor(55, 55, 55)
-  pdf.text("projetos", 34, 16.5)
+  pdf.setTextColor(62, 62, 62)
+  pdf.text("projetos", 33.5, 16.5)
 
-  drawParallelogram(pdf, 67, headerY, 16, headerHeight, 5, [11, 42, 96])
-  drawParallelogram(pdf, 83, headerY, 16, headerHeight, 5, [38, 86, 157])
-  drawParallelogram(pdf, 99, headerY, 16, headerHeight, 5, [71, 122, 184])
+  drawParallelogram(pdf, 67, headerY, 15, headerHeight, 5, REPORT_DARK_BLUE)
+  drawParallelogram(pdf, 83, headerY, 15, headerHeight, 5, [69, 120, 184])
+  drawParallelogram(pdf, 99, headerY, 15, headerHeight, 5, [135, 162, 201])
 
-  pdf.setFillColor(117, 159, 198)
-  pdf.rect(111, headerY, 91, headerHeight, "F")
+  pdf.setFillColor(
+    REPORT_LIGHT_BLUE[0],
+    REPORT_LIGHT_BLUE[1],
+    REPORT_LIGHT_BLUE[2],
+  )
+  pdf.rect(111, headerY, 99, headerHeight, "F")
 }
 
 function drawReportFooter(pdf: jsPDF) {
-  const pageWidth = 210
-  const pageHeight = 297
-
-  pdf.setFillColor(37, 91, 151)
-  pdf.rect(0, pageHeight - 5, pageWidth, 3, "F")
+  pdf.setFillColor(
+    REPORT_FOOTER_BLUE[0],
+    REPORT_FOOTER_BLUE[1],
+    REPORT_FOOTER_BLUE[2],
+  )
+  pdf.rect(0, PAGE_HEIGHT - 5, PAGE_WIDTH, 3, "F")
 }
 
 function drawPageNumbers(pdf: jsPDF) {
@@ -403,7 +439,7 @@ function drawPageNumbers(pdf: jsPDF) {
     pdf.setFont("helvetica", "normal")
     pdf.setFontSize(9)
     setTextColor(pdf, "muted")
-    pdf.text(String(page), 182, 280)
+    pdf.text(String(page), PAGE_WIDTH / 2, 285, { align: "center" })
   }
 }
 
@@ -412,30 +448,35 @@ async function gerarPdfRelatorio(
   codigo: CodigoRelatorio,
 ) {
   const pdf = new jsPDF("p", "mm", "a4")
-
-  const marginLeft = 29
-  const marginRight = 29
-  const contentWidth = 210 - marginLeft - marginRight
+  const reportBackgroundImage = await loadReportBackgroundImage()
+  const marginLeft = REPORT_MARGIN_LEFT
+  const marginRight = REPORT_MARGIN_RIGHT
+  const contentWidth = REPORT_CONTENT_WIDTH
   const bottomLimit = 274
 
   let y = 34
 
   function startPage(options?: { showTitle?: boolean }) {
-    drawReportHeader(pdf)
-    drawReportFooter(pdf)
+    drawReportBackground(pdf, reportBackgroundImage)
 
     if (options?.showTitle) {
       pdf.setFont("helvetica", "bold")
-      pdf.setFontSize(13)
-      pdf.setTextColor(29, 93, 140)
-      pdf.text(`REVISÃO TÉCNICA - ${codigo.tituloRevisao}`, 105, 33, {
-        align: "center",
-      })
-      y = 45
+      pdf.setFontSize(13.5)
+      setTextColor(pdf, "blue")
+      pdf.text(
+        `REVISÃO TÉCNICA - ${codigo.tituloRevisao}`,
+        PAGE_WIDTH / 2,
+        38,
+        {
+          align: "center",
+        },
+      )
+
+      y = 48
       return
     }
 
-    y = 33
+    y = 34
   }
 
   function ensureSpace(height: number) {
@@ -445,169 +486,292 @@ async function gerarPdfRelatorio(
     }
   }
 
-  function addWrappedText(
-    text: string,
-    x: number,
-    maxWidth: number,
-    options?: {
-      fontSize?: number
-      bold?: boolean
-      lineHeight?: number
-      color?: "dark" | "muted"
-      align?: "left" | "center"
-    },
-  ) {
-    const fontSize = options?.fontSize ?? 10
-    const lineHeight = options?.lineHeight ?? 5
-
-    pdf.setFont("helvetica", options?.bold ? "bold" : "normal")
-    pdf.setFontSize(fontSize)
-    setTextColor(pdf, options?.color ?? "dark")
-
-    const lines = pdf.splitTextToSize(text || "-", maxWidth) as string[]
-
-    for (const line of lines) {
-      ensureSpace(lineHeight + 2)
-      pdf.text(line, x, y, {
-        align: options?.align ?? "left",
-        maxWidth,
-      })
-      y += lineHeight
-    }
-  }
-
-  function addSectionTitle(title: string) {
-    ensureSpace(12)
-    y += 5
-    pdf.setFont("helvetica", "bold")
-    pdf.setFontSize(12)
-    pdf.setTextColor(29, 93, 140)
-    pdf.text(title, marginLeft, y)
-    y += 8
-  }
-
-  function formatInfoValue(value: string | number | null | undefined) {
+  function normalizeText(value: string | number | null | undefined) {
     if (value === null || value === undefined) return "Não informado"
 
     const text = String(value).trim()
     return text || "Não informado"
   }
 
+  function drawLines(
+    lines: string[],
+    x: number,
+    initialY: number,
+    lineHeight: number,
+    options?: {
+      align?: "left" | "center"
+      maxWidth?: number
+    },
+  ) {
+    lines.forEach((line, index) => {
+      pdf.text(line, x, initialY + index * lineHeight, {
+        align: options?.align ?? "left",
+        maxWidth: options?.maxWidth,
+      })
+    })
+  }
+
+  function addSectionTitle(title: string) {
+    ensureSpace(12)
+
+    y += 5
+
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(12.3)
+    setTextColor(pdf, "blue")
+    pdf.text(title, marginLeft, y)
+
+    y += 8
+  }
+
   function addInfoRow(
     label: string,
     value: string | number | null | undefined,
   ) {
-    const valueText = formatInfoValue(value)
-    const valueX = 100
-    const rowHeight = 5
-    const lines = pdf.splitTextToSize(
-      valueText,
-      210 - valueX - marginRight,
-    ) as string[]
-    const height = Math.max(rowHeight, lines.length * rowHeight)
+    const valueText = normalizeText(value)
+    const labelWidth = 75
+    const valueWidth = contentWidth - labelWidth
 
-    ensureSpace(height)
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(9.5)
+
+    const valueLines = pdf.splitTextToSize(
+      valueText,
+      valueWidth - 4,
+    ) as string[]
+
+    const rowHeight = Math.max(5.8, valueLines.length * 4.6 + 1.5)
+
+    ensureSpace(rowHeight)
 
     pdf.setDrawColor(0, 0, 0)
     pdf.setLineWidth(0.15)
-    pdf.rect(marginLeft, y - 4, valueX - marginLeft, height, "S")
-    pdf.rect(valueX, y - 4, 210 - marginRight - valueX, height, "S")
+    pdf.rect(marginLeft, y, labelWidth, rowHeight, "S")
+    pdf.rect(marginLeft + labelWidth, y, valueWidth, rowHeight, "S")
 
     pdf.setFont("helvetica", "bold")
     pdf.setFontSize(9.5)
     setTextColor(pdf, "dark")
-    pdf.text(label, marginLeft + 2, y)
+    pdf.text(label, marginLeft + 2, y + 4.2)
 
     pdf.setFont("helvetica", "normal")
     pdf.setFontSize(9.5)
     setTextColor(pdf, "dark")
-    pdf.text(lines, valueX + 2, y)
+    drawLines(valueLines, marginLeft + labelWidth + 2, y + 4.2, 4.6, {
+      maxWidth: valueWidth - 4,
+    })
 
-    y += height
+    y += rowHeight
   }
 
   function addParagraphBox(text: string) {
-    const lines = pdf.splitTextToSize(text || "-", contentWidth - 4) as string[]
-    const lineHeight = 5
-    const height = Math.max(8, lines.length * lineHeight + 4)
+    const cleanText = normalizeText(text)
+    const lineHeight = 4.8
+    const paddingX = 2
+    const paddingTop = 3.8
+    const paddingBottom = 2.5
+    const lines = pdf.splitTextToSize(
+      cleanText,
+      contentWidth - paddingX * 2,
+    ) as string[]
 
-    ensureSpace(height)
+    let index = 0
 
-    pdf.setDrawColor(0, 0, 0)
-    pdf.setLineWidth(0.15)
-    pdf.rect(marginLeft, y - 4, contentWidth, height, "S")
+    while (index < lines.length) {
+      const availableHeight = bottomLimit - y
+      const availableLines = Math.max(
+        1,
+        Math.floor((availableHeight - paddingTop - paddingBottom) / lineHeight),
+      )
 
-    pdf.setFont("helvetica", "normal")
-    pdf.setFontSize(10)
-    setTextColor(pdf, "dark")
-    pdf.text(lines, marginLeft + 2, y)
+      if (availableHeight < 14) {
+        pdf.addPage()
+        startPage()
+        continue
+      }
 
-    y += height + 2
+      const chunk = lines.slice(index, index + availableLines)
+      const boxHeight = Math.max(
+        8,
+        chunk.length * lineHeight + paddingTop + paddingBottom,
+      )
+
+      ensureSpace(boxHeight)
+
+      pdf.setDrawColor(0, 0, 0)
+      pdf.setLineWidth(0.15)
+      pdf.rect(marginLeft, y, contentWidth, boxHeight, "S")
+
+      pdf.setFont("helvetica", "normal")
+      pdf.setFontSize(10)
+      setTextColor(pdf, "dark")
+      drawLines(chunk, marginLeft + paddingX, y + paddingTop, lineHeight, {
+        maxWidth: contentWidth - paddingX * 2,
+      })
+
+      y += boxHeight + 2
+      index += chunk.length
+    }
   }
 
   function addIqHeader() {
-    const labelWidth = 78
+    const labelWidth = 75
     const valueWidth = contentWidth - labelWidth
+    const rowHeight = 6.5
 
-    ensureSpace(7)
+    ensureSpace(rowHeight)
 
     pdf.setDrawColor(0, 0, 0)
     pdf.setLineWidth(0.15)
-    pdf.rect(marginLeft, y - 4, labelWidth, 7, "S")
-    pdf.rect(marginLeft + labelWidth, y - 4, valueWidth, 7, "S")
+    pdf.rect(marginLeft, y, labelWidth, rowHeight, "S")
+    pdf.rect(marginLeft + labelWidth, y, valueWidth, rowHeight, "S")
 
     pdf.setFont("helvetica", "bold")
     pdf.setFontSize(9.5)
     setTextColor(pdf, "dark")
-    pdf.text("Indicadores", marginLeft + labelWidth / 2, y, { align: "center" })
-    pdf.text("Avaliação", marginLeft + labelWidth + valueWidth / 2, y, {
+
+    pdf.text("Indicadores", marginLeft + labelWidth / 2, y + 4.4, {
       align: "center",
     })
 
-    y += 7
+    pdf.text("Avaliação", marginLeft + labelWidth + valueWidth / 2, y + 4.4, {
+      align: "center",
+    })
+
+    y += rowHeight
   }
 
   function addIqRow(label: string, value: string) {
-    const labelWidth = 78
+    const labelWidth = 75
     const valueWidth = contentWidth - labelWidth
+    const rowHeight = 6
 
-    ensureSpace(7)
+    ensureSpace(rowHeight)
 
     pdf.setDrawColor(0, 0, 0)
     pdf.setLineWidth(0.15)
-    pdf.rect(marginLeft, y - 4, labelWidth, 7, "S")
-    pdf.rect(marginLeft + labelWidth, y - 4, valueWidth, 7, "S")
+    pdf.rect(marginLeft, y, labelWidth, rowHeight, "S")
+    pdf.rect(marginLeft + labelWidth, y, valueWidth, rowHeight, "S")
 
     pdf.setFont("helvetica", "normal")
     pdf.setFontSize(9.5)
     setTextColor(pdf, "dark")
-    pdf.text(label, marginLeft + 2, y)
-    pdf.text(value, marginLeft + labelWidth + valueWidth / 2, y, {
+
+    pdf.text(label, marginLeft + 2, y + 4.2)
+    pdf.text(value, marginLeft + labelWidth + valueWidth / 2, y + 4.2, {
       align: "center",
     })
 
-    y += 7
+    y += rowHeight
   }
 
-  function addLongTopic(title: string, text: string) {
-    ensureSpace(8)
+  function addTopicLabel(label: string) {
+    const rowHeight = 7
+
+    ensureSpace(rowHeight)
+
+    pdf.setDrawColor(0, 0, 0)
+    pdf.setLineWidth(0.15)
+    pdf.rect(marginLeft, y, contentWidth, rowHeight, "S")
 
     pdf.setFont("helvetica", "normal")
-    pdf.setFontSize(10)
+    pdf.setFontSize(9.7)
     setTextColor(pdf, "dark")
-    pdf.text(title, marginLeft, y)
-    y += 7
+    pdf.text(label, marginLeft + 2, y + 4.6)
 
-    const cleanText = text?.trim() || "Não informado."
-    const paragraphs = cleanText.split(/\n+/).filter(Boolean)
+    y += rowHeight
+  }
+
+  function addLongTextInsideTable(text: string) {
+    const cleanText = normalizeText(text)
+    const paragraphs = cleanText
+      .split(/\n+/)
+      .map((paragraph) => paragraph.trim())
+      .filter(Boolean)
+
+    const lineHeight = 4.8
+    const paddingX = 2
+    const paddingTop = 5
+    const paddingBottom = 4
 
     for (const paragraph of paragraphs) {
-      addWrappedText(paragraph, marginLeft, contentWidth, {
-        fontSize: 10,
-        lineHeight: 5,
-      })
-      y += 3
+      const lines = pdf.splitTextToSize(
+        paragraph,
+        contentWidth - paddingX * 2,
+      ) as string[]
+
+      let index = 0
+
+      while (index < lines.length) {
+        const availableHeight = bottomLimit - y
+
+        if (availableHeight < 18) {
+          pdf.addPage()
+          startPage()
+          continue
+        }
+
+        const availableLines = Math.max(
+          1,
+          Math.floor(
+            (availableHeight - paddingTop - paddingBottom) / lineHeight,
+          ),
+        )
+
+        const chunk = lines.slice(index, index + availableLines)
+        const boxHeight = Math.max(
+          12,
+          chunk.length * lineHeight + paddingTop + paddingBottom,
+        )
+
+        ensureSpace(boxHeight)
+
+        pdf.setDrawColor(0, 0, 0)
+        pdf.setLineWidth(0.15)
+        pdf.rect(marginLeft, y, contentWidth, boxHeight, "S")
+
+        pdf.setFont("helvetica", "normal")
+        pdf.setFontSize(10)
+        setTextColor(pdf, "dark")
+
+        drawLines(chunk, marginLeft + paddingX, y + paddingTop, lineHeight, {
+          maxWidth: contentWidth - paddingX * 2,
+        })
+
+        y += boxHeight
+        index += chunk.length
+      }
+
+      y += 2
     }
+  }
+
+  function addIqAverageRow() {
+    const labelWidth = 75
+    const valueWidth = contentWidth - labelWidth
+    const rowHeight = 7
+
+    ensureSpace(rowHeight)
+
+    pdf.setDrawColor(0, 0, 0)
+    pdf.setLineWidth(0.15)
+    pdf.rect(marginLeft, y, labelWidth, rowHeight, "S")
+    pdf.rect(marginLeft + labelWidth, y, valueWidth, rowHeight, "S")
+
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(9.8)
+    setTextColor(pdf, "dark")
+    pdf.text("IQ MÉDIO:", marginLeft + 2, y + 4.7)
+    pdf.text(
+      formatNumber(item.iq),
+      marginLeft + labelWidth + valueWidth / 2,
+      y + 4.7,
+      {
+        align: "center",
+      },
+    )
+
+    y += rowHeight
   }
 
   startPage({ showTitle: true })
@@ -640,28 +804,13 @@ async function gerarPdfRelatorio(
     formatNumber(item.forma_profissionalismo),
   )
 
-  y += 2
-  addLongTopic("5. Pontos fracos:", item.pontos_fracos ?? "")
-  addLongTopic("6. Pontos fortes:", item.pontos_fortes ?? "")
+  addTopicLabel("5. Pontos fracos:")
+  addLongTextInsideTable(item.pontos_fracos ?? "")
 
-  ensureSpace(8)
-  pdf.setDrawColor(0, 0, 0)
-  pdf.setLineWidth(0.15)
-  pdf.rect(marginLeft, y - 4, 78, 7, "S")
-  pdf.rect(marginLeft + 78, y - 4, contentWidth - 78, 7, "S")
+  addTopicLabel("6. Pontos fortes:")
+  addLongTextInsideTable(item.pontos_fortes ?? "")
 
-  pdf.setFont("helvetica", "bold")
-  pdf.setFontSize(10)
-  setTextColor(pdf, "dark")
-  pdf.text("IQ MÉDIO:", marginLeft + 2, y)
-  pdf.text(
-    formatNumber(item.iq),
-    marginLeft + 78 + (contentWidth - 78) / 2,
-    y,
-    {
-      align: "center",
-    },
-  )
+  addIqAverageRow()
 
   drawPageNumbers(pdf)
 
@@ -746,9 +895,10 @@ export default function IndicadoresRelatorios() {
         getProjetoCodigo(item).toLowerCase().includes(termo)
 
       const matchStatus = !statusFiltro || status === statusFiltro
-      const matchAno = !anoFiltro || item.ano === Number(anoFiltro)
+      const matchAno = !anoFiltro || getAnoRelatorio(item) === Number(anoFiltro)
       const matchTrimestre =
-        !trimestreFiltro || item.trimestre === Number(trimestreFiltro)
+        !trimestreFiltro ||
+        getNumberFromUnknown(item.trimestre) === Number(trimestreFiltro)
       const matchEquipe =
         !equipeFiltro || item.equipe_colaborador === equipeFiltro
 
@@ -1037,24 +1187,34 @@ export default function IndicadoresRelatorios() {
             Nenhuma entrega avaliada encontrada para os filtros selecionados.
           </div>
         ) : (
-          <div className="max-h-[660px] w-full overflow-y-auto overflow-x-hidden">
-            <table className="w-full table-fixed text-sm">
+          <div className="max-h-[660px] w-full overflow-auto">
+            <table className="min-w-[1220px] w-full table-fixed text-sm">
               <thead className="sticky top-0 z-10 bg-muted">
                 <tr className="border-b">
-                  <th className="w-[15%] px-3 py-3 text-left font-semibold">Código</th>
-                  <th className="w-[28%] px-3 py-3 text-left font-semibold">Entrega</th>
-                  <th className="w-[17%] px-3 py-3 text-left font-semibold">
+                  <th className="w-[160px] px-3 py-3 text-left font-semibold">
+                    Código
+                  </th>
+                  <th className="w-[290px] px-3 py-3 text-left font-semibold">
+                    Entrega
+                  </th>
+                  <th className="w-[180px] px-3 py-3 text-left font-semibold">
                     Colaborador
                   </th>
-                  <th className="w-[18%] px-3 py-3 text-left font-semibold">Equipe</th>
-                  <th className="w-[8%] px-3 py-3 text-center font-semibold">
+                  <th className="w-[220px] px-3 py-3 text-left font-semibold">
+                    Equipe
+                  </th>
+                  <th className="w-[105px] px-3 py-3 text-center font-semibold">
                     Revisão
                   </th>
-                  <th className="w-[5%] px-3 py-3 text-center font-semibold">IQ</th>
-                  <th className="w-[9%] px-3 py-3 text-center font-semibold">
+                  <th className="w-[70px] px-3 py-3 text-center font-semibold">
+                    IQ
+                  </th>
+                  <th className="w-[100px] px-3 py-3 text-center font-semibold">
                     Status
                   </th>
-                  <th className="w-[10%] px-3 py-3 text-center font-semibold">PDF</th>
+                  <th className="w-[145px] px-3 py-3 text-center font-semibold">
+                    PDF
+                  </th>
                 </tr>
               </thead>
 
@@ -1089,7 +1249,9 @@ export default function IndicadoresRelatorios() {
                         </div>
                       </td>
 
-                      <td className="break-words px-3 py-3 align-top">{item.colaborador_nome}</td>
+                      <td className="break-words px-3 py-3 align-top">
+                        {item.colaborador_nome}
+                      </td>
 
                       <td className="break-words px-3 py-3 align-top text-muted-foreground">
                         {item.equipe_colaborador}
@@ -1113,21 +1275,21 @@ export default function IndicadoresRelatorios() {
                         </span>
                       </td>
 
-                      <td className="px-3 py-3 text-center align-top">
+                      <td className="w-[145px] min-w-[145px] px-3 py-3 text-center align-top">
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
                           onClick={() => baixarPdf(item)}
                           disabled={gerandoPdfId === String(item.id)}
-                          className="w-full rounded-xl px-2"
+                          className="mx-auto h-9 w-[118px] justify-center gap-2 whitespace-nowrap rounded-xl px-3"
                         >
                           {gerandoPdfId === String(item.id) ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
                           ) : (
-                            <Download className="mr-2 h-4 w-4" />
+                            <Download className="h-4 w-4 shrink-0" />
                           )}
-                          Baixar PDF
+                          <span>Baixar PDF</span>
                         </Button>
                       </td>
                     </tr>
