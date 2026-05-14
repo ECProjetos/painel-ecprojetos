@@ -51,25 +51,73 @@ export async function forgotPassword(formData: FormData) {
 
 //logiun
 export async function Login(formData: FormData) {
-  // Create a new Supabase client instance using the server-side function to ensure the client is created on the server
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient()
 
-  // Extract the email and password from the FormData object
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
+    const email = String(formData.get("email") ?? "").trim()
+    const password = String(formData.get("password") ?? "")
+
+    if (!email || !password) {
+      return {
+        error: "Informe e-mail e senha.",
+      }
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      console.error("Erro real do Supabase no login:", {
+        name: error.name,
+        message: error.message,
+        status: error.status,
+      })
+
+      if (error.message?.toLowerCase().includes("invalid login credentials")) {
+        return {
+          error: "E-mail ou senha inválidos.",
+        }
+      }
+
+      if (error.message?.toLowerCase().includes("email not confirmed")) {
+        return {
+          error: "E-mail ainda não confirmado no Supabase.",
+        }
+      }
+
+      if (error.message?.toLowerCase().includes("fetch failed")) {
+        return {
+          error:
+            "Falha de conexão com o Supabase. Verifique internet, DNS, VPN, firewall ou .env.local.",
+        }
+      }
+
+      return {
+        error: `Erro do Supabase: ${error.message}`,
+      }
+    }
+
+    if (!data.session) {
+      return {
+        error: "O login foi aceito, mas o Supabase não retornou sessão.",
+      }
+    }
+
+    revalidatePath("/", "layout")
+
+    return {
+      success: "Login realizado!",
+    }
+  } catch (error) {
+    console.error("Falha inesperada no login:", error)
+
+    return {
+      error:
+        "Falha de conexão com o Supabase. Verifique internet, DNS, VPN, firewall ou .env.local.",
+    }
   }
-
-  // Use the signInWithPassword method to authenticate the user in Supabase node_modules@supabase/supabase-js/src/lib/auth.ts
-  const { error } = await supabase.auth.signInWithPassword(data);
-
-  if (error) {
-    return { error: 'Falha ao fazer login. Verifique suas credenciais' };
-  }
-
-  // Revalidate the dashboard page to update the user session
-  revalidatePath('/', 'layout');
-  return { success: 'Login Realizado!' };
 }
 
 export async function loginWithToken(token: string) {

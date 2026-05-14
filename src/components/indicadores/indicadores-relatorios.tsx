@@ -452,7 +452,8 @@ async function gerarPdfRelatorio(
   codigo: CodigoRelatorio,
 ) {
   const pdf = new jsPDF("p", "mm", "a4")
-  const reportBackgroundImage = await loadReportBackgroundImage()
+
+  const pageWidth = PAGE_WIDTH
   const marginLeft = REPORT_MARGIN_LEFT
   const marginRight = REPORT_MARGIN_RIGHT
   const contentWidth = REPORT_CONTENT_WIDTH
@@ -461,68 +462,145 @@ async function gerarPdfRelatorio(
   let y = 34
 
   function startPage(options?: { showTitle?: boolean }) {
-    drawReportBackground(pdf, reportBackgroundImage)
+    drawReportHeader(pdf)
+    drawReportFooter(pdf)
 
     if (options?.showTitle) {
       pdf.setFont("helvetica", "bold")
-      pdf.setFontSize(13.5)
-      setTextColor(pdf, "blue")
-      pdf.text(
-        `REVISÃO TÉCNICA - ${codigo.tituloRevisao}`,
-        PAGE_WIDTH / 2,
-        38,
-        {
-          align: "center",
-        },
-      )
-
-      y = 48
+      pdf.setFontSize(13)
+      pdf.setTextColor(REPORT_BLUE[0], REPORT_BLUE[1], REPORT_BLUE[2])
+      pdf.text(`REVISÃO TÉCNICA - ${codigo.tituloRevisao}`, pageWidth / 2, 33, {
+        align: "center",
+      })
+      y = 45
       return
     }
 
     y = 34
   }
 
+  function addNewPage() {
+    pdf.addPage()
+    startPage()
+  }
+
   function ensureSpace(height: number) {
     if (y + height > bottomLimit) {
-      pdf.addPage()
-      startPage()
+      addNewPage()
     }
   }
 
-  function normalizeText(value: string | number | null | undefined) {
+  function stripPdfMarkerArtifacts(value: string | number | null | undefined) {
+    return String(value ?? "")
+      .normalize("NFKC")
+      .replace(/[\u0000-\u001f\u007f-\u009f]/g, "")
+      .replace(/[\u200b\u200c\u200d\ufeff]/g, "")
+      // Remove qualquer caractere de fonte simbólica/Word/Wingdings.
+      // Esses caracteres podem aparecer no PDF como ")•".
+      .replace(/[\uf000-\uf8ff]/g, "")
+      // Remove qualquer sobra de marcador no começo da linha.
+      .replace(/^[\s)\]\}>»›”’"'`´•●▪◦\-–—_.,;:]+/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  }
+
+  function normalizePdfText(value: string | number | null | undefined) {
+    const raw = String(value ?? "")
+      .normalize("NFKC")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .replace(/\t/g, " ")
+      .replace(/\u00a0/g, " ")
+      .replace(/[\u200b\u200c\u200d\ufeff]/g, "")
+      // Converte marcadores comuns e marcadores do Word/Wingdings em quebra de linha.
+      .replace(/[\uf000-\uf8ff]/g, "\n")
+      .replace(/[•●▪◦]/g, "\n")
+      .replace(/\)\s*(?=\n)/g, "\n")
+      .trim()
+
+    if (!raw) return "Não informado."
+
+    const lines = raw
+      .split("\n")
+      .map(stripPdfMarkerArtifacts)
+      .filter(Boolean)
+
+    return lines.length ? lines.join("\n") : "Não informado."
+  }
+
+  function splitLongLine(line: string, maxWidth: number) {
+    if (pdf.getTextWidth(line) <= maxWidth) return [line]
+
+    const parts: string[] = []
+    let current = ""
+
+    for (const char of line) {
+      const next = `${current}${char}`
+
+      if (current && pdf.getTextWidth(next) > maxWidth) {
+        parts.push(current.trimEnd())
+        current = char.trimStart()
+      } else {
+        current = next
+      }
+    }
+
+    if (current.trim()) {
+      parts.push(current.trim())
+    }
+
+    return parts
+  }
+
+  function getWrappedLines(
+    text: string | number | null | undefined,
+    maxWidth: number,
+  ) {
+    const normalized = normalizePdfText(text)
+    const paragraphs = normalized.split("\n").filter(Boolean)
+    const lines: string[] = []
+
+    for (const paragraph of paragraphs) {
+      const wrapped = pdf.splitTextToSize(paragraph, maxWidth) as string[]
+
+      for (const line of wrapped) {
+        lines.push(...splitLongLine(line, maxWidth))
+      }
+    }
+
+    return lines.length ? lines : ["Não informado."]
+  }
+
+  function writeLines(
+    lines: string[],
+    x: number,
+    startY: number,
+    lineHeight: number,
+  ) {
+    let currentY = startY
+
+    for (const line of lines) {
+      const safeLine = stripPdfMarkerArtifacts(line)
+
+      pdf.text(safeLine || "-", x, currentY)
+      currentY += lineHeight
+    }
+  }
+
+  function formatInfoValue(value: string | number | null | undefined) {
     if (value === null || value === undefined) return "Não informado"
 
     const text = String(value).trim()
     return text || "Não informado"
   }
 
-  function drawLines(
-    lines: string[],
-    x: number,
-    initialY: number,
-    lineHeight: number,
-    options?: {
-      align?: "left" | "center"
-      maxWidth?: number
-    },
-  ) {
-    lines.forEach((line, index) => {
-      pdf.text(line, x, initialY + index * lineHeight, {
-        align: options?.align ?? "left",
-        maxWidth: options?.maxWidth,
-      })
-    })
-  }
-
   function addSectionTitle(title: string) {
     ensureSpace(12)
-
     y += 5
 
     pdf.setFont("helvetica", "bold")
-    pdf.setFontSize(12.3)
-    setTextColor(pdf, "blue")
+    pdf.setFontSize(12)
+    pdf.setTextColor(REPORT_BLUE[0], REPORT_BLUE[1], REPORT_BLUE[2])
     pdf.text(title, marginLeft, y)
 
     y += 8
@@ -532,113 +610,116 @@ async function gerarPdfRelatorio(
     label: string,
     value: string | number | null | undefined,
   ) {
-    const valueText = normalizeText(value)
-    const labelWidth = 75
-    const valueWidth = contentWidth - labelWidth
+    const valueText = formatInfoValue(value)
+    const valueX = 100
+    const rowLineHeight = 5
+    const valueWidth = pageWidth - valueX - marginRight - 4
 
     pdf.setFont("helvetica", "normal")
     pdf.setFontSize(9.5)
 
-    const valueLines = pdf.splitTextToSize(
-      valueText,
-      valueWidth - 4,
-    ) as string[]
-
-    const rowHeight = Math.max(5.8, valueLines.length * 4.6 + 1.5)
+    const lines = getWrappedLines(valueText, valueWidth)
+    const rowHeight = Math.max(rowLineHeight, lines.length * rowLineHeight)
 
     ensureSpace(rowHeight)
 
     pdf.setDrawColor(0, 0, 0)
     pdf.setLineWidth(0.15)
-    pdf.rect(marginLeft, y, labelWidth, rowHeight, "S")
-    pdf.rect(marginLeft + labelWidth, y, valueWidth, rowHeight, "S")
+    pdf.rect(marginLeft, y - 4, valueX - marginLeft, rowHeight, "S")
+    pdf.rect(valueX, y - 4, pageWidth - marginRight - valueX, rowHeight, "S")
 
     pdf.setFont("helvetica", "bold")
     pdf.setFontSize(9.5)
     setTextColor(pdf, "dark")
-    pdf.text(label, marginLeft + 2, y + 4.2)
+    pdf.text(label, marginLeft + 2, y)
 
     pdf.setFont("helvetica", "normal")
     pdf.setFontSize(9.5)
     setTextColor(pdf, "dark")
-    drawLines(valueLines, marginLeft + labelWidth + 2, y + 4.2, 4.6, {
-      maxWidth: valueWidth - 4,
-    })
+    writeLines(lines, valueX + 2, y, rowLineHeight)
 
     y += rowHeight
   }
 
-  function addParagraphBox(text: string) {
-    const cleanText = normalizeText(text)
-    const lineHeight = 4.8
-    const paddingX = 2
-    const paddingTop = 3.8
-    const paddingBottom = 2.5
-    const lines = pdf.splitTextToSize(
-      cleanText,
-      contentWidth - paddingX * 2,
-    ) as string[]
+  function addTextBox(
+    text: string | number | null | undefined,
+    options?: {
+      fontSize?: number
+      lineHeight?: number
+      minHeight?: number
+      gapAfter?: number
+    },
+  ) {
+    const fontSize = options?.fontSize ?? 10
+    const lineHeight = options?.lineHeight ?? 5
+    const minHeight = options?.minHeight ?? 8
+    const gapAfter = options?.gapAfter ?? 2
+    const innerPaddingX = 2
+    const innerPaddingY = 4
+    const maxTextWidth = contentWidth - innerPaddingX * 2
 
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(fontSize)
+    setTextColor(pdf, "dark")
+
+    const lines = getWrappedLines(text, maxTextWidth)
     let index = 0
 
     while (index < lines.length) {
-      const availableHeight = bottomLimit - y
-      const availableLines = Math.max(
-        1,
-        Math.floor((availableHeight - paddingTop - paddingBottom) / lineHeight),
-      )
-
-      if (availableHeight < 14) {
-        pdf.addPage()
-        startPage()
-        continue
+      if (y + minHeight > bottomLimit) {
+        addNewPage()
       }
 
-      const chunk = lines.slice(index, index + availableLines)
-      const boxHeight = Math.max(
-        8,
-        chunk.length * lineHeight + paddingTop + paddingBottom,
+      const availableHeight = bottomLimit - y
+      const maxLinesInPage = Math.max(
+        1,
+        Math.floor((availableHeight - innerPaddingY) / lineHeight),
       )
-
-      ensureSpace(boxHeight)
+      const chunk = lines.slice(index, index + maxLinesInPage)
+      const boxHeight = Math.max(
+        minHeight,
+        chunk.length * lineHeight + innerPaddingY,
+      )
 
       pdf.setDrawColor(0, 0, 0)
       pdf.setLineWidth(0.15)
-      pdf.rect(marginLeft, y, contentWidth, boxHeight, "S")
+      pdf.rect(marginLeft, y - 4, contentWidth, boxHeight, "S")
 
       pdf.setFont("helvetica", "normal")
-      pdf.setFontSize(10)
+      pdf.setFontSize(fontSize)
       setTextColor(pdf, "dark")
-      drawLines(chunk, marginLeft + paddingX, y + paddingTop, lineHeight, {
-        maxWidth: contentWidth - paddingX * 2,
-      })
+      writeLines(chunk, marginLeft + innerPaddingX, y, lineHeight)
 
-      y += boxHeight + 2
+      y += boxHeight + gapAfter
       index += chunk.length
     }
   }
 
+  function addParagraphBox(text: string | number | null | undefined) {
+    addTextBox(text, {
+      fontSize: 10,
+      lineHeight: 5,
+      minHeight: 9,
+    })
+  }
+
   function addIqHeader() {
-    const labelWidth = 75
+    const labelWidth = 78
     const valueWidth = contentWidth - labelWidth
-    const rowHeight = 6.5
+    const rowHeight = 7
 
     ensureSpace(rowHeight)
 
     pdf.setDrawColor(0, 0, 0)
     pdf.setLineWidth(0.15)
-    pdf.rect(marginLeft, y, labelWidth, rowHeight, "S")
-    pdf.rect(marginLeft + labelWidth, y, valueWidth, rowHeight, "S")
+    pdf.rect(marginLeft, y - 4, labelWidth, rowHeight, "S")
+    pdf.rect(marginLeft + labelWidth, y - 4, valueWidth, rowHeight, "S")
 
     pdf.setFont("helvetica", "bold")
     pdf.setFontSize(9.5)
     setTextColor(pdf, "dark")
-
-    pdf.text("Indicadores", marginLeft + labelWidth / 2, y + 4.4, {
-      align: "center",
-    })
-
-    pdf.text("Avaliação", marginLeft + labelWidth + valueWidth / 2, y + 4.4, {
+    pdf.text("Indicadores", marginLeft + labelWidth / 2, y, { align: "center" })
+    pdf.text("Avaliação", marginLeft + labelWidth + valueWidth / 2, y, {
       align: "center",
     })
 
@@ -646,112 +727,53 @@ async function gerarPdfRelatorio(
   }
 
   function addIqRow(label: string, value: string) {
-    const labelWidth = 75
+    const labelWidth = 78
     const valueWidth = contentWidth - labelWidth
-    const rowHeight = 6
+    const rowHeight = 7
 
     ensureSpace(rowHeight)
 
     pdf.setDrawColor(0, 0, 0)
     pdf.setLineWidth(0.15)
-    pdf.rect(marginLeft, y, labelWidth, rowHeight, "S")
-    pdf.rect(marginLeft + labelWidth, y, valueWidth, rowHeight, "S")
+    pdf.rect(marginLeft, y - 4, labelWidth, rowHeight, "S")
+    pdf.rect(marginLeft + labelWidth, y - 4, valueWidth, rowHeight, "S")
 
     pdf.setFont("helvetica", "normal")
     pdf.setFontSize(9.5)
     setTextColor(pdf, "dark")
-
-    pdf.text(label, marginLeft + 2, y + 4.2)
-    pdf.text(value, marginLeft + labelWidth + valueWidth / 2, y + 4.2, {
+    pdf.text(label, marginLeft + 2, y)
+    pdf.text(value, marginLeft + labelWidth + valueWidth / 2, y, {
       align: "center",
     })
 
     y += rowHeight
   }
 
-  function addTopicLabel(label: string) {
-    const rowHeight = 7
+  function addLongTopic(title: string, text: string | null | undefined) {
+    const headerHeight = 7
 
-    ensureSpace(rowHeight)
+    ensureSpace(headerHeight + 10)
 
     pdf.setDrawColor(0, 0, 0)
     pdf.setLineWidth(0.15)
-    pdf.rect(marginLeft, y, contentWidth, rowHeight, "S")
+    pdf.rect(marginLeft, y - 4, contentWidth, headerHeight, "S")
 
     pdf.setFont("helvetica", "normal")
-    pdf.setFontSize(9.7)
+    pdf.setFontSize(10)
     setTextColor(pdf, "dark")
-    pdf.text(label, marginLeft + 2, y + 4.6)
+    pdf.text(title, marginLeft + 2, y)
 
-    y += rowHeight
+    y += headerHeight
+
+    addTextBox(text, {
+      fontSize: 9.5,
+      lineHeight: 4.8,
+      minHeight: 10,
+    })
   }
 
-  function addLongTextInsideTable(text: string) {
-    const cleanText = normalizeText(text)
-    const paragraphs = cleanText
-      .split(/\n+/)
-      .map((paragraph) => paragraph.trim())
-      .filter(Boolean)
-
-    const lineHeight = 4.8
-    const paddingX = 2
-    const paddingTop = 5
-    const paddingBottom = 4
-
-    for (const paragraph of paragraphs) {
-      const lines = pdf.splitTextToSize(
-        paragraph,
-        contentWidth - paddingX * 2,
-      ) as string[]
-
-      let index = 0
-
-      while (index < lines.length) {
-        const availableHeight = bottomLimit - y
-
-        if (availableHeight < 18) {
-          pdf.addPage()
-          startPage()
-          continue
-        }
-
-        const availableLines = Math.max(
-          1,
-          Math.floor(
-            (availableHeight - paddingTop - paddingBottom) / lineHeight,
-          ),
-        )
-
-        const chunk = lines.slice(index, index + availableLines)
-        const boxHeight = Math.max(
-          12,
-          chunk.length * lineHeight + paddingTop + paddingBottom,
-        )
-
-        ensureSpace(boxHeight)
-
-        pdf.setDrawColor(0, 0, 0)
-        pdf.setLineWidth(0.15)
-        pdf.rect(marginLeft, y, contentWidth, boxHeight, "S")
-
-        pdf.setFont("helvetica", "normal")
-        pdf.setFontSize(10)
-        setTextColor(pdf, "dark")
-
-        drawLines(chunk, marginLeft + paddingX, y + paddingTop, lineHeight, {
-          maxWidth: contentWidth - paddingX * 2,
-        })
-
-        y += boxHeight
-        index += chunk.length
-      }
-
-      y += 2
-    }
-  }
-
-  function addIqAverageRow() {
-    const labelWidth = 75
+  function addIqMedioRow() {
+    const labelWidth = 78
     const valueWidth = contentWidth - labelWidth
     const rowHeight = 7
 
@@ -759,17 +781,17 @@ async function gerarPdfRelatorio(
 
     pdf.setDrawColor(0, 0, 0)
     pdf.setLineWidth(0.15)
-    pdf.rect(marginLeft, y, labelWidth, rowHeight, "S")
-    pdf.rect(marginLeft + labelWidth, y, valueWidth, rowHeight, "S")
+    pdf.rect(marginLeft, y - 4, labelWidth, rowHeight, "S")
+    pdf.rect(marginLeft + labelWidth, y - 4, valueWidth, rowHeight, "S")
 
     pdf.setFont("helvetica", "bold")
-    pdf.setFontSize(9.8)
+    pdf.setFontSize(10)
     setTextColor(pdf, "dark")
-    pdf.text("IQ MÉDIO:", marginLeft + 2, y + 4.7)
+    pdf.text("IQ MÉDIO:", marginLeft + 2, y)
     pdf.text(
       formatNumber(item.iq),
       marginLeft + labelWidth + valueWidth / 2,
-      y + 4.7,
+      y,
       {
         align: "center",
       },
@@ -808,13 +830,10 @@ async function gerarPdfRelatorio(
     formatNumber(item.forma_profissionalismo),
   )
 
-  addTopicLabel("5. Pontos fracos:")
-  addLongTextInsideTable(item.pontos_fracos ?? "")
-
-  addTopicLabel("6. Pontos fortes:")
-  addLongTextInsideTable(item.pontos_fortes ?? "")
-
-  addIqAverageRow()
+  y += 2
+  addLongTopic("5. Pontos fracos:", item.pontos_fracos ?? "")
+  addLongTopic("6. Pontos fortes:", item.pontos_fortes ?? "")
+  addIqMedioRow()
 
   drawPageNumbers(pdf)
 

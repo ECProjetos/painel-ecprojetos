@@ -1,35 +1,43 @@
-'use server';
+"use server"
 
-import { createClient } from '@/utils/supabase/server';
-
+import { createClient } from "@/utils/supabase/server"
 
 export async function getUser() {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient()
 
-  // Get authenticated user using getUser() instead of getSession()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
 
-  if (!user) {
-    return null; // Return null if no user is authenticated
+    if (userError) {
+      console.error("Erro ao buscar usuário autenticado:", userError)
+      return null
+    }
+
+    if (!user) {
+      return null
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("role, nome")
+      .eq("id", user.id)
+      .single()
+
+    if (profileError) {
+      console.error("Erro ao buscar perfil do usuário:", profileError)
+      return null
+    }
+
+    return {
+      ...user,
+      role: profile?.role,
+      name: profile?.nome,
+    }
+  } catch (error) {
+    console.error("Falha de conexão com o Supabase em getUser:", error)
+    return null
   }
-
-  // Get user profile with role information
-  const { data: profile, error } = await supabase
-    .from('users')
-    .select('role, nome')
-    .eq('id', user.id)
-    .single();
-  if (error) {
-    console.error('Error fetching user profile:', error);
-    return null; // Return null if there's an error fetching the profile
-  }
-  const finalUser = {
-    ...user,
-    role: profile?.role,
-    name: profile?.nome,
-  };
-  console.log(finalUser)
-  return finalUser;
 }
