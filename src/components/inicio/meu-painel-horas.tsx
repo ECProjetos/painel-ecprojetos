@@ -479,8 +479,8 @@ export default function MeuPainelHoras() {
           value={formatHours(saldoBanco)}
           subtitle={
             saldoBanco < 0
-              ? "Saldo negativo no mês atual"
-              : "Saldo positivo ou zerado no mês atual"
+              ? "Saldo negativo no banco de horas"
+              : "Saldo atual positivo ou zerado no banco de horas"
           }
           icon={<TrendingUp className="h-5 w-5" />}
         />
