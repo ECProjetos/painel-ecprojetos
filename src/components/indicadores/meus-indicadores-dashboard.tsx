@@ -751,7 +751,7 @@ export default function MeusIndicadoresDashboard() {
             ) : (
               <Download className="h-4 w-4" />
             )}
-            Baixar PDFs filtrados
+            Baixar relatórios em PDF
           </Button>
         }
       >
