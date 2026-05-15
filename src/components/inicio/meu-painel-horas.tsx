@@ -486,16 +486,16 @@ export default function MeuPainelHoras() {
         />
 
         <KpiCard
-          title="Horas previstas no mês"
+          title="Horas previstas no período"
           value={formatHours(data.resumo?.horas_a_fazer_mes ?? 0)}
-          subtitle="Carga prevista conforme calendário do mês atual"
+          subtitle="Carga prevista conforme os filtros selecionados"
           icon={<CalendarDays className="h-5 w-5" />}
         />
 
         <KpiCard
           title="Dias úteis considerados"
           value={`${data.resumo?.business_days_passed ?? 0}`}
-          subtitle="Base usada no cálculo mensal"
+          subtitle="Base usada no cálculo do período"
           icon={<CalendarDays className="h-5 w-5" />}
         />
       </div>
@@ -546,8 +546,8 @@ export default function MeuPainelHoras() {
         </SectionCard>
 
         <SectionCard
-          title="Resumo mensal"
-          subtitle="Informações do banco de horas do mês atual."
+          title="Resumo do período"
+          subtitle="Informações conforme o período filtrado. O banco de horas exibido permanece como saldo atual."
         >
           <div className="space-y-3">
             <div className="rounded-2xl border border-gray-100 p-4">
@@ -558,14 +558,14 @@ export default function MeuPainelHoras() {
             </div>
 
             <div className="rounded-2xl border border-gray-100 p-4">
-              <p className="text-sm text-gray-500">Horas trabalhadas no mês</p>
+              <p className="text-sm text-gray-500">Horas trabalhadas no período</p>
               <p className="mt-1 font-semibold text-gray-900">
                 {formatHours(data.resumo?.horas_trabalhadas_mes ?? 0)}
               </p>
             </div>
 
             <div className="rounded-2xl border border-gray-100 p-4">
-              <p className="text-sm text-gray-500">Horas previstas no mês</p>
+              <p className="text-sm text-gray-500">Horas previstas no período</p>
               <p className="mt-1 font-semibold text-gray-900">
                 {formatHours(data.resumo?.horas_a_fazer_mes ?? 0)}
               </p>
