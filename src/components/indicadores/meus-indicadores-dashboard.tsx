@@ -28,6 +28,12 @@ import {
 import { toast } from "sonner"
 
 import {
+  gerarPdfRelatorioIndicador,
+  getCodigoRelatorioIndicador,
+  sanitizeRelatorioIndicadorFileName,
+  type RelatorioIndicadorPdfItem,
+} from "@/lib/indicadores-relatorio-pdf"
+import {
   getMeusIndicadores,
   type MeuPerfilIndicadores,
   type MeuRelatorioIndicador,
@@ -157,29 +163,6 @@ function getDefaultFiltros(items: MeuIndicadorItem[]) {
   }
 }
 
-function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows
-    .map((row) =>
-      row
-        .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
-        .join(";"),
-    )
-    .join("\n")
-
-  const blob = new Blob([`\uFEFF${csv}`], {
-    type: "text/csv;charset=utf-8;",
-  })
-
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement("a")
-
-  link.href = url
-  link.download = filename
-  link.click()
-
-  URL.revokeObjectURL(url)
-}
-
 function KpiCard({
   title,
   value,
@@ -290,7 +273,7 @@ export default function MeusIndicadoresDashboard() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [data, setData] = useState<PainelData | null>(null)
-
+  const [gerandoPdfId, setGerandoPdfId] = useState<string | null>(null)
   const [ano, setAno] = useState("all")
   const [trimestre, setTrimestre] = useState("all")
 
@@ -315,9 +298,7 @@ export default function MeusIndicadoresDashboard() {
       const defaultFiltros = getDefaultFiltros(nextData.indicadores)
 
       setAno((prev) => (prev === "all" ? defaultFiltros.ano : prev))
-      setTrimestre((prev) =>
-        prev === "all" ? defaultFiltros.trimestre : prev,
-      )
+      setTrimestre((prev) => (prev === "all" ? defaultFiltros.trimestre : prev))
 
       if (showToast) {
         toast.success("Indicadores atualizados com sucesso.")
@@ -471,43 +452,79 @@ export default function MeusIndicadoresDashboard() {
     [metricas],
   )
 
-  function exportarEntregasCsv() {
-    const rows = [
-      [
-        "Projeto",
-        "Entrega",
-        "Data entrega",
-        "Data revisão",
-        "IES aprovado primeira",
-        "IP no prazo",
-        "Clareza",
-        "Profundidade",
-        "Alinhamento",
-        "Forma",
-        "IQ",
-        "Pontos fortes",
-        "Pontos fracos",
-        "Comentário geral",
-      ],
-      ...entregasFiltradas.map((item) => [
-        item.codigo_projeto ?? "",
-        item.entrega_avaliada ?? "",
-        formatDate(item.data_entrega),
-        formatDate(item.data_revisao),
-        item.ies_aprovado_primeira ? "Sim" : "Não",
-        item.ip_no_prazo ? "Sim" : "Não",
-        formatNumber(item.clareza_estrutura),
-        formatNumber(item.profundidade_rigor),
-        formatNumber(item.alinhamento_demanda),
-        formatNumber(item.forma_profissionalismo),
-        formatNumber(item.iq),
-        item.pontos_fortes ?? "",
-        item.pontos_fracos ?? "",
-        item.comentario_geral ?? "",
-      ]),
-    ]
+  function mapEntregaParaPdfItem(
+    item: MinhaEntregaIndicador,
+  ): RelatorioIndicadorPdfItem {
+    const relatorio = relatorios.find(
+      (relatorioItem) => String(relatorioItem.id) === String(item.id),
+    )
 
-    downloadCsv("meus-indicadores-entregas.csv", rows)
+    return {
+      id: item.id,
+      created_at: item.created_at,
+      avaliador_nome: item.avaliador_nome,
+      colaborador_id: item.colaborador_id,
+      colaborador_nome: item.colaborador_nome,
+      equipe_colaborador: item.equipe_colaborador,
+      codigo_projeto: item.codigo_projeto,
+      projeto_codigo: item.codigo_projeto,
+      projeto_nome: item.codigo_projeto,
+      entrega_avaliada: item.entrega_avaliada,
+      data_entrega: item.data_entrega,
+      data_revisao: item.data_revisao,
+      ano: item.ano,
+      trimestre: item.trimestre,
+      ies_aprovado_primeira: item.ies_aprovado_primeira,
+      ip_no_prazo: item.ip_no_prazo,
+      clareza_estrutura: item.clareza_estrutura,
+      profundidade_rigor: item.profundidade_rigor,
+      alinhamento_demanda: item.alinhamento_demanda,
+      forma_profissionalismo: item.forma_profissionalismo,
+      iq: item.iq,
+      pontos_fortes: item.pontos_fortes,
+      pontos_fracos: item.pontos_fracos,
+      comentario_geral: item.comentario_geral,
+      codigo_relatorio: relatorio?.codigo_relatorio ?? null,
+      numero_relatorio: relatorio?.codigo_relatorio ?? null,
+    }
+  }
+
+  async function baixarPdfRelatorioEntrega(item: MinhaEntregaIndicador) {
+    try {
+      setGerandoPdfId(String(item.id))
+
+      const todosItensPdf = entregas.map(mapEntregaParaPdfItem)
+      const itemPdf =
+        todosItensPdf.find((pdfItem) => String(pdfItem.id) === String(item.id)) ??
+        mapEntregaParaPdfItem(item)
+
+      const codigo = getCodigoRelatorioIndicador(itemPdf, todosItensPdf)
+      const pdf = await gerarPdfRelatorioIndicador(itemPdf, codigo)
+      
+      if (!pdf || typeof pdf.save !== "function") {
+        throw new Error ("O PDF não foi gerado corretamente.")
+      }
+      const fileName = sanitizeRelatorioIndicadorFileName(codigo.nomeDownload)
+    
+      pdf.save(`${fileName}.pdf`)
+
+      toast.success("PDF gerado com sucesso.")
+    } catch (error) {
+      console.error(error)
+      toast.error("Não foi possível gerar o PDF.")
+    } finally {
+      setGerandoPdfId(null)
+    }
+  }
+
+  async function baixarPdfsFiltrados() {
+    if (!entregasFiltradas.length) return
+
+    toast.info("Iniciando geração dos PDFs filtrados.")
+
+    for (const item of entregasFiltradas) {
+      await baixarPdfRelatorioEntrega(item)
+    }
   }
 
   if (loading) {
@@ -726,11 +743,15 @@ export default function MeusIndicadoresDashboard() {
           <Button
             type="button"
             variant="outline"
-            onClick={exportarEntregasCsv}
-            disabled={!entregasFiltradas.length}
+            onClick={baixarPdfsFiltrados}
+            disabled={!entregasFiltradas.length || Boolean(gerandoPdfId)}
           >
-            <Download className="h-4 w-4" />
-            Exportar CSV
+            {gerandoPdfId ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Baixar PDFs filtrados
           </Button>
         }
       >
@@ -835,9 +856,40 @@ export default function MeusIndicadoresDashboard() {
                     </span>
                   </div>
 
-                  <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
-                    <FileText className="h-4 w-4" />
-                    Relatório individual da entrega
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <FileText className="h-4 w-4" />
+                      Relatório individual da entrega
+                    </div>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={gerandoPdfId === String(item.id)}
+                      onClick={() => {
+                        const entrega = entregas.find(
+                          (entregaItem) =>
+                            String(entregaItem.id) === String(item.id),
+                        )
+
+                        if (!entrega) {
+                          toast.error(
+                            "Não foi possível localizar a entrega deste relatório.",
+                          )
+                          return
+                        }
+
+                        baixarPdfRelatorioEntrega(entrega)
+                      }}
+                    >
+                      {gerandoPdfId === String(item.id) ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      PDF
+                    </Button>
                   </div>
                 </div>
               )
