@@ -59,6 +59,8 @@ export type PlanoCarreiraVisualizarAnswer = {
   prioridade: string | null
   gap_colaborador_gestor: number | null
   gap_meta_atual: number | null
+  ranking_area: number | null
+  area_conhecimento: string | null
 }
 
 export type PlanoCarreiraVisualizarDetalhe = {
@@ -380,6 +382,8 @@ export async function getPlanoCarreiraVisualizarDetalhe(params: {
           nome,
           descricao,
           ordem,
+          ranking_area,
+          area_conhecimento,
           group:career_skill_groups (
             id,
             nome,
@@ -415,6 +419,8 @@ export async function getPlanoCarreiraVisualizarDetalhe(params: {
           skill_nome: String(item.skill?.nome ?? "Habilidade"),
           skill_descricao: toTextOrNull(item.skill?.descricao),
           skill_ordem: Number(item.skill?.ordem ?? 0),
+          ranking_area: toNumberOrNull(item.skill?.ranking_area),
+          area_conhecimento: toTextOrNull(item.skill?.area_conhecimento),
           grupo_id: String(item.skill?.group?.id ?? ""),
           grupo_nome: String(item.skill?.group?.nome ?? "Grupo"),
           grupo_tipo: String(item.skill?.group?.tipo ?? "outro"),

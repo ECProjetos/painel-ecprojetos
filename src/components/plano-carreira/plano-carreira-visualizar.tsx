@@ -64,7 +64,11 @@ function toFiniteNumber(value: unknown) {
 }
 
 function formatNumber(value: number | null | undefined, decimals = 1) {
-  if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+  if (
+    value === null ||
+    value === undefined ||
+    !Number.isFinite(Number(value))
+  ) {
     return "-"
   }
 
@@ -236,14 +240,12 @@ function getGroupAverages(answers: PlanoCarreiraVisualizarAnswer[]) {
   for (const answer of answers) {
     const key = answer.grupo_id || answer.grupo_nome
 
-    const current =
-      groups.get(key) ??
-      {
-        grupo_nome: answer.grupo_nome,
-        grupo_tipo: answer.grupo_tipo,
-        notas: [],
-        metas: [],
-      }
+    const current = groups.get(key) ?? {
+      grupo_nome: answer.grupo_nome,
+      grupo_tipo: answer.grupo_tipo,
+      notas: [],
+      metas: [],
+    }
 
     if (answer.nota_media !== null) {
       current.notas.push(answer.nota_media)
@@ -375,15 +377,34 @@ export default function PlanoCarreiraVisualizar() {
   const desenvolvimento = useMemo(() => {
     return [...answers]
       .filter((item) => item.gap_meta_atual !== null)
-      .sort((a, b) => toFiniteNumber(b.gap_meta_atual) - toFiniteNumber(a.gap_meta_atual))
+      .sort(
+        (a, b) =>
+          toFiniteNumber(b.gap_meta_atual) - toFiniteNumber(a.gap_meta_atual),
+      )
       .slice(0, 8)
   }, [answers])
 
   const maioresNotas = useMemo(() => {
     return [...answers]
       .filter((item) => item.nota_media !== null)
-      .sort((a, b) => toFiniteNumber(b.nota_media) - toFiniteNumber(a.nota_media))
+      .sort(
+        (a, b) => toFiniteNumber(b.nota_media) - toFiniteNumber(a.nota_media),
+      )
       .slice(0, 8)
+  }, [answers])
+
+  const rankingAreas = useMemo(() => {
+    return [...answers]
+      .filter((item) => item.ranking_area !== null && item.area_conhecimento)
+      .sort((a, b) => {
+        if (a.grupo_tipo !== b.grupo_tipo) {
+          if (a.grupo_tipo === "hard_skill") return -1
+          if (b.grupo_tipo === "hard_skill") return 1
+          return a.grupo_tipo.localeCompare(b.grupo_tipo)
+        }
+
+        return toFiniteNumber(a.ranking_area) - toFiniteNumber(b.ranking_area)
+      })
   }, [answers])
 
   const maioresGaps = useMemo(() => {
@@ -562,7 +583,9 @@ export default function PlanoCarreiraVisualizar() {
             <Button
               type="button"
               onClick={carregarSelecionado}
-              disabled={!selectedCycleId || !selectedColaboradorId || loadingDetail}
+              disabled={
+                !selectedCycleId || !selectedColaboradorId || loadingDetail
+              }
               className="h-10 w-full"
             >
               {loadingDetail ? (
@@ -718,20 +741,119 @@ export default function PlanoCarreiraVisualizar() {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <SectionCard
+            title="Ranking de áreas de conhecimento"
+            subtitle="Áreas priorizadas conforme o modelo de avaliação do Plano de Carreira."
+          >
+            <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+              {[
+                {
+                  tipo: "hard_skill",
+                  titulo: "Hard skills",
+                  descricao: "Ranking das áreas técnicas priorizadas.",
+                },
+                {
+                  tipo: "soft_skill",
+                  titulo: "Soft skills",
+                  descricao:
+                    "Ranking das competências comportamentais priorizadas.",
+                },
+              ].map((grupoRanking) => {
+                const items = rankingAreas.filter(
+                  (item) => item.grupo_tipo === grupoRanking.tipo,
+                )
+
+                return (
+                  <div
+                    key={grupoRanking.tipo}
+                    className="rounded-2xl border border-gray-100 bg-white p-4"
+                  >
+                    <div className="mb-4">
+                      <h3 className="text-base font-semibold text-gray-900">
+                        {grupoRanking.titulo}
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {grupoRanking.descricao}
+                      </p>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border border-gray-100">
+                      <table className="min-w-[640px] w-full text-sm">
+                        <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                          <tr>
+                            <th className="px-4 py-3">Ranking</th>
+                            <th className="px-4 py-3">Área de conhecimento</th>
+                            <th className="px-4 py-3">Nota atual</th>
+                            <th className="px-4 py-3">Meta</th>
+                            <th className="px-4 py-3">Gap</th>
+                          </tr>
+                        </thead>
+
+                        <tbody className="divide-y divide-gray-100">
+                          {items.length ? (
+                            items.map((item) => (
+                              <tr
+                                key={`${item.grupo_tipo}-${item.ranking_area}-${item.id}`}
+                              >
+                                <td className="px-4 py-3 font-semibold text-gray-900">
+                                  {item.ranking_area}
+                                </td>
+
+                                <td className="px-4 py-3 font-medium text-gray-900">
+                                  {item.area_conhecimento ?? item.skill_nome}
+                                </td>
+
+                                <td className="px-4 py-3">
+                                  {formatNumber(item.nota_media)}
+                                </td>
+
+                                <td className="px-4 py-3">
+                                  {formatNumber(item.meta_nota)}
+                                </td>
+
+                                <td className="px-4 py-3">
+                                  {formatNumber(item.gap_meta_atual)}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td
+                                colSpan={5}
+                                className="px-4 py-8 text-center text-gray-500"
+                              >
+                                Nenhum ranking cadastrado para{" "}
+                                {grupoRanking.titulo}.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </SectionCard>
+
+          <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
             <SectionCard
               title="Média por grupo"
               subtitle="Comparação entre média atual e meta cadastrada."
             >
               {groupAverages.length ? (
-                <div className="h-[340px]">
+                <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={groupAverages}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="grupo" tick={{ fontSize: 12 }} />
                       <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="media_atual" name="Média atual" radius={[8, 8, 0, 0]}>
+                      <Bar
+                        dataKey="media_atual"
+                        name="Média atual"
+                        radius={[8, 8, 0, 0]}
+                      >
                         {groupAverages.map((item) => (
                           <Cell key={item.grupo_nome} fill={item.fill} />
                         ))}
@@ -756,7 +878,7 @@ export default function PlanoCarreiraVisualizar() {
               title="Pontos de desenvolvimento"
               subtitle="Maiores diferenças entre a meta e a nota atual."
             >
-              <div className="space-y-3">
+              <div className="max-h-[300px] space-y-3 overflow-y-auto pr-2">
                 {desenvolvimento.length ? (
                   desenvolvimento.map((item) => (
                     <div
@@ -790,7 +912,7 @@ export default function PlanoCarreiraVisualizar() {
             </SectionCard>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
             <SectionCard
               title="Maiores fortalezas"
               subtitle="Habilidades com maiores notas médias."
@@ -925,9 +1047,7 @@ export default function PlanoCarreiraVisualizar() {
                           </span>
                         </td>
 
-                        <td className="px-4 py-3">
-                          {item.prazo_meta ?? "-"}
-                        </td>
+                        <td className="px-4 py-3">{item.prazo_meta ?? "-"}</td>
                       </tr>
                     ))
                   ) : (
