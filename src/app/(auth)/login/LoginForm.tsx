@@ -86,7 +86,7 @@ export default function LoginForm() {
     <div className="flex flex-col w-full h-full max-w-xl">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-start p-0">
-          <Image src="/logo.png" alt="Logo" width={150} height={45} />
+          <Image src="/images/logo.png" alt="Logo" width={150} height={45} priority />
         </div>
       </div>
       <div className="flex flex-col w-full h-full items-center justify-center gap-6 px-4 md:px-24">
