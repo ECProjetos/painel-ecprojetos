@@ -484,6 +484,24 @@ export default function PlanoCarreiraVisualizar() {
     )
   }
 
+  if (!baseData) {
+    return (
+      <Card className="rounded-2xl border border-red-100 bg-red-50 p-6">
+        <div className="flex gap-3">
+          <AlertCircle className="mt-1 h-5 w-5 text-red-600" />
+          <div>
+            <h2 className="font-semibold text-red-800">
+              Não foi possível carregar o Plano de Carreira.
+            </h2>
+            <p className="mt-1 text-sm text-red-700">
+              Atualize a página ou tente novamente mais tarde.
+            </p>
+          </div>
+        </div>
+      </Card>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <Card className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -496,7 +514,6 @@ export default function PlanoCarreiraVisualizar() {
               {baseData.canManage 
               ? "Visualização das Avaliações"
               : "Meu Plano de Carreira"}
-              Visualização das Avaliações
             </h1>
             <p className="mt-1 text-sm text-gray-500">
               {baseData.canManage 

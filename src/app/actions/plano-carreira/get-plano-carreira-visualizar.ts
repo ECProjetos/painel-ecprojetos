@@ -45,6 +45,8 @@ export type PlanoCarreiraVisualizarAnswer = {
   skill_nome: string
   skill_descricao: string | null
   skill_ordem: number
+  ranking_area: number | null
+  area_conhecimento: string | null
   grupo_id: string
   grupo_nome: string
   grupo_tipo: string
@@ -59,8 +61,6 @@ export type PlanoCarreiraVisualizarAnswer = {
   prioridade: string | null
   gap_colaborador_gestor: number | null
   gap_meta_atual: number | null
-  ranking_area: number | null
-  area_conhecimento: string | null
 }
 
 export type PlanoCarreiraVisualizarDetalhe = {
@@ -252,10 +252,18 @@ export async function getPlanoCarreiraVisualizarBaseData(): Promise<{
     if (!canManage) {
       summariesQuery = summariesQuery.eq("colaborador_id", user.id)
     }
-    
+
     const { data: summariesData, error: summariesError } = await summariesQuery
-  }
-}
+
+    if (summariesError) {
+      console.error("Erro ao buscar resumo das avaliações:", summariesError)
+
+      return {
+        success: false,
+        message: "Não foi possível buscar os resumos das avaliações.",
+        data: null,
+      }
+    }
 
     const cycles = (cyclesData ?? []).map((item) => ({
       id: String(item.id),
@@ -272,14 +280,13 @@ export async function getPlanoCarreiraVisualizarBaseData(): Promise<{
 
         if (status !== "ativo") return false
         if (!isColaboradorAvaliavel(roleItem)) return false
-      
+
         if (!canManage) {
           return String(item.id) === user.id
         }
-      
+
         return true
       })
-
       .map((item) => ({
         id: String(item.id),
         nome: String(item.nome ?? "Colaborador"),
@@ -296,7 +303,7 @@ export async function getPlanoCarreiraVisualizarBaseData(): Promise<{
       success: true,
       data: {
         currentUserRole: role,
-        canManage,,
+        canManage,
         cycles,
         colaboradores,
         summaries,
@@ -326,7 +333,6 @@ export async function getPlanoCarreiraVisualizarDetalhe(params: {
 }> {
   try {
     const { user, canManage } = await getPlanoCarreiraViewer()
-
     const supabase = await createClient()
 
     const { data: summaryData, error: summaryError } = await supabase
@@ -360,7 +366,7 @@ export async function getPlanoCarreiraVisualizarDetalhe(params: {
         message: "Você só pode visualizar o seu próprio Plano de Carreira.",
         data: null,
       }
-    } 
+    }
 
     const summary = mapSummary(summaryData)
 
