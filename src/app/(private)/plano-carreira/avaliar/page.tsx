@@ -1,47 +1,44 @@
-'use client';
+import PlanoCarreiraAvaliacao from "@/components/plano-carreira/plano-carreira-avaliacao"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 
-import { roles } from "@/constants/roles";
-import { FeedbackTable } from "@/components/plano-carreira/feedback-table";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useClientRole } from "@/hooks/use-client-role";
-import AvaliacaoSelectColaboradorTable from "@/components/plano-carreira/select-colaborador-table";
+export default function PlanoCarreiraAvaliarPage() {
+  return (
+    <div className="flex flex-col gap-4 p-4 pt-0">
+      <header className="flex h-16 shrink-0 items-center gap-2">
+        <SidebarTrigger className="-ml-1" />
 
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/controle-horarios/inicio">
+                Início
+              </BreadcrumbLink>
+            </BreadcrumbItem>
 
-export default function AvaliacaoSelectColaborador() {
-    const { role, loading } = useClientRole();
-    const isDiretor = role === roles.diretor || role === roles.gestor;
+            <BreadcrumbSeparator />
 
-    if (loading) {
-        return <div>Carregando...</div>;
-    }
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/plano-carreira">
+                Plano de Carreira
+              </BreadcrumbLink>
+            </BreadcrumbItem>
 
-    return (
-        <div className="flex flex-col bg-white shadow-lg rounded-2xl p-2 sm:p-4 sm:px-6 lg:px-8 flex-1 min-h-[125vh] border dark:bg-[#1c1c20]">
-            <header className="flex h-16 shrink-0 items-center gap-2">
-                <SidebarTrigger className="-ml-1" />
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <BreadcrumbItem>
-                            <BreadcrumbLink href="/private/plano-carreira">
-                                Plano de Carreira
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbPage>Início</BreadcrumbPage>
-                    </BreadcrumbList>
-                </Breadcrumb>
-            </header>
-            <div>
-                {isDiretor ? (
-                    <div>
-                        <AvaliacaoSelectColaboradorTable />
-                    </div>
-                ) : (
-                    <FeedbackTable />
-                )}
-            </div>
-        </div >
-    );
+            <BreadcrumbSeparator />
+
+            <BreadcrumbPage>Avaliação</BreadcrumbPage>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </header>
+
+      <PlanoCarreiraAvaliacao />
+    </div>
+  )
 }
-
