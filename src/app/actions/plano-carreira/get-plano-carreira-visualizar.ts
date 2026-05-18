@@ -165,17 +165,15 @@ async function getCurrentUserRole(userId: string) {
   return data?.role ? String(data.role).toUpperCase() : null
 }
 
-async function assertCanViewPlanoCarreira() {
+async function getPlanoCarreiraViewer() {
   const user = await getCurrentUser()
   const role = await getCurrentUserRole(user.id)
-
-  if (!isManagerRole(role)) {
-    throw new Error("Acesso permitido somente para diretores e gestores.")
-  }
+  const canManage = isManagerRole(role)
 
   return {
     user,
     role,
+    canManage,
   }
 }
 
@@ -209,7 +207,7 @@ export async function getPlanoCarreiraVisualizarBaseData(): Promise<{
   data: PlanoCarreiraVisualizarBaseData | null
 }> {
   try {
-    const { role } = await assertCanViewPlanoCarreira()
+    const { user, role, canManage } = await getPlanoCarreiraViewer()
     const supabase = await createClient()
 
     const { data: cyclesData, error: cyclesError } = await supabase
@@ -244,22 +242,20 @@ export async function getPlanoCarreiraVisualizarBaseData(): Promise<{
       }
     }
 
-    const { data: summariesData, error: summariesError } = await supabase
+    let summariesQuery = supabase
       .from("vw_career_evaluations_summary")
       .select("*")
       .order("ano", { ascending: false })
       .order("semestre", { ascending: false })
       .order("colaborador_nome", { ascending: true })
 
-    if (summariesError) {
-      console.error("Erro ao buscar resumo das avaliações:", summariesError)
-
-      return {
-        success: false,
-        message: "Não foi possível buscar os resumos das avaliações.",
-        data: null,
-      }
+    if (!canManage) {
+      summariesQuery = summariesQuery.eq("colaborador_id", user.id)
     }
+    
+    const { data: summariesData, error: summariesError } = await summariesQuery
+  }
+}
 
     const cycles = (cyclesData ?? []).map((item) => ({
       id: String(item.id),
@@ -274,8 +270,16 @@ export async function getPlanoCarreiraVisualizarBaseData(): Promise<{
         const status = String(item.status ?? "").toLowerCase()
         const roleItem = item.role ? String(item.role) : null
 
-        return status === "ativo" && isColaboradorAvaliavel(roleItem)
+        if (status !== "ativo") return false
+        if (!isColaboradorAvaliavel(roleItem)) return false
+      
+        if (!canManage) {
+          return String(item.id) === user.id
+        }
+      
+        return true
       })
+
       .map((item) => ({
         id: String(item.id),
         nome: String(item.nome ?? "Colaborador"),
@@ -292,7 +296,7 @@ export async function getPlanoCarreiraVisualizarBaseData(): Promise<{
       success: true,
       data: {
         currentUserRole: role,
-        canManage: isManagerRole(role),
+        canManage,,
         cycles,
         colaboradores,
         summaries,
@@ -321,7 +325,7 @@ export async function getPlanoCarreiraVisualizarDetalhe(params: {
   data: PlanoCarreiraVisualizarDetalhe | null
 }> {
   try {
-    await assertCanViewPlanoCarreira()
+    const { user, canManage } = await getPlanoCarreiraViewer()
 
     const supabase = await createClient()
 
@@ -349,6 +353,14 @@ export async function getPlanoCarreiraVisualizarDetalhe(params: {
         data: null,
       }
     }
+
+    if (!canManage && String(summaryData.colaborador_id) !== user.id) {
+      return {
+        success: false,
+        message: "Você só pode visualizar o seu próprio Plano de Carreira.",
+        data: null,
+      }
+    } 
 
     const summary = mapSummary(summaryData)
 

@@ -311,6 +311,10 @@ export default function PlanoCarreiraVisualizar() {
       if (cicloAtivo) {
         setSelectedCycleId(cicloAtivo.id)
       }
+
+      if (!result.data.canManage && result.data.colaboradores[0]) {
+        setSelectedColaboradorId(result.data.colaboradores[0].id)
+      }
     } catch (error) {
       console.error(error)
       toast.error(
@@ -480,23 +484,6 @@ export default function PlanoCarreiraVisualizar() {
     )
   }
 
-  if (!baseData?.canManage) {
-    return (
-      <Card className="rounded-2xl border border-red-100 bg-red-50 p-6">
-        <div className="flex gap-3">
-          <AlertCircle className="mt-1 h-5 w-5 text-red-600" />
-          <div>
-            <h2 className="font-semibold text-red-800">Acesso restrito</h2>
-            <p className="mt-1 text-sm text-red-700">
-              A visualização do Plano de Carreira está disponível somente para
-              diretores e gestores.
-            </p>
-          </div>
-        </div>
-      </Card>
-    )
-  }
-
   return (
     <div className="space-y-6">
       <Card className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -506,16 +493,20 @@ export default function PlanoCarreiraVisualizar() {
               Plano de Carreira
             </p>
             <h1 className="mt-1 text-2xl font-semibold text-gray-900">
+              {baseData.canManage 
+              ? "Visualização das Avaliações"
+              : "Meu Plano de Carreira"}
               Visualização das Avaliações
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Acompanhe médias, evolução, gaps, metas e pontos de
-              desenvolvimento por colaborador.
+              {baseData.canManage 
+              ? "Acompanhe médias, evolução, gaps, metas e pontos de desenvolvimento por colaborador."
+              : "Acompanhe suas notas, metas, pontos fortes e pontos de desenvolvimento."}
             </p>
           </div>
 
           <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-            Perfil atual: {baseData.currentUserRole ?? "-"}
+            Perfil atual: {baseData?.currentUserRole ?? "-"}
           </div>
         </div>
       </Card>
@@ -544,27 +535,36 @@ export default function PlanoCarreiraVisualizar() {
             </select>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <FieldLabel>Colaborador</FieldLabel>
-            <select
-              value={selectedColaboradorId}
-              onChange={(event) => {
-                setSelectedColaboradorId(event.target.value)
-                setDetailData(null)
-              }}
-              className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm"
-            >
-              <option value="">Todos</option>
-              {colaboradores.map((colaborador) => (
-                <option key={colaborador.id} value={colaborador.id}>
-                  {colaborador.nome}
-                  {colaborador.departamento_nome
-                    ? ` | ${colaborador.departamento_nome}`
-                    : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+          {baseData.canManage ? (
+            <div className="flex flex-col gap-2">
+              <FieldLabel>Colaborador</FieldLabel>
+              <select
+                value={selectedColaboradorId}
+                onChange={(event) => {
+                  setSelectedColaboradorId(event.target.value)
+                  setDetailData(null)
+                }}
+                className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm"
+              >
+                <option value="">Todos</option>
+                {colaboradores.map((colaborador) => (
+                  <option key={colaborador.id} value={colaborador.id}>
+                    {colaborador.nome}
+                    {colaborador.departamento_nome
+                      ? ` | ${colaborador.departamento_nome}`
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <FieldLabel>Colaborador</FieldLabel>
+              <div className="flex h-10 items-center rounded-md border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700">
+                {colaboradores[0]?.nome ?? "Meu Plano de Carreira"}
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <FieldLabel>Buscar</FieldLabel>
