@@ -398,41 +398,21 @@ function drawReportBackground(pdf: jsPDF, backgroundImage: string | null) {
   drawReportFooter(pdf)
 }
 
-function drawReportHeader(pdf: jsPDF) {
-  const headerY = 8
-  const headerHeight = 13
-
-  pdf.setDrawColor(255, 255, 255)
-
-  pdf.setFont("helvetica", "bold")
-  pdf.setFontSize(15)
-  pdf.setTextColor(44, 91, 159)
-  pdf.text("EC", 22, 16.5)
-
-  pdf.setFont("helvetica", "bold")
-  pdf.setFontSize(10)
-  pdf.setTextColor(62, 62, 62)
-  pdf.text("projetos", 33.5, 16.5)
-
-  drawParallelogram(pdf, 67, headerY, 15, headerHeight, 5, REPORT_DARK_BLUE)
-  drawParallelogram(pdf, 83, headerY, 15, headerHeight, 5, [69, 120, 184])
-  drawParallelogram(pdf, 99, headerY, 15, headerHeight, 5, [135, 162, 201])
-
-  pdf.setFillColor(
-    REPORT_LIGHT_BLUE[0],
-    REPORT_LIGHT_BLUE[1],
-    REPORT_LIGHT_BLUE[2],
-  )
-  pdf.rect(111, headerY, 99, headerHeight, "F")
-}
-
-function drawReportFooter(pdf: jsPDF) {
+function drawReportLine(pdf: jsPDF, y: number) {
   pdf.setFillColor(
     REPORT_FOOTER_BLUE[0],
     REPORT_FOOTER_BLUE[1],
     REPORT_FOOTER_BLUE[2],
   )
-  pdf.rect(0, PAGE_HEIGHT - 5, PAGE_WIDTH, 3, "F")
+  pdf.rect(0, y, PAGE_WIDTH, 3, "F")
+}
+
+function drawReportHeader(pdf: jsPDF) {
+  drawReportLine(pdf, 8)
+}
+
+function drawReportFooter(pdf: jsPDF) {
+  drawReportLine(pdf, PAGE_HEIGHT - 5)
 }
 
 function drawPageNumbers(pdf: jsPDF) {
