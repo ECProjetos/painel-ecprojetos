@@ -541,29 +541,36 @@ export async function getQuestionarioPlanoCarreira(params: {
 
     const groupIds = (groupsData ?? []).map((item) => String(item.id))
 
-    const { data: itemsData, error: itemsError } = groupIds.length
-      ? await supabase
-          .from("career_skill_items")
-          .select(
-            `
-            id,
-            group_id,
-            nome,
-            descricao,
-            ordem,
-            escala_min,
-            escala_max,
-            rubrica_nivel_1,
-            rubrica_nivel_2,
-            rubrica_nivel_3,
-            rubrica_nivel_4,
-            rubrica_nivel_5
-          `,
-          )
-          .in("group_id", groupIds)
-          .eq("ativo", true)
-          .order("ordem", { ascending: true })
-      : { data: [], error: null }
+    const departamentoNomeQuestionario =
+      colaborador.departamento_chave === "economia"
+        ? "Economia"
+        : colaborador.departamento_chave === "engenharia"
+          ? "Engenharia"
+          : null
+
+    const { data: habilidadesData, error: itemsError } =
+      departamentoNomeQuestionario
+        ? await supabase
+            .from("avaliacao_habilidades")
+            .select(
+              `
+        id,
+        departamento_nome,
+        tipo,
+        nome,
+        nivel_1,
+        nivel_2,
+        nivel_3,
+        nivel_4,
+        nivel_5,
+        ordem
+      `,
+            )
+            .eq("departamento_nome", departamentoNomeQuestionario)
+            .eq("ativo", true)
+            .order("tipo", { ascending: true })
+            .order("ordem", { ascending: true })
+        : { data: [], error: null }
 
     if (itemsError) {
       console.error("Erro ao buscar itens:", itemsError)
@@ -629,22 +636,25 @@ export async function getQuestionarioPlanoCarreira(params: {
 
     const itemsByGroupId = new Map<string, PlanoCarreiraSkillItem[]>()
 
-    for (const item of itemsData ?? []) {
-      const groupId = String(item.group_id)
+    for (const item of habilidadesData ?? []) {
+      const groupId =
+        item.tipo === "hard"
+          ? String(groupsData?.[0]?.id)
+          : String(groupsData?.[1]?.id)
 
       const skillItem: PlanoCarreiraSkillItem = {
         id: String(item.id),
         group_id: groupId,
         nome: String(item.nome),
-        descricao: item.descricao ? String(item.descricao) : null,
+        descricao: null,
         ordem: Number(item.ordem ?? 0),
-        escala_min: Number(item.escala_min ?? 1),
-        escala_max: Number(item.escala_max ?? 5),
-        rubrica_nivel_1: toTextOrNull(item.rubrica_nivel_1),
-        rubrica_nivel_2: toTextOrNull(item.rubrica_nivel_2),
-        rubrica_nivel_3: toTextOrNull(item.rubrica_nivel_3),
-        rubrica_nivel_4: toTextOrNull(item.rubrica_nivel_4),
-        rubrica_nivel_5: toTextOrNull(item.rubrica_nivel_5),
+        escala_min: 1,
+        escala_max: 5,
+        rubrica_nivel_1: toTextOrNull(item.nivel_1),
+        rubrica_nivel_2: toTextOrNull(item.nivel_2),
+        rubrica_nivel_3: toTextOrNull(item.nivel_3),
+        rubrica_nivel_4: toTextOrNull(item.nivel_4),
+        rubrica_nivel_5: toTextOrNull(item.nivel_5),
         answer: answersBySkillItemId.get(String(item.id)) ?? null,
       }
 

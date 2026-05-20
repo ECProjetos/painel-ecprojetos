@@ -172,7 +172,7 @@ function RubricaBox({ item }: { item: PlanoCarreiraSkillItem }) {
             {rubrica.nivel} - {rubrica.label}
           </p>
           <p className="mt-2 text-xs leading-5 text-gray-600">
-            {rubrica.texto ?? "Sem descrição cadastrada."}
+            {rubrica.texto || "Sem descrição cadastrada."}
           </p>
         </div>
       ))}
