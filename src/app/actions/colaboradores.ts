@@ -239,7 +239,7 @@ export async function getAllColaboradores() {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from("vw_colaboradores")
+    .from("vw_colaboradores_com_banco_excel")
     .select("*")
     .order("nome", { ascending: true })
 
@@ -257,7 +257,7 @@ export async function getColaboradoresByDepartamento(
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from("vw_colaboradores")
+    .from("vw_colaboradores_com_banco_excel")
     .select("*")
     .eq("departamento_nome", nome_departamento)
     .order("nome", { ascending: true })

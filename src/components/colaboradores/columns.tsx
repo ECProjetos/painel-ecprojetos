@@ -91,22 +91,23 @@ export const colaboradoresColumns = ({
     ),
   },
   {
-    accessorKey: "banco_horas_atual",
+    accessorKey: "banco_horas_atual_final",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Banco de Horas" />
     ),
     cell: ({ row }) => (
       <span
         className={
-          row.original.banco_horas_atual
-            ? row.original.banco_horas_atual < 0
+          row.original.banco_horas_atual_final !== null &&
+          row.original.banco_horas_atual_final !== undefined
+            ? row.original.banco_horas_atual_final < 0
               ? "text-red-500"
               : "text-green-500"
             : "text-gray-500"
         }
       >
-        {row.original.banco_horas_atual !== null
-          ? formatMinutesToHHMM(row.original.banco_horas_atual)
+        {row.original.banco_horas_atual_final !== null
+          ? formatMinutesToHHMM(row.original.banco_horas_atual_final)
           : "N/A"}
       </span>
     ),

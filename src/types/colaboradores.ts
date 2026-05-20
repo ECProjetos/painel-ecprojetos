@@ -86,6 +86,7 @@ export const ColaboradorViewSchema = z.object({
   status: z.enum(["ativo", "inativo"]),
   carga_horaria: z.number().nullable(),
   banco_horas_atual: z.number().nullable(),
+  banco_horas_atual_final: z.number().nullable(),
 })
 
 export type Colaborador = z.infer<typeof ColaboradorSchema>
