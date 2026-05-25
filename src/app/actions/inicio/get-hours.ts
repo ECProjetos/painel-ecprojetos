@@ -32,13 +32,25 @@ export async function getHours(): Promise<BancoHorasType | null> {
 
   if (error || !data) return null
 
+  const { data: ultimaImportacao } = await supabase
+    .from("vw_ultima_importacao_excel")
+    .select("*")
+    .maybeSingle()
+
   const parsed = FuncionarioSchema.safeParse(data[0])
   if (!parsed.success) {
     console.error("Erro de validação:", parsed.error.format())
     return null
   }
 
-  return { data, count: null, status, statusText, error: null }
+  return {
+    data,
+    count: null,
+    status,
+    statusText,
+    error: null,
+    ultima_importacao: ultimaImportacao,
+  }
 }
 
 export async function getHoursById(user_id: string) {

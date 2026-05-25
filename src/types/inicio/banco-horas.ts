@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod"
 
 export const FuncionarioSchema = z.object({
   user_id: z.string(),
@@ -15,7 +15,16 @@ export const FuncionarioSchema = z.object({
   working_hours_per_day: z.number(),
   role: z.string(),
   status: z.string(),
-});
+})
+
+export const UltimaImportacaoSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+  registros_importados: z.number().nullable(),
+  mensagem: z.string().nullable(),
+  iniciado_em: z.string().nullable(),
+  finalizado_em: z.string().nullable(),
+})
 
 export const BancoHorasResponseSchema = z.object({
   error: z.string().nullable(),
@@ -23,6 +32,7 @@ export const BancoHorasResponseSchema = z.object({
   count: z.number().nullable(),
   status: z.number(),
   statusText: z.string(),
-});
+  ultima_importacao: UltimaImportacaoSchema.nullable().optional(),
+})
 
-export type BancoHorasType = z.infer<typeof BancoHorasResponseSchema>;
+export type BancoHorasType = z.infer<typeof BancoHorasResponseSchema>

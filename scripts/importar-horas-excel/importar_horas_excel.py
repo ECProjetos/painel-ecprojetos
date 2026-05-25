@@ -1,14 +1,9 @@
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, date
+import os
 import openpyxl
 from supabase import create_client
 from dotenv import load_dotenv
-import os
-from datetime import datetime, date
-
-# =========================
-# CONFIG
-# =========================
 
 load_dotenv(".env.local")
 
@@ -17,22 +12,18 @@ SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# CAMINHO DA PASTA DOS EXCEL
-PASTA_PLANILHAS = r"PASTA_PLANILHAS = r"C:\Users\ecpro_dhl3wmn\OneDrive - EC (1)\EC - Controle de horários"
+PASTA_PLANILHAS = r"C:\Users\ecpro_dhl3wmn\OneDrive - EC (1)\EC - Controle de horários"
 
-# =========================
-# FUNÇÕES
-# =========================
 
 def hora_para_minutos(valor):
-    """
-    Converte:
-    02:30 -> 150
-    -01:20 -> -80
-    """
-
     if valor is None:
         return 0
+
+    if hasattr(valor, "total_seconds"):
+        return int(round(valor.total_seconds() / 60))
+
+    if hasattr(valor, "hour") and hasattr(valor, "minute"):
+        return valor.hour * 60 + valor.minute
 
     valor = str(valor).strip()
 
@@ -40,44 +31,51 @@ def hora_para_minutos(valor):
         return 0
 
     negativo = valor.startswith("-")
-
     valor = valor.replace("-", "")
 
     try:
-        partes = valor.split(":")
-        horas = int(partes[0])
-        minutos = int(partes[1])
-
-        total = horas * 60 + minutos
-
-        if negativo:
-            total *= -1
-
-        return total
-
-    except:
+        horas, minutos = valor.split(":")[:2]
+        total = int(horas) * 60 + int(minutos)
+        return -total if negativo else total
+    except Exception:
         return 0
 
 
 def pegar_nome_colaborador(wb):
     try:
-        aba = wb["Cadastro_01"]
-        return str(aba["D11"].value).strip()
-    except:
+        nome = wb["Cadastro_01"]["D11"].value
+        return str(nome).strip() if nome else "NÃO IDENTIFICADO"
+    except Exception:
         return "NÃO IDENTIFICADO"
 
 
-def processar_aba_mes(wb, nome_aba, colaborador_nome, arquivo_nome):
+def registrar_inicio(arquivos_encontrados):
+    response = supabase.table("controle_importacao_excel").insert({
+        "tipo": "banco_horas_excel",
+        "status": "em_andamento",
+        "arquivos_encontrados": arquivos_encontrados,
+        "registros_importados": 0,
+        "mensagem": "Importação iniciada."
+    }).execute()
 
+    return response.data[0]["id"]
+
+
+def registrar_fim(importacao_id, status, registros_importados, mensagem):
+    supabase.table("controle_importacao_excel").update({
+        "status": status,
+        "registros_importados": registros_importados,
+        "mensagem": mensagem,
+        "finalizado_em": datetime.now().astimezone().isoformat()
+    }).eq("id", importacao_id).execute()
+
+
+def processar_aba_mes(wb, nome_aba, colaborador_nome, arquivo_nome):
     try:
         aba = wb[nome_aba]
-    except:
-        return
-
-    try:
         mes = int(nome_aba)
-    except:
-        return
+    except Exception:
+        return 0
 
     ano = datetime.now().year
 
@@ -88,23 +86,29 @@ def processar_aba_mes(wb, nome_aba, colaborador_nome, arquivo_nome):
     horas_a_fazer = hora_para_minutos(aba["J5"].value)
     horas_feitas = hora_para_minutos(aba["L5"].value)
 
-    for linha in range(10, 41):
+    registros_importados = 0
 
+    print(f"Processando {colaborador_nome} | mês {mes:02d}")
+
+    for linha in range(10, 41):
         data = aba[f"B{linha}"].value
 
-        classificacao = aba[f"D{linha}"].value
-        observacao = aba[f"L{linha}"].value
+        if not data:
+            continue
 
-        hora_inicio_1 = aba[f"E{linha}"].value
-        hora_fim_1 = aba[f"F{linha}"].value
+        if isinstance(data, datetime):
+            data = data.date()
 
-        hora_inicio_2 = aba[f"G{linha}"].value
-        hora_fim_2 = aba[f"H{linha}"].value
+        if not isinstance(data, date):
+            continue
 
-        hora_inicio_3 = aba[f"I{linha}"].value
-        hora_fim_3 = aba[f"J{linha}"].value
+        # Evita bugs de datas 1904 e outros anos inválidos
+        if data.year != ano:
+            continue
 
-        saldo_dia = hora_para_minutos(aba[f"N{linha}"].value)
+        # Não importa dias futuros
+        if data > date.today():
+            continue
 
         payload = {
             "colaborador_nome": colaborador_nome,
@@ -113,89 +117,101 @@ def processar_aba_mes(wb, nome_aba, colaborador_nome, arquivo_nome):
             "mes": mes,
             "data": str(data),
 
-            "classificacao": str(classificacao) if classificacao else None,
-            "observacao": str(observacao) if observacao else None,
+            "classificacao": str(aba[f"D{linha}"].value) if aba[f"D{linha}"].value else None,
+            "observacao": str(aba[f"L{linha}"].value) if aba[f"L{linha}"].value else None,
 
-            "hora_inicio_1": str(hora_inicio_1) if hora_inicio_1 else None,
-            "hora_fim_1": str(hora_fim_1) if hora_fim_1 else None,
+            "hora_inicio_1": str(aba[f"E{linha}"].value) if aba[f"E{linha}"].value else None,
+            "hora_fim_1": str(aba[f"F{linha}"].value) if aba[f"F{linha}"].value else None,
 
-            "hora_inicio_2": str(hora_inicio_2) if hora_inicio_2 else None,
-            "hora_fim_2": str(hora_fim_2) if hora_fim_2 else None,
+            "hora_inicio_2": str(aba[f"G{linha}"].value) if aba[f"G{linha}"].value else None,
+            "hora_fim_2": str(aba[f"H{linha}"].value) if aba[f"H{linha}"].value else None,
 
-            "hora_inicio_3": str(hora_inicio_3) if hora_inicio_3 else None,
-            "hora_fim_3": str(hora_fim_3) if hora_fim_3 else None,
+            "hora_inicio_3": str(aba[f"I{linha}"].value) if aba[f"I{linha}"].value else None,
+            "hora_fim_3": str(aba[f"J{linha}"].value) if aba[f"J{linha}"].value else None,
 
             "horas_a_fazer_minutos": horas_a_fazer,
             "horas_feitas_minutos": horas_feitas,
-            "saldo_dia_minutos": saldo_dia,
+            "saldo_dia_minutos": hora_para_minutos(aba[f"N{linha}"].value),
 
             "banco_mes_anterior_minutos": banco_mes_anterior,
             "horas_somadas_banco_minutos": horas_somadas_banco,
             "banco_horas_atual_minutos": banco_horas_atual,
         }
 
-        (
-            supabase
-            .table("ponto_excel_importado")
-            .upsert(
-                payload,
-                on_conflict="colaborador_nome,ano,mes,data"
-            )
-            .execute()
-        )
+        supabase.table("ponto_excel_importado").upsert(
+            payload,
+            on_conflict="colaborador_nome,ano,mes,data"
+        ).execute()
 
-        print(f"Importado: {colaborador_nome} | {data}")
+        registros_importados += 1
+
+        if registros_importados % 10 == 0:
+            print(f"  {registros_importados} registros importados...")
+
+    return registros_importados
 
 
-# =========================
-# EXECUÇÃO
-# =========================
+def main():
+    arquivos = [
+        arquivo
+        for arquivo in Path(PASTA_PLANILHAS).glob("Horários 2026*.xlsx")
+        if "Modelo" not in arquivo.name
+    ]
 
-arquivos = [
-    arquivo
-    for arquivo in Path(PASTA_PLANILHAS).glob("Horários 2026*.xlsx")
-    if "Modelo" not in arquivo.name
-]
+    print(f"Arquivos encontrados: {len(arquivos)}")
 
-print(f"Arquivos encontrados: {len(arquivos)}")
-
-total_linhas_encontradas = 0
-
-for arquivo in arquivos:
-    print(f"\nProcessando: {arquivo.name}")
+    importacao_id = registrar_inicio(len(arquivos))
+    total_registros = 0
+    erros = []
 
     try:
-        wb = openpyxl.load_workbook(arquivo, data_only=True)
-        colaborador_nome = pegar_nome_colaborador(wb)
+        for arquivo in arquivos:
+            print(f"\nArquivo: {arquivo.name}")
 
-        print(f"Colaborador: {colaborador_nome}")
-        print(f"Abas: {wb.sheetnames}")
+            try:
+                wb = openpyxl.load_workbook(arquivo, data_only=True)
+                colaborador_nome = pegar_nome_colaborador(wb)
 
-        for aba_nome in wb.sheetnames:
-            if aba_nome.isdigit():
-                aba = wb[aba_nome]
+                for aba_nome in wb.sheetnames:
+                    if aba_nome.isdigit():
+                        total_registros += processar_aba_mes(
+                            wb,
+                            aba_nome,
+                            colaborador_nome,
+                            arquivo.name
+                        )
 
-                datas_na_aba = 0
+            except Exception as e:
+                erros.append(f"{arquivo.name}: {str(e)}")
+                print(f"ERRO: {arquivo.name} | {e}")
 
-                for linha in range(10, 41):
-                    data = aba[f"B{linha}"].value
-                    if data:
-                        datas_na_aba += 1
+        if erros:
+            registrar_fim(
+                importacao_id,
+                "finalizado_com_erros",
+                total_registros,
+                " | ".join(erros)
+            )
+        else:
+            registrar_fim(
+                importacao_id,
+                "sucesso",
+                total_registros,
+                "Importação finalizada com sucesso."
+            )
 
-                print(f"Aba {aba_nome}: {datas_na_aba} datas encontradas")
-
-                total_linhas_encontradas += datas_na_aba
-
-                processar_aba_mes(
-                    wb,
-                    aba_nome,
-                    colaborador_nome,
-                    arquivo.name
-                )
+        print(f"\nTotal importado: {total_registros}")
+        print("Importação finalizada.")
 
     except Exception as e:
-        print(f"ERRO: {arquivo.name}")
-        print(e)
+        registrar_fim(
+            importacao_id,
+            "erro",
+            total_registros,
+            str(e)
+        )
+        print(f"ERRO GERAL: {e}")
 
-print(f"\nTotal de linhas com data encontradas: {total_linhas_encontradas}")
-print("\nFINALIZADO")
+
+if __name__ == "__main__":
+    main()
