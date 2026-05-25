@@ -112,7 +112,7 @@ export default function BancoHorasPage() {
               <div>
                 {new Date(
                   timeData.ultima_importacao.finalizado_em,
-                ).toLocaleString("pt-BR")}
+                ).toLocaleString("pt-BR", {timeZone: "America/Sao_Paulo", })}
               </div>
 
               <div className="text-xs text-[#888] mt-1">

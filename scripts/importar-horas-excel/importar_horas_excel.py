@@ -1,5 +1,5 @@
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 import os
 import openpyxl
 from supabase import create_client
@@ -66,7 +66,7 @@ def registrar_fim(importacao_id, status, registros_importados, mensagem):
         "status": status,
         "registros_importados": registros_importados,
         "mensagem": mensagem,
-        "finalizado_em": datetime.now().astimezone().isoformat()
+        "finalizado_em": datetime.now(timezone.utc).isoformat()
     }).eq("id", importacao_id).execute()
 
 
