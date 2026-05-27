@@ -7,6 +7,7 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   Clock3,
+  Download,
   Filter,
   TrendingUp,
   Users,
@@ -119,6 +120,63 @@ function formatHours(value: number) {
 function formatPercent(value: number) {
   const safeValue = Number.isFinite(value) ? value : 0
   return `${safeValue.toFixed(2)}%`
+}
+
+function toSafeNumber(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(",", "."))
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  const parsed = Number(value ?? 0)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function formatDecimalCsv(value: number) {
+  const safeValue = Number.isFinite(value) ? value : 0
+  return safeValue.toFixed(2).replace(".", ",")
+}
+
+function escapeCsvValue(value: unknown) {
+  if (value === null || value === undefined) return ""
+
+  const stringValue = String(value)
+
+  if (
+    stringValue.includes(";") ||
+    stringValue.includes('"') ||
+    stringValue.includes("\n")
+  ) {
+    return `"${stringValue.replace(/"/g, '""')}"`
+  }
+
+  return stringValue
+}
+
+function rowsToCsv(rows: Array<Array<unknown>>) {
+  return rows.map((row) => row.map(escapeCsvValue).join(";")).join("\n")
+}
+
+function downloadCsv(filename: string, rows: Array<Array<unknown>>) {
+  const csv = rowsToCsv(rows)
+  const blob = new Blob(["\uFEFF" + csv], {
+    type: "text/csv;charset=utf-8;",
+  })
+
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+
+  URL.revokeObjectURL(url)
 }
 
 function truncateLabel(value: string, max = 22) {
@@ -566,29 +624,43 @@ export default function RelatorioRh() {
 
   const projetosGrafico = useMemo(() => {
     return [...projetosFiltrados]
-      .sort((a, b) => b.horas_feitas - a.horas_feitas)
-      .map((item) => ({
-        nome: item.projeto_codigo,
-        nomeCompleto: `${item.projeto_codigo} • ${item.projeto_nome}`,
-        horas: Number(item.horas_feitas.toFixed(2)),
-        percentual: item.percentual_consumido,
-        color: getStatusConsumo(item.percentual_consumido).color,
-      }))
+      .map((item) => {
+        const horasFeitas = toSafeNumber(item.horas_feitas)
+        const percentualConsumido = toSafeNumber(item.percentual_consumido)
+
+        return {
+          nome: item.projeto_codigo || "Sem código",
+          nomeCompleto: `${item.projeto_codigo || "Sem código"} • ${
+            item.projeto_nome || "Sem nome"
+          }`,
+          horas: Number(horasFeitas.toFixed(2)),
+          percentual: percentualConsumido,
+          color: getStatusConsumo(percentualConsumido).color,
+        }
+      })
+      .filter((item) => item.horas > 0)
+      .sort((a, b) => b.horas - a.horas)
   }, [projetosFiltrados])
 
   const colaboradoresGrafico = useMemo(() => {
     return [...colaboradoresOrdenados]
+      .map((item) => {
+        const horasFeitas = toSafeNumber(item.horas_feitas)
+        const percentualParticipacao = toSafeNumber(
+          item.percentual_participacao_projeto,
+        )
+
+        return {
+          nome: truncateLabel(item.user_name || "Sem nome", 18),
+          nomeCompleto: item.user_name || "Sem nome",
+          horas: Number(horasFeitas.toFixed(2)),
+          percentual:
+            selectedProjectId !== null ? percentualParticipacao : undefined,
+        }
+      })
+      .filter((item) => item.horas > 0)
       .slice(0, 10)
       .reverse()
-      .map((item) => ({
-        nome: truncateLabel(item.user_name, 18),
-        nomeCompleto: item.user_name,
-        horas: Number(item.horas_feitas.toFixed(2)),
-        percentual:
-          selectedProjectId !== null
-            ? item.percentual_participacao_projeto
-            : undefined,
-      }))
   }, [colaboradoresOrdenados, selectedProjectId])
 
   const totalAlertas = useMemo(() => {
@@ -665,6 +737,154 @@ export default function RelatorioRh() {
   }, [colaboradorOptions])
 
   const projetosChartHeight = Math.max(projetosGrafico.length * 42, 360)
+
+  function handleExportCsv() {
+    const rows: Array<Array<unknown>> = []
+
+    const filtroAno =
+      yearOptions.find((item) => item.value === selectedYear)?.label ??
+      selectedYear
+
+    const filtroTrimestre =
+      quarterOptions.find((item) => item.value === selectedQuarter)?.label ??
+      selectedQuarter
+
+    const filtroMes =
+      monthOptions.find((item) => item.value === selectedMonth)?.label ??
+      selectedMonth
+
+    const filtroSemana =
+      weekOptions.find((item) => item.value === selectedWeek)?.label ??
+      selectedWeek
+
+    const filtroProjeto =
+      projetoFiltroOptions.find((item) => item.value === selectedProjetoFiltro)
+        ?.label ?? selectedProjetoFiltro
+
+    const filtroColaborador =
+      colaboradorFiltroOptions.find(
+        (item) => item.value === selectedColaboradorFiltro,
+      )?.label ?? selectedColaboradorFiltro
+
+    rows.push(["Relatórios Gerenciais"])
+    rows.push(["Data de exportação", new Date().toLocaleString("pt-BR")])
+    rows.push([])
+
+    rows.push(["Filtros aplicados"])
+    rows.push(["Ano", filtroAno])
+    rows.push(["Trimestre", filtroTrimestre])
+    rows.push(["Mês", filtroMes])
+    rows.push(["Semana", filtroSemana])
+    rows.push(["Projeto", filtroProjeto])
+    rows.push(["Colaborador", filtroColaborador])
+    rows.push([])
+
+    rows.push(["Indicadores gerais"])
+    rows.push(["Indicador", "Valor formatado", "Valor numérico"])
+    rows.push([
+      "Horas realizadas",
+      formatHours(totalHorasProjetos),
+      formatDecimalCsv(totalHorasProjetos),
+    ])
+    rows.push([
+      "Horas em projetos INT",
+      formatHours(totalHorasInt),
+      formatDecimalCsv(totalHorasInt),
+    ])
+    rows.push([
+      "Horas em projetos EXT",
+      formatHours(totalHorasExt),
+      formatDecimalCsv(totalHorasExt),
+    ])
+    rows.push(["Projetos ativos", totalProjetosAtivos, totalProjetosAtivos])
+    rows.push([
+      "Projetos críticos",
+      totalProjetosCriticos,
+      totalProjetosCriticos,
+    ])
+    rows.push([
+      "Projeto mais demandado",
+      projetoMaisConsumido?.projeto_codigo ?? "-",
+      projetoMaisConsumido
+        ? formatDecimalCsv(projetoMaisConsumido.horas_feitas)
+        : "",
+    ])
+    rows.push([])
+
+    rows.push(["Detalhamento por projeto"])
+    rows.push([
+      "Código do projeto",
+      "Nome do projeto",
+      "Status",
+      "Horas estimadas",
+      "Horas estimadas numérico",
+      "Horas feitas",
+      "Horas feitas numérico",
+      "Saldo",
+      "Saldo numérico",
+      "% consumido",
+      "% consumido numérico",
+      "Colaborador destaque",
+    ])
+
+    projetosFiltrados.forEach((item) => {
+      const status = getStatusConsumo(item.percentual_consumido)
+
+      const colaboradoresProjeto = colaboradores
+        .filter((colaborador) => colaborador.projeto_id === item.projeto_id)
+        .sort((a, b) => b.horas_feitas - a.horas_feitas)
+
+      const colaboradorDestaque =
+        colaboradoresProjeto.length > 0
+          ? colaboradoresProjeto[0].user_name
+          : "-"
+
+      rows.push([
+        item.projeto_codigo,
+        item.projeto_nome,
+        status.label,
+        formatHours(item.horas_estimadas),
+        formatDecimalCsv(item.horas_estimadas),
+        formatHours(item.horas_feitas),
+        formatDecimalCsv(item.horas_feitas),
+        formatHours(item.saldo_horas),
+        formatDecimalCsv(item.saldo_horas),
+        formatPercent(item.percentual_consumido),
+        formatDecimalCsv(item.percentual_consumido),
+        colaboradorDestaque,
+      ])
+    })
+
+    rows.push([])
+    rows.push(["Detalhamento por colaborador"])
+    rows.push([
+      "Colaborador",
+      "Projeto",
+      "Horas feitas",
+      "Horas feitas numérico",
+      "% participação no projeto",
+      "% participação numérico",
+    ])
+
+    colaboradoresOrdenados.forEach((item) => {
+      rows.push([
+        item.user_name,
+        `${item.projeto_codigo} • ${item.projeto_nome}`,
+        formatHours(item.horas_feitas),
+        formatDecimalCsv(item.horas_feitas),
+        selectedProjectId !== null
+          ? formatPercent(item.percentual_participacao_projeto)
+          : "",
+        selectedProjectId !== null
+          ? formatDecimalCsv(item.percentual_participacao_projeto)
+          : "",
+      ])
+    })
+
+    const dataArquivo = new Date().toISOString().slice(0, 10)
+
+    downloadCsv(`relatorios-gerenciais-${dataArquivo}.csv`, rows)
+  }
 
   if (loading) {
     return (
@@ -830,8 +1050,20 @@ export default function RelatorioRh() {
         title="Filtros do dashboard"
         subtitle="Selecione os recortes que deseja analisar"
         rightContent={
-          <div className="rounded-2xl bg-gray-50 p-3 text-gray-600">
-            <Filter className="h-5 w-5" />
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportCsv}
+              className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-semibold"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar CSV
+            </Button>
+
+            <div className="rounded-2xl bg-gray-50 p-3 text-gray-600">
+              <Filter className="h-5 w-5" />
+            </div>
           </div>
         }
       >
@@ -1037,38 +1269,44 @@ export default function RelatorioRh() {
           title="Top projetos por horas"
           subtitle="Projetos com maior volume de esforço acumulado"
         >
-          <div className="h-[360px] overflow-y-auto pr-2">
-            <div style={{ height: projetosChartHeight, minWidth: "100%" }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={projetosGrafico}
-                  layout="vertical"
-                  margin={{ top: 8, right: 20, left: 10, bottom: 8 }}
-                  barCategoryGap={10}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    horizontal={true}
-                    vertical={false}
-                  />
-                  <XAxis type="number" tick={{ fontSize: 12 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="nome"
-                    width={105}
-                    interval={0}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip content={<CustomHoursTooltip />} />
-                  <Bar dataKey="horas" radius={[0, 8, 8, 0]}>
-                    {projetosGrafico.map((entry) => (
-                      <Cell key={entry.nomeCompleto} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+          {projetosGrafico.length > 0 ? (
+            <div className="h-[360px] overflow-y-auto pr-2">
+              <div style={{ height: projetosChartHeight, minWidth: "100%" }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={projetosGrafico}
+                    layout="vertical"
+                    margin={{ top: 8, right: 20, left: 10, bottom: 8 }}
+                    barCategoryGap={10}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      horizontal={true}
+                      vertical={false}
+                    />
+                    <XAxis type="number" tick={{ fontSize: 12 }} />
+                    <YAxis
+                      type="category"
+                      dataKey="nome"
+                      width={105}
+                      interval={0}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip content={<CustomHoursTooltip />} />
+                    <Bar dataKey="horas" radius={[0, 8, 8, 0]}>
+                      {projetosGrafico.map((entry) => (
+                        <Cell key={entry.nomeCompleto} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600">
+              Nenhum dado numérico encontrado para o projeto filtrado.
+            </div>
+          )}
         </SectionCard>
 
         <SectionCard
@@ -1106,146 +1344,92 @@ export default function RelatorioRh() {
         </SectionCard>
       </div>
 
-      <SectionCard
-        title="Tabela final de detalhamento"
-        subtitle="Única visualização tabular para aprofundamento"
-        rightContent={
-          <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600">
-            <CalendarDays className="h-4 w-4" />
-            <span>
-              Ano: {selectedYear} • Trimestre: {selectedQuarter} • Mês:{" "}
-              {selectedMonth} • Semana: {selectedWeek}
-            </span>
-          </div>
-        }
-      >
-        <div className="overflow-x-auto rounded-xl border border-gray-100">
-          <Table className="min-w-[1100px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Projeto</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Horas estimadas</TableHead>
-                <TableHead>
-                  <div
-                    className="flex items-center gap-1 cursor-pointer select-none"
-                    onClick={() => handleSort("horas_feitas")}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <SectionCard
+          title="Top projetos por horas"
+          subtitle="Projetos com maior volume de esforço acumulado"
+        >
+          {projetosGrafico.length > 0 ? (
+            <div className="h-[360px] overflow-y-auto pr-2">
+              <div style={{ height: projetosChartHeight, minWidth: "100%" }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={projetosGrafico}
+                    layout="vertical"
+                    margin={{ top: 8, right: 20, left: 10, bottom: 8 }}
+                    barCategoryGap={10}
                   >
-                    Horas feitas
-                    {orderField === "horas_feitas" &&
-                      (orderDirection === "asc" ? "↑" : "↓")}
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div
-                    className="flex items-center gap-1 cursor-pointer"
-                    onClick={() => handleSort("saldo")}
-                  >
-                    Saldo
-                    {orderField === "saldo" &&
-                      (orderDirection === "asc" ? "↑" : "↓")}
-                  </div>
-                </TableHead>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      horizontal={true}
+                      vertical={false}
+                    />
+                    <XAxis type="number" tick={{ fontSize: 12 }} />
+                    <YAxis
+                      type="category"
+                      dataKey="nome"
+                      width={105}
+                      interval={0}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip content={<CustomHoursTooltip />} />
+                    <Bar dataKey="horas" radius={[0, 8, 8, 0]}>
+                      {projetosGrafico.map((entry) => (
+                        <Cell key={entry.nomeCompleto} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600">
+              Nenhum dado numérico encontrado para o projeto filtrado.
+            </div>
+          )}
+        </SectionCard>
 
-                <TableHead>
-                  <div
-                    className="flex items-center gap-1 cursor-pointer"
-                    onClick={() => handleSort("percentual")}
-                  >
-                    % consumido
-                    {orderField === "percentual" &&
-                      (orderDirection === "asc" ? "↑" : "↓")}
-                  </div>
-                </TableHead>
-                <TableHead>Colaborador destaque</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {projetosFiltrados.length > 0 ? (
-                projetosFiltrados.map((item) => {
-                  const status = getStatusConsumo(item.percentual_consumido)
-
-                  const colaboradoresProjeto = colaboradores
-                    .filter(
-                      (colaborador) =>
-                        colaborador.projeto_id === item.projeto_id,
-                    )
-                    .sort((a, b) => b.horas_feitas - a.horas_feitas)
-
-                  const colaboradorDestaque =
-                    colaboradoresProjeto.length > 0
-                      ? colaboradoresProjeto[0].user_name
-                      : "-"
-
-                  return (
-                    <TableRow
-                      key={item.projeto_id}
-                      className="cursor-pointer"
-                      onClick={() => setSelectedProjectId(item.projeto_id)}
-                    >
-                      <TableCell className="font-medium">
-                        {item.projeto_codigo} • {item.projeto_nome}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-medium ${status.className}`}
-                        >
-                          {status.label}
-                        </span>
-                      </TableCell>
-                      <TableCell>{formatHours(item.horas_estimadas)}</TableCell>
-                      <TableCell>{formatHours(item.horas_feitas)}</TableCell>
-                      <TableCell
-                        className={
-                          item.saldo_horas < 0
-                            ? "font-medium text-red-600"
-                            : "font-medium text-green-600"
-                        }
-                      >
-                        {formatHours(item.saldo_horas)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2 min-w-[120px] max-w-[140px]">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${
-                                item.percentual_consumido >= 100
-                                  ? "bg-red-500"
-                                  : item.percentual_consumido >= 80
-                                    ? "bg-yellow-500"
-                                    : "bg-green-500"
-                              }`}
-                              style={{
-                                width: `${Math.min(item.percentual_consumido, 100)}%`,
-                              }}
-                            />
-                          </div>
-
-                          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
-                            {formatPercent(item.percentual_consumido)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-gray-400" />
-                          <span>{colaboradorDestaque}</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-gray-500">
-                    Nenhum projeto encontrado.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </SectionCard>
+        <SectionCard
+          title={
+            selectedProjectId !== null
+              ? "Top colaboradores do projeto selecionado"
+              : "Top colaboradores por horas"
+          }
+          subtitle={
+            selectedProjectId !== null && projetoSelecionado
+              ? `${projetoSelecionado.projeto_codigo} • ${projetoSelecionado.projeto_nome}`
+              : "Somatório geral de todos os projetos"
+          }
+        >
+          {colaboradoresGrafico.length > 0 ? (
+            <div className="h-[360px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={colaboradoresGrafico}
+                  layout="vertical"
+                  margin={{ left: 10 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="nome"
+                    width={125}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip content={<CustomHoursTooltip />} />
+                  <Bar dataKey="horas" fill="#2563eb" radius={[0, 8, 8, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600">
+              Nenhum colaborador com horas encontradas para o recorte
+              selecionado.
+            </div>
+          )}
+        </SectionCard>
+      </div>
     </div>
   )
 }
