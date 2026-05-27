@@ -84,7 +84,7 @@ export default async function IndicadoresDeDesempenhoPage() {
         <TabsList className="h-auto w-full justify-start rounded-none border-b bg-transparent p-0">
           <TabsTrigger
             value="meus-indicadores"
-            className="rounded-none border-b-2 border-transparent px-4 py-3 text-base font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            className="rounded-none border-none border-transparent px-4 py-3 text-base font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent"
           >
             <UserRoundCheck className="mr-2 h-5 w-5 text-sky-500" />
             Meus Indicadores

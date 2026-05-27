@@ -193,6 +193,102 @@ function FilterSelect({
   )
 }
 
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+}
+
+function ProjetoSearchSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Array<{ value: string; label: string }>
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState("")
+
+  const selectedOption =
+    options.find((option) => option.value === value) ?? options[0]
+
+  const filteredOptions = useMemo(() => {
+    const term = normalizeText(search)
+
+    if (!term) return options
+
+    return options.filter((option) =>
+      normalizeText(option.label).includes(term),
+    )
+  }, [options, search])
+
+  return (
+    <div className="relative flex flex-col gap-2">
+      <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
+        {label}
+      </label>
+
+      <input
+        type="text"
+        value={open ? search : selectedOption?.label ?? ""}
+        placeholder="Buscar por código ou nome"
+        onFocus={() => {
+          setSearch(value === "all" ? "" : selectedOption?.label ?? "")
+          setOpen(true)
+        }}
+        onChange={(event) => {
+          setSearch(event.target.value)
+          setOpen(true)
+        }}
+        onBlur={() => {
+          window.setTimeout(() => {
+            setOpen(false)
+            setSearch("")
+          }, 150)
+        }}
+        className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+      />
+
+      {open ? (
+        <div className="absolute left-0 right-0 top-[66px] z-30 max-h-64 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option) => (
+              <button
+                key={`${label}-${option.value}`}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(option.value)
+                  setOpen(false)
+                  setSearch("")
+                }}
+                className={`block w-full px-3 py-2 text-left text-sm transition hover:bg-blue-50 ${
+                  option.value === value
+                    ? "bg-blue-50 font-medium text-blue-700"
+                    : "text-gray-700"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-3 text-sm text-gray-500">
+              Nenhum projeto encontrado.
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+  
+
 function CustomTooltip({
   active,
   payload,
@@ -558,14 +654,18 @@ export default function MeuPainelHoras() {
             </div>
 
             <div className="rounded-2xl border border-gray-100 p-4">
-              <p className="text-sm text-gray-500">Horas trabalhadas no período</p>
+              <p className="text-sm text-gray-500">
+                Horas trabalhadas no período
+              </p>
               <p className="mt-1 font-semibold text-gray-900">
                 {formatHours(data.resumo?.horas_trabalhadas_mes ?? 0)}
               </p>
             </div>
 
             <div className="rounded-2xl border border-gray-100 p-4">
-              <p className="text-sm text-gray-500">Horas previstas no período</p>
+              <p className="text-sm text-gray-500">
+                Horas previstas no período
+              </p>
               <p className="mt-1 font-semibold text-gray-900">
                 {formatHours(data.resumo?.horas_a_fazer_mes ?? 0)}
               </p>
@@ -674,7 +774,10 @@ export default function MeuPainelHoras() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td
+                    colSpan={7}
+                    className="px-4 py-8 text-center text-gray-500"
+                  >
                     Nenhum projeto encontrado para os filtros selecionados.
                   </td>
                 </tr>
