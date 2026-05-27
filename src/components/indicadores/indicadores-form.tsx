@@ -51,7 +51,7 @@ type Colaborador = {
 
 type IndicadoresFormValues = {
   setor_id: string
-  colaborador_id: string
+  colaborador_ids: string[]
   projeto_id: string
   codigo_projeto: string
   entrega_avaliada: string
@@ -189,6 +189,7 @@ function CampoBinario({
 
 export default function IndicadoresForm() {
   const [openProjeto, setOpenProjeto] = useState(false)
+  const [openColaborador, setOpenColaborador] = useState(false)
   const [setores, setSetores] = useState<Setor[]>([])
   const [projetos, setProjetos] = useState<Projeto[]>([])
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
@@ -197,7 +198,7 @@ export default function IndicadoresForm() {
 
   const [formData, setFormData] = useState<IndicadoresFormValues>({
     setor_id: "",
-    colaborador_id: "",
+    colaborador_ids: [],
     projeto_id: "",
     codigo_projeto: "",
     entrega_avaliada: "",
@@ -264,6 +265,27 @@ export default function IndicadoresForm() {
     return projetos.find((item) => String(item.id) === formData.projeto_id)
   }, [projetos, formData.projeto_id])
 
+  const colaboradoresSelecionados = useMemo(() => {
+    return colaboradores.filter((item) =>
+      formData.colaborador_ids.includes(item.id),
+    )
+  }, [colaboradores, formData.colaborador_ids])
+
+  const labelColaboradoresSelecionados = useMemo(() => {
+    if (!formData.setor_id) return "Selecione primeiro o setor"
+    if (!formData.colaborador_ids.length) return "Selecione um ou mais colaboradores"
+
+    const nomes = colaboradoresSelecionados.map((item) => item.nome)
+
+    if (nomes.length <= 2) return nomes.join("; ")
+
+    return `${nomes.slice(0, 2).join("; ")} +${nomes.length - 2}`
+  }, [
+    colaboradoresSelecionados,
+    formData.colaborador_ids.length,
+    formData.setor_id,
+  ])
+
   const updateField = <K extends keyof IndicadoresFormValues>(
     field: K,
     value: IndicadoresFormValues[K],
@@ -283,25 +305,33 @@ export default function IndicadoresForm() {
     setFormData((prev) => ({
       ...prev,
       setor_id: value,
-      colaborador_id: "",
+      colaborador_ids: [],
     }))
+
+    setOpenColaborador(false)
 
     setErrors((prev) => ({
       ...prev,
       setor_id: "",
-      colaborador_id: "",
+      colaborador_ids: "",
     }))
   }
 
   function handleColaboradorChange(value: string) {
-    setFormData((prev) => ({
-      ...prev,
-      colaborador_id: value,
-    }))
+    setFormData((prev) => {
+      const jaSelecionado = prev.colaborador_ids.includes(value)
+
+      return {
+        ...prev,
+        colaborador_ids: jaSelecionado
+          ? prev.colaborador_ids.filter((id) => id !== value)
+          : [...prev.colaborador_ids, value],
+      }
+    })
 
     setErrors((prev) => ({
       ...prev,
-      colaborador_id: "",
+      colaborador_ids: "",
     }))
   }
 
@@ -328,8 +358,8 @@ export default function IndicadoresForm() {
       newErrors.setor_id = "Selecione o setor."
     }
 
-    if (!formData.colaborador_id) {
-      newErrors.colaborador_id = "Selecione o colaborador."
+    if (!formData.colaborador_ids.length) {
+      newErrors.colaborador_ids = "Selecione pelo menos um colaborador."
     }
 
     if (!formData.projeto_id) {
@@ -392,7 +422,7 @@ export default function IndicadoresForm() {
     startTransition(async () => {
       try {
         await createIndicadorDesempenho({
-          colaborador_id: formData.colaborador_id,
+          colaborador_ids: formData.colaborador_ids,
           codigo_projeto: formData.codigo_projeto,
           entrega_avaliada: formData.entrega_avaliada,
           data_entrega: formData.data_entrega,
@@ -408,11 +438,15 @@ export default function IndicadoresForm() {
           comentario_geral: formData.comentario_geral,
         })
 
-        toast.success("Avaliação salva com sucesso.")
+        toast.success(
+          formData.colaborador_ids.length > 1
+            ? "Avaliação salva para os colaboradores selecionados."
+            : "Avaliação salva com sucesso.",
+        )
 
         setFormData({
           setor_id: "",
-          colaborador_id: "",
+          colaborador_ids: [],
           projeto_id: "",
           codigo_projeto: "",
           entrega_avaliada: "",
@@ -455,7 +489,7 @@ export default function IndicadoresForm() {
             <div className="mb-6">
               <h2 className="text-xl font-semibold">Informações gerais</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Selecione o setor, o colaborador e o projeto da avaliação.
+                Selecione o setor, um ou mais colaboradores e o projeto da avaliação.
               </p>
             </div>
 
@@ -486,28 +520,98 @@ export default function IndicadoresForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="colaborador_id">Colaborador avaliado</Label>
-                <select
-                  id="colaborador_id"
-                  value={formData.colaborador_id}
-                  onChange={(e) => handleColaboradorChange(e.target.value)}
-                  disabled={!formData.setor_id}
-                  className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:bg-muted"
+                <Label htmlFor="colaboradores_ids">
+                  Colaborador(es) avaliado(s)
+                </Label>
+
+                <Popover
+                  open={openColaborador}
+                  onOpenChange={setOpenColaborador}
                 >
-                  <option value="">
-                    {!formData.setor_id
-                      ? "Selecione primeiro o setor"
-                      : "Selecione o colaborador"}
-                  </option>
-                  {colaboradores.map((colaborador) => (
-                    <option key={colaborador.id} value={colaborador.id}>
-                      {colaborador.nome}
-                    </option>
-                  ))}
-                </select>
-                {errors.colaborador_id ? (
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="colaboradores_ids"
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openColaborador}
+                      disabled={!formData.setor_id}
+                      className="min-h-11 w-full justify-between rounded-xl px-3 font-normal disabled:cursor-not-allowed disabled:bg-muted"
+                    >
+                      <span className="truncate text-left">
+                        {labelColaboradoresSelecionados}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar colaborador..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum colaborador encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {colaboradores.map((colaborador) => {
+                            const selecionado = formData.colaborador_ids.includes(
+                              colaborador.id,
+                            )
+
+                            return (
+                              <CommandItem
+                                key={colaborador.id}
+                                value={`${colaborador.nome} ${
+                                  colaborador.departamento_nome ?? ""
+                                }`}
+                                onSelect={() =>
+                                  handleColaboradorChange(colaborador.id)
+                                }
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selecionado ? "opacity-100" : "opacity-0",
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{colaborador.nome}</span>
+                                  {colaborador.departamento_nome ? (
+                                    <span className="text-xs text-muted-foreground">
+                                      {colaborador.departamento_nome}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </CommandItem>
+                            )
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+
+                {colaboradoresSelecionados.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {colaboradoresSelecionados.map((colaborador) => (
+                      <button
+                        key={colaborador.id}
+                        type="button"
+                        onClick={() => handleColaboradorChange(colaborador.id)}
+                        className="rounded-full border bg-muted/40 px-3 py-1 text-xs transition hover:bg-muted"
+                      >
+                        {colaborador.nome} ×
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                <p className="text-xs text-muted-foreground">
+                  Quando houver mais de um colaborador, a mesma avaliação será
+                  registrada para todos os nomes selecionados.
+                </p>
+
+                {errors.colaborador_ids ? (
                   <p className="text-sm text-red-500">
-                    {errors.colaborador_id}
+                    {errors.colaborador_ids}
                   </p>
                 ) : null}
               </div>

@@ -1,9 +1,12 @@
 "use server"
 
+import { randomUUID } from "crypto"
+
 import { createClient } from "@/utils/supabase/server"
 
 type CreateIndicadorPayload = {
-  colaborador_id: string
+  colaborador_id?: string
+  colaborador_ids?: string[]
   equipe_colaborador?: string
   codigo_projeto: string
   entrega_avaliada: string
@@ -105,21 +108,43 @@ export async function createIndicadorDesempenho(
     throw new Error("Não foi possível identificar o avaliador logado.")
   }
 
+  const colaboradorIds = Array.from(
+    new Set(
+      [
+        ...(payload.colaborador_ids ?? []),
+        ...(payload.colaborador_id ? [payload.colaborador_id] : []),
+      ].filter((value): value is string => Boolean(value && value.trim())),
+    ),
+  )
+
+  if (!colaboradorIds.length) {
+    throw new Error("Selecione pelo menos um colaborador.")
+  }
+
   const avaliadorNome =
     user.user_metadata?.name ?? user.user_metadata?.nome ?? user.email ?? null
 
-  const { data: colaborador, error: colaboradorError } = await supabase
+  const { data: colaboradores, error: colaboradoresError } = await supabase
     .from("vw_colaboradores")
     .select("id, departamento_nome")
-    .eq("id", payload.colaborador_id)
-    .single()
+    .in("id", colaboradorIds)
 
-  if (colaboradorError || !colaborador) {
+  if (colaboradoresError) {
     console.error(
-      "Erro ao buscar setor do colaborador avaliado:",
-      colaboradorError,
+      "Erro ao buscar setor dos colaboradores avaliados:",
+      colaboradoresError,
     )
-    throw new Error("Não foi possível identificar o setor do colaborador.")
+    throw new Error("Não foi possível identificar o setor dos colaboradores.")
+  }
+
+  const colaboradoresEncontrados = colaboradores ?? []
+  const idsEncontrados = new Set(
+    colaboradoresEncontrados.map((colaborador) => colaborador.id),
+  )
+  const idsNaoEncontrados = colaboradorIds.filter((id) => !idsEncontrados.has(id))
+
+  if (idsNaoEncontrados.length) {
+    throw new Error("Não foi possível identificar todos os colaboradores selecionados.")
   }
 
   const dataEntrega = payload.data_entrega?.trim()
@@ -133,33 +158,46 @@ export async function createIndicadorDesempenho(
     throw new Error("A data de revisão é obrigatória.")
   }
 
-  const { error } = await supabase.from("indicadores_desempenho").insert({
-    avaliador_id: user.id,
-    avaliador_nome: avaliadorNome,
-    colaborador_id: payload.colaborador_id,
-    equipe_colaborador:
-      colaborador.departamento_nome ?? payload.equipe_colaborador ?? null,
-    codigo_projeto: payload.codigo_projeto,
-    entrega_avaliada: payload.entrega_avaliada,
-    data_entrega: dataEntrega,
-    data_revisao: dataRevisao,
-    ies_aprovado_primeira: payload.ies_aprovado_primeira,
-    ip_no_prazo: payload.ip_no_prazo,
-    clareza_estrutura: payload.clareza_estrutura,
-    profundidade_rigor: payload.profundidade_rigor,
-    alinhamento_demanda: payload.alinhamento_demanda,
-    forma_profissionalismo: payload.forma_profissionalismo,
-    pontos_fortes: payload.pontos_fortes?.trim() || null,
-    pontos_fracos: payload.pontos_fracos?.trim() || null,
-    comentario_geral: payload.comentario_geral?.trim() || null,
+  const avaliacaoGrupoId = randomUUID()
+
+  const registros = colaboradorIds.map((colaboradorId) => {
+    const colaborador = colaboradoresEncontrados.find(
+      (item) => item.id === colaboradorId,
+    )
+
+    return {
+      avaliacao_grupo_id: avaliacaoGrupoId,
+      avaliador_id: user.id,
+      avaliador_nome: avaliadorNome,
+      colaborador_id: colaboradorId,
+      equipe_colaborador:
+        colaborador?.departamento_nome ?? payload.equipe_colaborador ?? null,
+      codigo_projeto: payload.codigo_projeto,
+      entrega_avaliada: payload.entrega_avaliada,
+      data_entrega: dataEntrega,
+      data_revisao: dataRevisao,
+      ies_aprovado_primeira: payload.ies_aprovado_primeira,
+      ip_no_prazo: payload.ip_no_prazo,
+      clareza_estrutura: payload.clareza_estrutura,
+      profundidade_rigor: payload.profundidade_rigor,
+      alinhamento_demanda: payload.alinhamento_demanda,
+      forma_profissionalismo: payload.forma_profissionalismo,
+      pontos_fortes: payload.pontos_fortes?.trim() || null,
+      pontos_fracos: payload.pontos_fracos?.trim() || null,
+      comentario_geral: payload.comentario_geral?.trim() || null,
+    }
   })
+
+  const { error } = await supabase
+    .from("indicadores_desempenho")
+    .insert(registros)
 
   if (error) {
     console.error("Erro ao salvar indicador:", error)
     throw new Error(error.message)
   }
 
-  return { success: true }
+  return { success: true, total: registros.length }
 }
 
 export async function getRelatorioIndicadores() {
@@ -186,6 +224,7 @@ export async function getRelatoriosPorEntrega() {
     .select(
       `
       id,
+      avaliacao_grupo_id,
       colaborador_id,
       colaborador_nome,
       equipe_colaborador,
@@ -261,6 +300,7 @@ export async function getRelatoriosEntregasIndicadores() {
     .from("indicadores_desempenho")
     .select(`
       id,
+      avaliacao_grupo_id,
       created_at,
       avaliador_nome,
       colaborador_id,
@@ -330,11 +370,65 @@ export async function getRelatoriosEntregasIndicadores() {
     console.error("Erro ao buscar projetos dos relatórios:", projetosError)
   }
 
+  function getTextosUnicos(values: Array<string | null | undefined>) {
+    const textos = values
+      .map((value) => String(value ?? "").trim())
+      .filter(Boolean)
+
+    return Array.from(new Set(textos))
+  }
+
+  function getTrimestreFromDate(value?: string | null) {
+    if (!value) return null
+
+    const parsed = new Date(`${value}T00:00:00`)
+
+    if (Number.isNaN(parsed.getTime())) return null
+
+    return Math.ceil((parsed.getMonth() + 1) / 3)
+  }
+
+  const registrosAgrupados = new Map<string, typeof registros>()
+
+  for (const item of registros) {
+    const grupoId = String(item.avaliacao_grupo_id ?? item.id)
+
+    if (!registrosAgrupados.has(grupoId)) {
+      registrosAgrupados.set(grupoId, [])
+    }
+
+    registrosAgrupados.get(grupoId)?.push(item)
+  }
+
+  const grupos = Array.from(registrosAgrupados.values())
   const contadorPorProjeto = new Map<string, number>()
 
-  return registros.map((item, index) => {
-    const colaborador = colaboradores?.find(
-      (colaborador) => colaborador.id === item.colaborador_id,
+  return grupos.map((itensDoGrupo, index) => {
+    const item = itensDoGrupo[0]
+
+    const colaboradoresDoGrupo = itensDoGrupo.map((registro) => {
+      const colaborador = colaboradores?.find(
+        (itemColaborador) => itemColaborador.id === registro.colaborador_id,
+      )
+
+      return {
+        id: registro.colaborador_id,
+        nome: colaborador?.nome ?? "Colaborador não identificado",
+        equipe:
+          registro.equipe_colaborador ??
+          colaborador?.departamento_nome ??
+          "Não informado",
+      }
+    })
+
+    const colaboradorIdsGrupo = getTextosUnicos(
+      colaboradoresDoGrupo.map((colaborador) => colaborador.id),
+    )
+    const colaboradorNomes = getTextosUnicos(
+      colaboradoresDoGrupo.map((colaborador) => colaborador.nome),
+    )
+    const equipeNomes = getTextosUnicos(
+      colaboradoresDoGrupo.map((colaborador) => colaborador.equipe),
     )
 
     const projeto = projetos?.find(
@@ -373,7 +467,8 @@ export async function getRelatoriosEntregasIndicadores() {
       4
 
     return {
-      id: item.id,
+      id: item.avaliacao_grupo_id ?? item.id,
+      avaliacao_grupo_id: item.avaliacao_grupo_id ?? null,
       created_at: item.created_at,
       numero_relatorio: numeroRelatorio,
       codigo_relatorio_base: codigoRelatorioBase,
@@ -381,18 +476,23 @@ export async function getRelatoriosEntregasIndicadores() {
       codigo_revisao_titulo: `${codigoProjeto}-${sequenciaProjeto}/${anoReferencia}`,
       avaliador_nome: item.avaliador_nome,
       colaborador_id: item.colaborador_id,
-      colaborador_nome: colaborador?.nome ?? "Colaborador não identificado",
-      equipe_colaborador:
-        item.equipe_colaborador ??
-        colaborador?.departamento_nome ??
-        "Não informado",
+      colaborador_ids: colaboradorIdsGrupo,
+      colaborador_nome: colaboradorNomes.length
+        ? colaboradorNomes.join("; ")
+        : "Colaborador não identificado",
+      equipe_colaborador: equipeNomes.length
+        ? equipeNomes.join("; ")
+        : "Não informado",
       codigo_projeto: codigoProjeto,
-      projeto_nome: projeto
-        ? `${projeto.code} - ${projeto.name}`
-        : codigoProjeto,
+      projeto_codigo: codigoProjeto,
+      projeto_nome: projeto ? `${projeto.code} - ${projeto.name}` : codigoProjeto,
       entrega_avaliada: item.entrega_avaliada,
       data_entrega: item.data_entrega,
       data_revisao: item.data_revisao,
+      ano: Number(anoReferencia),
+      trimestre:
+        getTrimestreFromDate(item.data_revisao) ??
+        getTrimestreFromDate(item.data_entrega),
       ies_aprovado_primeira: Boolean(item.ies_aprovado_primeira),
       ip_no_prazo: Boolean(item.ip_no_prazo),
       clareza_estrutura: Number(item.clareza_estrutura ?? 0),

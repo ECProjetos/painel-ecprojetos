@@ -23,6 +23,8 @@ type RelatorioEntregaBase = Awaited<
 >[number]
 
 type RelatorioEntrega = RelatorioEntregaBase & {
+  avaliacao_grupo_id?: string | null
+  colaborador_ids?: string[] | null
   sequencia_geral?: number | null
   sequencia_relatorio?: number | null
   numero_sequencial?: number | null
@@ -784,7 +786,7 @@ async function gerarPdfRelatorio(
 
   addSectionTitle("1. DADOS GERAIS")
   addInfoRow("Revisor:", item.avaliador_nome ?? "Não informado")
-  addInfoRow("Colaborador:", item.colaborador_nome)
+  addInfoRow("Colaborador(es):", item.colaborador_nome)
   addInfoRow("Equipe:", item.equipe_colaborador)
   addInfoRow("Projeto:", codigo.projetoCodigo)
   addInfoRow("Produto:", item.entrega_avaliada)
@@ -1006,7 +1008,7 @@ export default function IndicadoresRelatorios() {
             </h2>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
               Acompanhamento estratégico das entregas avaliadas. Use os filtros
-              para localizar relatórios por colaborador, equipe, projeto, status
+              para localizar relatórios por colaborador(es), equipe, projeto, status
               e período.
             </p>
           </div>
@@ -1060,7 +1062,7 @@ export default function IndicadoresRelatorios() {
                 onChange={(event: ChangeEvent<HTMLInputElement>) =>
                   setBusca(event.target.value)
                 }
-                placeholder="Código, entrega, colaborador ou projeto"
+                placeholder="Código, entrega, colaborador(es) ou projeto"
                 className="h-11 rounded-xl pl-9"
               />
             </div>
@@ -1211,7 +1213,7 @@ export default function IndicadoresRelatorios() {
                     Entrega
                   </th>
                   <th className="w-[180px] px-3 py-3 text-left font-semibold">
-                    Colaborador
+                    Colaborador(es)
                   </th>
                   <th className="w-[220px] px-3 py-3 text-left font-semibold">
                     Equipe
