@@ -276,6 +276,7 @@ export default function MeusIndicadoresDashboard() {
   const [gerandoPdfId, setGerandoPdfId] = useState<string | null>(null)
   const [ano, setAno] = useState("all")
   const [trimestre, setTrimestre] = useState("all")
+  const [projeto, setProjeto] = useState("all")
 
   async function carregar(showToast = false) {
     try {
@@ -351,6 +352,24 @@ export default function MeusIndicadoresDashboard() {
     ]
   }, [indicadores])
 
+  const projetosOptions = useMemo(() => {
+    const projetos = Array.from(
+      new Set(
+        entregas 
+        .map((item) => item.codigo_projeto)
+        .filter((item): item is string => Boolean(item)),
+      ),
+    ).sort((a, b) => a.localeCompare(b))
+
+    return [
+      { value: "all", label:"Todos os projetos"},
+      ...projetos.map((item) => ({
+        value: item,
+        label: item,
+      })),
+    ]
+  }, [entregas])
+
   const indicadoresFiltrados = useMemo(() => {
     return indicadores.filter((item) => {
       const matchAno = ano === "all" || item.ano === Number(ano)
@@ -367,9 +386,11 @@ export default function MeusIndicadoresDashboard() {
       const matchTrimestre =
         trimestre === "all" || item.trimestre === Number(trimestre)
 
-      return matchAno && matchTrimestre
+      const matchProjeto = 
+      projeto === "all" || item.codigo_projeto === projeto
+      return matchAno && matchTrimestre && matchProjeto
     })
-  }, [entregas, ano, trimestre])
+  }, [entregas, ano, trimestre, projeto])
 
   const relatoriosFiltrados = useMemo(() => {
     return relatorios.filter((item) => {
@@ -377,9 +398,12 @@ export default function MeusIndicadoresDashboard() {
       const matchTrimestre =
         trimestre === "all" || item.trimestre === Number(trimestre)
 
-      return matchAno && matchTrimestre
+      const matchProjeto =
+        projeto === "all" || item.projeto === projeto
+
+      return matchAno && matchTrimestre && matchProjeto
     })
-  }, [relatorios, ano, trimestre])
+  }, [relatorios, ano, trimestre, projeto])
 
   const metricas = useMemo(() => {
     const mediaIDI = getMedia(indicadoresFiltrados, "idi")
@@ -596,7 +620,7 @@ export default function MeusIndicadoresDashboard() {
         title="Filtros"
         subtitle="Use os filtros para visualizar seus indicadores por ano e trimestre."
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <FilterSelect
             label="Ano"
             value={ano}
@@ -611,6 +635,13 @@ export default function MeusIndicadoresDashboard() {
             options={trimestresOptions}
           />
 
+          <FilterSelect
+            label="Projeto"
+            value={projeto}
+            onChange={setProjeto}
+            options={projetosOptions}
+          />
+
           <div className="flex items-end">
             <Button
               type="button"
@@ -618,6 +649,7 @@ export default function MeusIndicadoresDashboard() {
               onClick={() => {
                 setAno("all")
                 setTrimestre("all")
+                setProjeto("all")
               }}
               className="h-10 w-full"
             >
@@ -756,12 +788,13 @@ export default function MeusIndicadoresDashboard() {
         }
       >
         <div className="overflow-x-auto rounded-xl border border-gray-100">
-          <table className="min-w-[1100px] w-full text-sm">
+          <table className="min-w-[1250px] w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
               <tr>
                 <th className="px-4 py-3">Projeto</th>
                 <th className="px-4 py-3">Entrega</th>
                 <th className="px-4 py-3">Revisão</th>
+                <th className="px-4 py-3">Revisor</th>
                 <th className="px-4 py-3">IES</th>
                 <th className="px-4 py-3">IP</th>
                 <th className="px-4 py-3">IQ</th>
@@ -782,6 +815,9 @@ export default function MeusIndicadoresDashboard() {
                     </td>
                     <td className="px-4 py-3">
                       {formatDate(item.data_revisao)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.avaliador_nome || "Não informado"}
                     </td>
                     <td className="px-4 py-3">
                       {item.ies_aprovado_primeira ? "Sim" : "Não"}
@@ -807,7 +843,7 @@ export default function MeusIndicadoresDashboard() {
               ) : (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-4 py-8 text-center text-gray-500"
                   >
                     Nenhuma entrega encontrada para o período selecionado.
