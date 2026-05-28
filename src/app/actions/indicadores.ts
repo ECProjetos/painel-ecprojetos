@@ -40,7 +40,13 @@ export async function getSetoresIndicadores() {
     new Set(
       (data ?? [])
         .map((item) => item.departamento_nome)
-        .filter((value): value is string => Boolean(value && value.trim())),
+        .filter((value): value is string => {
+          const nome = String(value ?? "").trim()
+
+          if (!nome) return false
+
+          return nome.toLowerCase() !== "todos"
+        }),
     ),
   )
     .sort((a, b) => a.localeCompare(b, "pt-BR"))
@@ -79,7 +85,7 @@ export async function getColaboradoresIndicadoresBySetor(setorNome?: string) {
     .neq("cargo_nome", "Diretor")
     .order("nome", { ascending: true })
 
-  if (setorNome) {
+  if (setorNome && setorNome !== "todos" && setorNome !== "all") {
     query = query.eq("departamento_nome", setorNome)
   }
 

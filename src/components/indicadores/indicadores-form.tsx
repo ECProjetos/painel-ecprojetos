@@ -1,6 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState, useTransition } from "react"
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type FormEvent,
+} from "react"
 import { Check, ChevronsUpDown } from "lucide-react"
 import {
   createIndicadorDesempenho,
@@ -80,6 +86,16 @@ const opcoesBinarias = [
   { value: "true", titulo: "Sim" },
   { value: "false", titulo: "Não" },
 ]
+
+function formatarColaborador(colaborador: Colaborador) {
+  const departamento = colaborador.departamento_nome?.trim()
+
+  if (!departamento) {
+    return colaborador.nome
+  }
+
+  return `${colaborador.nome} (${departamento})`
+}
 
 type CampoNotaProps = {
   titulo: string
@@ -195,6 +211,7 @@ export default function IndicadoresForm() {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
   const [isPending, startTransition] = useTransition()
   const [isLoadingFiltros, setIsLoadingFiltros] = useState(true)
+  const [isLoadingColaboradores, setIsLoadingColaboradores] = useState(false)
 
   const [formData, setFormData] = useState<IndicadoresFormValues>({
     setor_id: "",
@@ -250,11 +267,19 @@ export default function IndicadoresForm() {
           return
         }
 
-        const data = await getColaboradoresIndicadoresBySetor(formData.setor_id)
+        setIsLoadingColaboradores(true)
+
+        const setorFiltro =
+          formData.setor_id === "todos" ? undefined : formData.setor_id
+
+        const data = await getColaboradoresIndicadoresBySetor(setorFiltro)
+
         setColaboradores(data ?? [])
       } catch (error) {
         console.error(error)
-        toast.error("Não foi possível carregar os colaboradores do setor.")
+        toast.error("Não foi possível carregar os colaboradores.")
+      } finally {
+        setIsLoadingColaboradores(false)
       }
     }
 
@@ -273,9 +298,16 @@ export default function IndicadoresForm() {
 
   const labelColaboradoresSelecionados = useMemo(() => {
     if (!formData.setor_id) return "Selecione primeiro o setor"
-    if (!formData.colaborador_ids.length) return "Selecione um ou mais colaboradores"
 
-    const nomes = colaboradoresSelecionados.map((item) => item.nome)
+    if (isLoadingColaboradores) return "Carregando colaboradores..."
+
+    if (!formData.colaborador_ids.length) {
+      return "Selecione um ou mais colaboradores"
+    }
+
+    const nomes = colaboradoresSelecionados.map((item) =>
+      formatarColaborador(item),
+    )
 
     if (nomes.length <= 2) return nomes.join("; ")
 
@@ -284,6 +316,7 @@ export default function IndicadoresForm() {
     colaboradoresSelecionados,
     formData.colaborador_ids.length,
     formData.setor_id,
+    isLoadingColaboradores,
   ])
 
   const updateField = <K extends keyof IndicadoresFormValues>(
@@ -411,7 +444,7 @@ export default function IndicadoresForm() {
     return Object.keys(newErrors).length === 0
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
 
     if (!validateForm()) {
@@ -489,7 +522,8 @@ export default function IndicadoresForm() {
             <div className="mb-6">
               <h2 className="text-xl font-semibold">Informações gerais</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Selecione o setor, um ou mais colaboradores e o projeto da avaliação.
+                Selecione o setor, um ou mais colaboradores e o projeto da
+                avaliação.
               </p>
             </div>
 
@@ -508,12 +542,21 @@ export default function IndicadoresForm() {
                       ? "Carregando setores..."
                       : "Selecione o setor"}
                   </option>
+
+                  <option value="todos">Todos os setores</option>
+
                   {setores.map((setor) => (
                     <option key={setor.id} value={setor.id}>
                       {setor.nome}
                     </option>
                   ))}
                 </select>
+
+                <p className="text-xs text-muted-foreground">
+                  Para avaliar colaboradores de áreas diferentes no mesmo
+                  projeto, selecione Todos os setores.
+                </p>
+
                 {errors.setor_id ? (
                   <p className="text-sm text-red-500">{errors.setor_id}</p>
                 ) : null}
@@ -535,7 +578,7 @@ export default function IndicadoresForm() {
                       variant="outline"
                       role="combobox"
                       aria-expanded={openColaborador}
-                      disabled={!formData.setor_id}
+                      disabled={!formData.setor_id || isLoadingColaboradores}
                       className="min-h-11 w-full justify-between rounded-xl px-3 font-normal disabled:cursor-not-allowed disabled:bg-muted"
                     >
                       <span className="truncate text-left">
@@ -547,43 +590,64 @@ export default function IndicadoresForm() {
 
                   <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
                     <Command>
-                      <CommandInput placeholder="Buscar colaborador..." />
-                      <CommandList>
-                        <CommandEmpty>Nenhum colaborador encontrado.</CommandEmpty>
-                        <CommandGroup>
-                          {colaboradores.map((colaborador) => {
-                            const selecionado = formData.colaborador_ids.includes(
-                              colaborador.id,
-                            )
+                      <CommandInput placeholder="Buscar colaborador ou setor..." />
 
-                            return (
-                              <CommandItem
-                                key={colaborador.id}
-                                value={`${colaborador.nome} ${
-                                  colaborador.departamento_nome ?? ""
-                                }`}
-                                onSelect={() =>
-                                  handleColaboradorChange(colaborador.id)
-                                }
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    selecionado ? "opacity-100" : "opacity-0",
-                                  )}
-                                />
-                                <div className="flex flex-col">
-                                  <span>{colaborador.nome}</span>
-                                  {colaborador.departamento_nome ? (
-                                    <span className="text-xs text-muted-foreground">
-                                      {colaborador.departamento_nome}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </CommandItem>
-                            )
-                          })}
-                        </CommandGroup>
+                      <CommandList>
+                        {isLoadingColaboradores ? (
+                          <div className="p-4 text-sm text-muted-foreground">
+                            Carregando colaboradores...
+                          </div>
+                        ) : (
+                          <>
+                            <CommandEmpty>
+                              Nenhum colaborador encontrado.
+                            </CommandEmpty>
+
+                            <CommandGroup>
+                              {colaboradores.map((colaborador) => {
+                                const selecionado =
+                                  formData.colaborador_ids.includes(
+                                    colaborador.id,
+                                  )
+
+                                return (
+                                  <CommandItem
+                                    key={colaborador.id}
+                                    value={`${colaborador.nome} ${
+                                      colaborador.departamento_nome ?? ""
+                                    } ${colaborador.id}`}
+                                    onSelect={() =>
+                                      handleColaboradorChange(colaborador.id)
+                                    }
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selecionado
+                                          ? "opacity-100"
+                                          : "opacity-0",
+                                      )}
+                                    />
+
+                                    <div className="flex flex-col">
+                                      <span>{colaborador.nome}</span>
+
+                                      {colaborador.departamento_nome ? (
+                                        <span className="text-xs text-muted-foreground">
+                                          {colaborador.departamento_nome}
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground">
+                                          Setor não informado
+                                        </span>
+                                      )}
+                                    </div>
+                                  </CommandItem>
+                                )
+                              })}
+                            </CommandGroup>
+                          </>
+                        )}
                       </CommandList>
                     </Command>
                   </PopoverContent>
@@ -598,7 +662,7 @@ export default function IndicadoresForm() {
                         onClick={() => handleColaboradorChange(colaborador.id)}
                         className="rounded-full border bg-muted/40 px-3 py-1 text-xs transition hover:bg-muted"
                       >
-                        {colaborador.nome} ×
+                        {formatarColaborador(colaborador)} ×
                       </button>
                     ))}
                   </div>
@@ -630,7 +694,9 @@ export default function IndicadoresForm() {
                       className="h-11 w-full justify-between rounded-xl px-3 font-normal"
                     >
                       {formData.projeto_id
-                        ? `${projetoSelecionado?.code ?? ""} - ${projetoSelecionado?.name ?? ""}`
+                        ? `${projetoSelecionado?.code ?? ""} - ${
+                            projetoSelecionado?.name ?? ""
+                          }`
                         : isLoadingFiltros
                           ? "Carregando projetos..."
                           : "Selecione o projeto"}
@@ -694,7 +760,7 @@ export default function IndicadoresForm() {
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="entrega_avaliada">
                   Entrega avaliada{" "}
-                  <span className="text-muted-foreground fonr-normal">
+                  <span className="font-normal text-muted-foreground">
                     (conforme nomeada no Planner)
                   </span>
                 </Label>
