@@ -113,9 +113,9 @@ const createData = (pathname: string, userId?: string) => ({
     },
     {
       title: "Feedback interno",
-      url: "/enps",
+      url: "/feedback-interno",
       icon: ClipboardList,
-      isActive: pathname.startsWith("/enps"),
+      isActive: pathname.startsWith("/feedback-interno"),
     },
     {
       title: "Satisfação do cliente",
@@ -176,9 +176,9 @@ const createData = (pathname: string, userId?: string) => ({
     },
     {
       title: "Feedback interno",
-      url: "/enps",
+      url: "/feedback-interno",
       icon: ClipboardList,
-      isActive: pathname.startsWith("/enps"),
+      isActive: pathname.startsWith("/feedback-interno"),
     },
     {
       title: "Projetos",
