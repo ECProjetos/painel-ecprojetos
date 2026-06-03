@@ -112,14 +112,23 @@ export default function PontoForm() {
 
   useEffect(() => {
     if (state.success) {
-      formRef.current?.reset()
       setSelectedProjetoId("")
       setSelectedAtividade("")
       setAtividades([])
-      setDate(today)
+      
+      const dateInput = formRef.current?.elements.namedItem(
+        "entry_date"
+      ) as HTMLInputElement | null
+
+      const currentDate = dateInput?.value || date
+      
+      formRef.current?.reset()
+
+      setDate(currentDate)
+
       router.refresh()
     }
-  }, [state.success, router, today])
+  }, [state.success, router, date])
 
   if (!userId) return <Loading />
 
@@ -134,7 +143,7 @@ export default function PontoForm() {
                 name="entry_date"
                 className="bg-white"
                 type="date"
-                defaultValue={today}
+                value={date}
                 max={today}
                 required
                 onChange={(e) => setDate(e.target.value)}
