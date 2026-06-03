@@ -110,7 +110,7 @@ export default async function FeedbackResponderPage({
                   </div>
 
                   <CardDescription>
-                    {formulario.feedback_ciclos?.nome ?? "-"}
+                    {formulario.feedback_ciclos?.[0]?.nome ?? "-"}
                   </CardDescription>
                 </CardHeader>
 

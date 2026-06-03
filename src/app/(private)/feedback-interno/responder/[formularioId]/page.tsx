@@ -130,7 +130,7 @@ export default async function FeedbackFormularioResponderPage({
             </h1>
 
             <p className="text-sm text-gray-500">
-              {formulario.feedback_ciclos?.nome ?? "-"}
+              {formulario.feedback_ciclos?.[0]?.nome ?? "-"}
             </p>
           </div>
 

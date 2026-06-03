@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "next/link"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -6,17 +6,17 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+} from "@/components/ui/breadcrumb"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Table,
   TableBody,
@@ -24,25 +24,19 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import {
-  FileText,
-  ArrowLeft,
-  ExternalLink,
-  Filter,
-  X,
-} from "lucide-react";
+} from "@/components/ui/table"
+import { FileText, ArrowLeft, ExternalLink, Filter, X } from "lucide-react"
 import {
   getFeedbackAnexosHistoricos,
   getFeedbackCiclos,
-} from "@/app/actions/feedback-interno";
+} from "@/app/actions/feedback-interno"
 
 type PageProps = {
   searchParams: Promise<{
-    cicloId?: string;
-    categoria?: string;
-  }>;
-};
+    cicloId?: string
+    categoria?: string
+  }>
+}
 
 const categorias = [
   {
@@ -65,48 +59,50 @@ const categorias = [
     value: "feedback_gestor_colaborador",
     label: "Gestor para Colaborador",
   },
-];
+]
 
 function formatCategoria(categoria: string | null | undefined) {
-  if (!categoria) return "-";
+  if (!categoria) return "-"
 
   const labels: Record<string, string> = {
     feedback_geral_empresa: "Feedback Geral",
     feedback_colaborador_gestor: "Colaborador para Gestor",
     feedback_tecnico_operacional: "Técnico e Operacional",
     feedback_gestor_colaborador: "Gestor para Colaborador",
-  };
+  }
 
-  return labels[categoria] ?? categoria;
+  return labels[categoria] ?? categoria
 }
 
 function formatConfidencialidade(value: string | null | undefined) {
-  if (value === "anonimo") return "Anônimo";
-  if (value === "identificado") return "Identificado";
+  if (value === "anonimo") return "Anônimo"
+  if (value === "identificado") return "Identificado"
 
-  return "-";
+  return "-"
 }
 
 export default async function FeedbackArquivosPage({
   searchParams,
 }: PageProps) {
-  const params = await searchParams;
+  const params = await searchParams
 
   const filtros = {
     cicloId: params.cicloId || undefined,
     categoria: params.categoria || undefined,
-  };
+  }
 
   const [anexos, ciclos] = await Promise.all([
     getFeedbackAnexosHistoricos(filtros),
     getFeedbackCiclos(),
-  ]);
+  ])
 
-  const totalPdfs = anexos.length;
-  const totalCiclos = new Set(anexos.map((item) => item.ciclo_id)).size;
+  const totalPdfs = anexos.length
+  const totalCiclos = new Set(anexos.map((item) => item.ciclo_id)).size
   const totalTipos = new Set(
-    anexos.map((item) => item.feedback_formularios?.categoria)
-  ).size;
+    anexos
+      .map((item) => item.feedback_formularios?.[0]?.categoria)
+      .filter(Boolean),
+  ).size
 
   return (
     <div className="flex flex-col gap-4 p-4 pt-0">
@@ -290,13 +286,13 @@ export default async function FeedbackArquivosPage({
                     {anexos.map((anexo) => (
                       <TableRow key={anexo.id}>
                         <TableCell className="font-medium">
-                          {anexo.feedback_ciclos?.nome ?? "-"}
+                          {anexo.feedback_ciclos?.[0]?.nome ?? "-"}
                         </TableCell>
 
                         <TableCell>
                           <Badge variant="outline">
                             {formatCategoria(
-                              anexo.feedback_formularios?.categoria
+                              anexo.feedback_formularios?.[0]?.categoria,
                             )}
                           </Badge>
                         </TableCell>
@@ -304,14 +300,14 @@ export default async function FeedbackArquivosPage({
                         <TableCell>
                           <Badge
                             variant={
-                              anexo.feedback_formularios
-                                ?.confidencialidade === "anonimo"
+                              anexo.feedback_formularios?.[0]?.confidencialidade ===
+                              "anonimo"
                                 ? "secondary"
                                 : "default"
                             }
                           >
                             {formatConfidencialidade(
-                              anexo.feedback_formularios?.confidencialidade
+                              anexo.feedback_formularios?.[0]?.confidencialidade,
                             )}
                           </Badge>
                         </TableCell>
@@ -344,5 +340,5 @@ export default async function FeedbackArquivosPage({
         </Card>
       </section>
     </div>
-  );
+  )
 }
