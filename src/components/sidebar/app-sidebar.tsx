@@ -1,13 +1,13 @@
-"use client";
+"use client"
 
-import { useUserStore } from "@/stores/userStore";
-import { usePathname } from "next/navigation";
-import { ComponentProps } from "react";
-import { BarChart3 } from "lucide-react";
+import { useUserStore } from "@/stores/userStore"
+import { usePathname } from "next/navigation"
+import { ComponentProps } from "react"
+import { BarChart3 } from "lucide-react"
 
-import Image from "next/image";
+import Image from "next/image"
 
-import { logout } from "@/hooks/use-logout";
+import { logout } from "@/hooks/use-logout"
 
 import {
   Briefcase,
@@ -20,8 +20,8 @@ import {
   NotebookPen,
   NotepadText,
   LucideNotebook,
-  User
-} from "lucide-react";
+  User,
+} from "lucide-react"
 
 import {
   Sidebar,
@@ -32,18 +32,17 @@ import {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   SidebarTrigger,
   useSidebar,
-} from "@/components/ui/sidebar";
+} from "@/components/ui/sidebar"
 
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton"
 
-import { NavGeneral } from "./nav-general";
-import { NavDiretor } from "./nav-diretor";
+import { NavGeneral } from "./nav-general"
+import { NavDiretor } from "./nav-diretor"
 
-import { roles } from "@/constants/roles";
+import { roles } from "@/constants/roles"
 
-import { Button } from "../ui/button";
-import { NavGestor } from "./nav-gestor";
-
+import { Button } from "../ui/button"
+import { NavGestor } from "./nav-gestor"
 
 const createData = (pathname: string, userId?: string) => ({
   navGeneral: [
@@ -57,8 +56,7 @@ const createData = (pathname: string, userId?: string) => ({
       title: "Indicadores",
       url: "/indicadores-de-desempenho",
       icon: BarChart3,
-      isActive: pathname.startsWith("/indicadores-de-desempenho")
-
+      isActive: pathname.startsWith("/indicadores-de-desempenho"),
     },
     {
       title: "Plano de Carreira",
@@ -74,10 +72,10 @@ const createData = (pathname: string, userId?: string) => ({
       ],
     },
     {
-      title: "Formulário ENPS",
-      url: "https://sistema.ecprojetos.com.br/enps/2025/terceiro-trimestre",
-      icon:User,
-      isActive: pathname.startsWith("/enps"),
+      title: "Feedback Interno",
+      url: "/feedback-interno/responder",
+      icon: ClipboardList,
+      isActive: pathname.startsWith("/feedback-interno/responder"),
     },
   ],
   navGestor: [
@@ -129,12 +127,6 @@ const createData = (pathname: string, userId?: string) => ({
       icon: LucideNotebook,
       isActive: pathname.startsWith("/inventario"),
     },
-    {
-      title: "Formulário ENPS",
-      url: "https://sistema.ecprojetos.com.br/enps/2025/terceiro-trimestre",
-      icon:User,
-      isActive: pathname.startsWith("/enps"),
-    },
   ],
   navDiretor: [
     {
@@ -166,7 +158,6 @@ const createData = (pathname: string, userId?: string) => ({
           isActive: pathname.startsWith("/plano-carreira/avaliar"),
         },
       ],
-
     },
     {
       title: "Satisfação do cliente",
@@ -198,41 +189,33 @@ const createData = (pathname: string, userId?: string) => ({
       icon: LucideNotebook,
       isActive: pathname.startsWith("/inventario"),
     },
-      {
-      title: "Formulário ENPS",
-      url: "https://sistema.ecprojetos.com.br/enps/2025/terceiro-trimestre",
-      icon:User,
-      isActive: pathname.startsWith("/enps"),
-    },
   ],
-});
+})
 
 function getRoleLabel(role: string) {
   if (!role || role === "authenticated") {
-    return null; // tratar como “sem role”
+    return null // tratar como “sem role”
   }
   switch (role) {
     case roles.diretor:
-      return "Diretor";
+      return "Diretor"
     case roles.gestor:
-
-      return "Gestor";
+      return "Gestor"
     case roles.colaborador:
-      return "Colaborador";
+      return "Colaborador"
     default:
-      return role; // 
+      return role //
   }
 }
 
 export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
-  const { open, toggleSidebar } = useSidebar();
-  const pathname = usePathname();
-  const user = useUserStore((state) => state.user);
-  const userRole = user?.role;
-  const id = user?.id;
+  const { open, toggleSidebar } = useSidebar()
+  const pathname = usePathname()
+  const user = useUserStore((state) => state.user)
+  const userRole = user?.role
+  const id = user?.id
 
-
-  const data = createData(pathname, id);
+  const data = createData(pathname, id)
   const navData = {
     ...data,
     navGeneral: data.navGeneral.map((item) => ({
@@ -243,7 +226,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
       ...item,
       isActive: item.isActive || pathname.startsWith(item.url),
     })),
-  };
+  }
 
   return (
     <Sidebar
@@ -258,17 +241,17 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <div className="flex items-center p-2">
           <div className="flex items-center gap-2">
-            <Image src="/images/logo.png" alt="logo" width={64} height={72 } />
+            <Image src="/images/logo.png" alt="logo" width={64} height={72} />
             {open && (
               <div className="flex flex-col">
                 <h1 className="text-sm font-bold">EC Projetos</h1>
                 {(() => {
-                  const label = getRoleLabel(userRole!);
+                  const label = getRoleLabel(userRole!)
                   return label ? (
                     <p className="text-xs text-gray-500"> {label} </p>
                   ) : (
                     <Skeleton className="h-3 w-16" />
-                  );
+                  )
                 })()}
               </div>
             )}
@@ -310,7 +293,12 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
         ) : (
           <NavGeneral items={navData.navGeneral} />
         )}
-        <Button className="mx-auto w-full mt-10" size="icon" variant="outline" onClick={logout}>
+        <Button
+          className="mx-auto w-full mt-10"
+          size="icon"
+          variant="outline"
+          onClick={logout}
+        >
           <LogOut />
         </Button>
       </SidebarContent>
@@ -343,5 +331,5 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
       <SidebarFooter></SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  );
+  )
 }

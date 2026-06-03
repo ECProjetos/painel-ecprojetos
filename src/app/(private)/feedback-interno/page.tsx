@@ -30,7 +30,14 @@ import {
   getFeedbackCiclos,
   getFeedbackHistorico,
 } from "@/app/actions/feedback-interno"
-import { ClipboardList, Eye, Filter, X } from "lucide-react"
+import {
+  ClipboardList,
+  Eye,
+  Filter,
+  X,
+  FileText,
+  BarChart3,
+} from "lucide-react"
 
 type PageProps = {
   searchParams: Promise<{
@@ -124,7 +131,7 @@ export default async function FeedbackInternoPage({ searchParams }: PageProps) {
   const totalIdentificados = historico.filter((item) => !item.anonimo).length
 
   return (
-    <div className="flex flex-col gap-4 p-4 pt-0">
+    <div className="flex min-w-0 flex-col gap-4 p-4 pt-0">
       <header className="flex h-16 shrink-0 items-center gap-2">
         <SidebarTrigger className="-ml-1" />
         <Breadcrumb>
@@ -141,20 +148,39 @@ export default async function FeedbackInternoPage({ searchParams }: PageProps) {
       </header>
 
       <section className="space-y-4">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <ClipboardList className="h-6 w-6 text-blue-700" />
-            <h1 className="text-2xl font-semibold text-gray-900">
-              Histórico de Feedbacks Internos
-            </h1>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-6 w-6 text-blue-700" />
+              <h1 className="text-2xl font-semibold text-gray-900">
+                Histórico de Feedbacks Internos
+              </h1>
+            </div>
+
+            <p className="text-sm text-gray-500">
+              Consulta dos feedbacks internos importados e registrados no
+              sistema.
+            </p>
           </div>
 
-          <p className="text-sm text-gray-500">
-            Consulta dos feedbacks internos importados e registrados no sistema.
-          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild className="w-fit">
+              <Link href="/feedback-interno/acompanhamento">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Acompanhamento
+              </Link>
+            </Button>
+
+            <Button variant="outline" asChild className="w-fit">
+              <Link href="/feedback-interno/arquivos">
+                <FileText className="mr-2 h-4 w-4" />
+                Arquivos históricos
+              </Link>
+            </Button>
+          </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium text-gray-500">
@@ -228,7 +254,7 @@ export default async function FeedbackInternoPage({ searchParams }: PageProps) {
           </CardHeader>
 
           <CardContent>
-            <form className="grid gap-3 md:grid-cols-5">
+            <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-600">
                   Ciclo
@@ -324,73 +350,77 @@ export default async function FeedbackInternoPage({ searchParams }: PageProps) {
                 </p>
               </div>
             ) : (
-              <div className="max-h-[650px] overflow-auto rounded-md border">
-                <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-white">
-                    <TableRow>
-                      <TableHead>Ciclo</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Respondente</TableHead>
-                      <TableHead>Avaliado</TableHead>
-                      <TableHead>Departamento</TableHead>
-                      <TableHead>Conclusão</TableHead>
-                      <TableHead>Itens</TableHead>
-                      <TableHead>Origem</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-
-                  <TableBody>
-                    {historico.map((item) => (
-                      <TableRow key={item.resposta_id}>
-                        <TableCell className="font-medium">
-                          {item.ciclo_nome}
-                        </TableCell>
-
-                        <TableCell>
-                          <Badge
-                            variant={getCategoriaBadgeVariant(item.categoria)}
-                          >
-                            {formatCategoria(item.categoria)}
-                          </Badge>
-                        </TableCell>
-
-                        <TableCell>
-                          {item.anonimo ? (
-                            <Badge variant="secondary">Anônimo</Badge>
-                          ) : (
-                            (item.respondente_nome ?? "-")
-                          )}
-                        </TableCell>
-
-                        <TableCell>{item.avaliado_nome ?? "-"}</TableCell>
-
-                        <TableCell>{item.departamento ?? "-"}</TableCell>
-
-                        <TableCell>{formatDate(item.data_conclusao)}</TableCell>
-
-                        <TableCell>{item.quantidade_itens ?? 0}</TableCell>
-
-                        <TableCell>
-                          <Badge variant="outline">
-                            {getOrigemLabel(item.origem_resumida)}
-                          </Badge>
-                        </TableCell>
-
-                        <TableCell className="text-right">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link
-                              href={`/feedback-interno/${item.resposta_id}`}
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              Ver
-                            </Link>
-                          </Button>
-                        </TableCell>
+              <div className="w-full max-w-full overflow-hidden rounded-md border">
+                <div className="max-h-[650px] overflow-auto">
+                  <Table className="min-w-[1150px]">
+                    <TableHeader className="sticky top-0 z-10 bg-white">
+                      <TableRow>
+                        <TableHead>Ciclo</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Respondente</TableHead>
+                        <TableHead>Avaliado</TableHead>
+                        <TableHead>Departamento</TableHead>
+                        <TableHead>Conclusão</TableHead>
+                        <TableHead>Itens</TableHead>
+                        <TableHead>Origem</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+
+                    <TableBody>
+                      {historico.map((item) => (
+                        <TableRow key={item.resposta_id}>
+                          <TableCell className="font-medium">
+                            {item.ciclo_nome}
+                          </TableCell>
+
+                          <TableCell>
+                            <Badge
+                              variant={getCategoriaBadgeVariant(item.categoria)}
+                            >
+                              {formatCategoria(item.categoria)}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell>
+                            {item.anonimo ? (
+                              <Badge variant="secondary">Anônimo</Badge>
+                            ) : (
+                              (item.respondente_nome ?? "-")
+                            )}
+                          </TableCell>
+
+                          <TableCell>{item.avaliado_nome ?? "-"}</TableCell>
+
+                          <TableCell>{item.departamento ?? "-"}</TableCell>
+
+                          <TableCell>
+                            {formatDate(item.data_conclusao)}
+                          </TableCell>
+
+                          <TableCell>{item.quantidade_itens ?? 0}</TableCell>
+
+                          <TableCell>
+                            <Badge variant="outline">
+                              {getOrigemLabel(item.origem_resumida)}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link
+                                href={`/feedback-interno/${item.resposta_id}`}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                Ver
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             )}
           </CardContent>
