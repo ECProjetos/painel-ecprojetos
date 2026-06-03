@@ -661,3 +661,75 @@ export async function getFeedbackAcompanhamentoAbertos() {
 
   return data ?? [];
 }
+
+export type FeedbackAnaliseFiltros = {
+  cicloId?: string;
+  categoria?: string;
+};
+
+export async function getFeedbackAnaliseResultados(
+  filtros?: FeedbackAnaliseFiltros
+) {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("vw_feedback_analise_executiva")
+    .select("*")
+    .not("media_ciclo_anterior", "is", null)
+    .order("ano", { ascending: false })
+    .order("mes", { ascending: false })
+    .order("formulario_titulo", { ascending: true })
+    .order("ordem", { ascending: true });
+
+  if (filtros?.categoria) {
+    query = query.eq("categoria", filtros.categoria);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Erro ao buscar análise dos feedbacks:", error);
+    throw new Error("Não foi possível buscar a análise dos feedbacks.");
+  }
+
+  const linhas = data ?? [];
+
+  const ciclosMap = new Map<
+    string,
+    {
+      id: string;
+      nome: string;
+      ano: number;
+      mes: number;
+    }
+  >();
+
+  for (const item of linhas) {
+    if (!item.ciclo_id) continue;
+
+    ciclosMap.set(item.ciclo_id, {
+      id: item.ciclo_id,
+      nome: item.ciclo_nome,
+      ano: Number(item.ano ?? 0),
+      mes: Number(item.mes ?? 0),
+    });
+  }
+
+  const ciclos = Array.from(ciclosMap.values()).sort((a, b) => {
+    if (b.ano !== a.ano) return b.ano - a.ano;
+    return b.mes - a.mes;
+  });
+
+  const cicloSelecionadoId = filtros?.cicloId ?? ciclos[0]?.id ?? null;
+
+  const linhasFiltradas = linhas.filter((item) => {
+    if (!cicloSelecionadoId) return true;
+    return item.ciclo_id === cicloSelecionadoId;
+  });
+
+  return {
+    linhas: linhasFiltradas,
+    ciclos,
+    cicloSelecionadoId,
+  };
+}

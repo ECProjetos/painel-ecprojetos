@@ -172,6 +172,13 @@ export default async function FeedbackInternoPage({ searchParams }: PageProps) {
             </Button>
 
             <Button variant="outline" asChild className="w-fit">
+              <Link href="/feedback-interno/analise">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Análise
+              </Link>
+            </Button>
+
+            <Button variant="outline" asChild className="w-fit">
               <Link href="/feedback-interno/arquivos">
                 <FileText className="mr-2 h-4 w-4" />
                 Arquivos históricos
