@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { FeedbackAnaliseCharts } from "@/components/feedback-interno/feedback-analise-charts"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -34,10 +35,10 @@ import {
   X,
 } from "lucide-react"
 import { getFeedbackAnaliseResultados } from "@/app/actions/feedback-interno"
-
-type PageProps = {
-  searchParams: Promise<{
+  type PageProps = {
+    searchParams: Promise<{
     cicloId?: string
+    formulario?: string
     categoria?: string
   }>
 }
@@ -431,6 +432,8 @@ export default async function FeedbackAnalisePage({ searchParams }: PageProps) {
             </CardContent>
           </Card>
         </div>
+
+        <FeedbackAnaliseCharts linhas={linhas} />
 
         <div className="grid gap-4 xl:grid-cols-2">
           <Card>
