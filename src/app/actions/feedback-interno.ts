@@ -17,7 +17,9 @@ export async function getFeedbackCiclos() {
 
   const { data, error } = await supabase
     .from("feedback_ciclos")
-    .select("id, nome, ano, mes, periodo, status, created_at")
+    .select(
+      "id, nome, ano, mes, periodo, status, created_at, status_respostas, data_inicio_respostas, data_fim_respostas",
+    )
     .order("ano", { ascending: false })
     .order("mes", { ascending: false })
 
@@ -28,6 +30,8 @@ export async function getFeedbackCiclos() {
 
   return data ?? []
 }
+
+
 
 export async function getFeedbackHistorico(filtros?: FeedbackHistoricoFiltros) {
   const supabase = await createClient()
@@ -70,6 +74,13 @@ export async function getFeedbackHistorico(filtros?: FeedbackHistoricoFiltros) {
 
   return data ?? []
 }
+
+export type FeedbackAnexosFiltros = {
+  cicloId?: string
+  categoria?: string
+}
+
+
 
 export async function getFeedbackRespostaDetalhe(respostaId: string) {
   const supabase = await createClient()
@@ -261,10 +272,6 @@ export async function getFeedbackConsolidadoDetalhe(
   }
 }
 
-export type FeedbackAnexosFiltros = {
-  cicloId?: string
-  categoria?: string
-}
 
 export async function getFeedbackAnexosHistoricos(
   filtros?: FeedbackAnexosFiltros,
@@ -370,13 +377,17 @@ export async function getFeedbackFormulariosAbertos() {
       confidencialidade,
       instrucoes,
       ordem,
-      feedback_ciclos (
+      status,
+      feedback_ciclos!inner (
         id,
         nome,
         ano,
         mes,
         periodo,
-        status
+        status,
+        status_respostas,
+        data_inicio_respostas,
+        data_fim_respostas
       ),
       feedback_perguntas (
         id
@@ -386,6 +397,7 @@ export async function getFeedbackFormulariosAbertos() {
     .eq("status", "aberto")
     .eq("publico_alvo", "colaborador")
     .eq("feedback_ciclos.status", "aberto")
+    .eq("feedback_ciclos.status_respostas", "aberto")
     .order("ordem", { ascending: true })
 
   if (error) {
@@ -393,7 +405,31 @@ export async function getFeedbackFormulariosAbertos() {
     throw new Error("Não foi possível buscar os formulários abertos.")
   }
 
-  const formularioIds = (formularios ?? []).map((item) => item.id)
+  const agora = new Date()
+
+  const formulariosDisponiveis = (formularios ?? []).filter((formulario) => {
+    const cicloRaw = formulario.feedback_ciclos
+    const ciclo = Array.isArray(cicloRaw) ? cicloRaw[0] : cicloRaw
+
+    if (!ciclo) return false
+    if (ciclo.status !== "aberto") return false
+    if (ciclo.status_respostas !== "aberto") return false
+
+    const inicio = ciclo.data_inicio_respostas
+      ? new Date(ciclo.data_inicio_respostas)
+      : null
+
+    const fim = ciclo.data_fim_respostas
+      ? new Date(ciclo.data_fim_respostas)
+      : null
+
+    if (inicio && agora < inicio) return false
+    if (fim && agora > fim) return false
+
+    return true
+  })
+
+  const formularioIds = formulariosDisponiveis.map((item) => item.id)
 
   const { data: participacoes, error: participacoesError } = await supabase
     .from("feedback_participacoes")
@@ -418,7 +454,7 @@ export async function getFeedbackFormulariosAbertos() {
     ]),
   )
 
-  return (formularios ?? []).map((formulario) => ({
+  return formulariosDisponiveis.map((formulario) => ({
     ...formulario,
     total_perguntas: formulario.feedback_perguntas?.length ?? 0,
     respondido: respondidos.has(formulario.id),
@@ -438,6 +474,16 @@ export async function getFeedbackFormularioParaResponder(formularioId: string) {
     throw new Error("Usuário não autenticado.")
   }
 
+  const disponibilidade =
+    await verificarDisponibilidadeFormularioFeedback(formularioId)
+
+  if (!disponibilidade.aberto) {
+    throw new Error(
+      disponibilidade.motivo ??
+        "Este formulário não está disponível para respostas.",
+    )
+  }
+
   const { data: formulario, error } = await supabase
     .from("feedback_formularios")
     .select(
@@ -451,7 +497,10 @@ export async function getFeedbackFormularioParaResponder(formularioId: string) {
       feedback_ciclos (
         id,
         nome,
-        status
+        status,
+        status_respostas,
+        data_inicio_respostas,
+        data_fim_respostas
       ),
       feedback_perguntas (
         id,
@@ -516,6 +565,16 @@ export async function responderFeedbackInterno(formData: FormData) {
 
   if (!formularioId) {
     throw new Error("Formulário inválido.")
+  }
+
+  const disponibilidade =
+    await verificarDisponibilidadeFormularioFeedback(formularioId)
+
+  if (!disponibilidade.aberto) {
+    throw new Error(
+      disponibilidade.motivo ??
+        "Este formulário não está disponível para respostas.",
+    )
   }
 
   const { data: formulario, error: formularioError } = await supabase
@@ -732,4 +791,212 @@ export async function getFeedbackAnaliseResultados(
     ciclos,
     cicloSelecionadoId,
   };
+}
+
+type StatusRespostasFeedback = "fechado" | "aberto" | "encerrado"
+
+type FeedbackCicloDisponibilidade = {
+  id: string
+  nome: string | null
+  status_respostas: StatusRespostasFeedback
+  data_inicio_respostas: string | null
+  data_fim_respostas: string | null
+}
+
+async function verificarPermissaoGerenciarFeedback() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return {
+      autorizado: false,
+      message: "Usuário não autenticado.",
+    }
+  }
+
+  const { data: perfil, error } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  if (error || !perfil) {
+    return {
+      autorizado: false,
+      message: "Não foi possível verificar a permissão do usuário.",
+    }
+  }
+
+  const rolesPermitidas = ["GESTOR", "DIRETOR"]
+
+  if (!rolesPermitidas.includes(perfil.role)) {
+    return {
+      autorizado: false,
+      message: "Você não tem permissão para alterar a disponibilidade do ciclo.",
+    }
+  }
+
+  return {
+    autorizado: true,
+    message: null,
+  }
+}
+
+function avaliarDisponibilidadeCiclo(ciclo: FeedbackCicloDisponibilidade) {
+  const agora = new Date()
+
+  const inicio = ciclo.data_inicio_respostas
+    ? new Date(ciclo.data_inicio_respostas)
+    : null
+
+  const fim = ciclo.data_fim_respostas
+    ? new Date(ciclo.data_fim_respostas)
+    : null
+
+  if (ciclo.status_respostas !== "aberto") {
+    if (ciclo.status_respostas === "encerrado") {
+      return {
+        aberto: false,
+        motivo: "Este ciclo de feedback já foi encerrado.",
+      }
+    }
+
+    return {
+      aberto: false,
+      motivo: "Este ciclo de feedback ainda não foi liberado para respostas.",
+    }
+  }
+
+  if (inicio && agora < inicio) {
+    return {
+      aberto: false,
+      motivo: "Este formulário ainda não está disponível para resposta.",
+    }
+  }
+
+  if (fim && agora > fim) {
+    return {
+      aberto: false,
+      motivo: "O período de resposta deste formulário já foi encerrado.",
+    }
+  }
+
+  return {
+    aberto: true,
+    motivo: null,
+  }
+}
+
+export async function verificarDisponibilidadeFormularioFeedback(
+  formularioId: string,
+) {
+  const supabase = await createClient()
+
+  const { data: formulario, error: formularioError } = await supabase
+    .from("feedback_formularios")
+    .select("id, titulo, ciclo_id")
+    .eq("id", formularioId)
+    .maybeSingle()
+
+  if (formularioError || !formulario) {
+    return {
+      aberto: false,
+      motivo: "Formulário de feedback não encontrado.",
+      ciclo: null,
+    }
+  }
+
+  const { data: ciclo, error: cicloError } = await supabase
+    .from("feedback_ciclos")
+    .select(
+      "id, nome, status_respostas, data_inicio_respostas, data_fim_respostas",
+    )
+    .eq("id", formulario.ciclo_id)
+    .maybeSingle()
+
+  if (cicloError || !ciclo) {
+    return {
+      aberto: false,
+      motivo: "Ciclo de feedback não encontrado.",
+      ciclo: null,
+    }
+  }
+
+  const disponibilidade = avaliarDisponibilidadeCiclo(
+    ciclo as FeedbackCicloDisponibilidade,
+  )
+
+  return {
+    aberto: disponibilidade.aberto,
+    motivo: disponibilidade.motivo,
+    ciclo,
+  }
+}
+
+export async function alterarStatusRespostasCicloFeedback(
+  cicloId: string,
+  statusRespostas: StatusRespostasFeedback,
+) {
+  const permissao = await verificarPermissaoGerenciarFeedback()
+
+  if (!permissao.autorizado) {
+    return {
+      success: false,
+      message: permissao.message,
+    }
+  }
+
+  const supabase = await createClient()
+
+  const payload: {
+    status_respostas: StatusRespostasFeedback
+    aberto_em?: string | null
+    encerrado_em?: string | null
+  } = {
+    status_respostas: statusRespostas,
+  }
+
+  if (statusRespostas === "aberto") {
+    payload.aberto_em = new Date().toISOString()
+    payload.encerrado_em = null
+  }
+
+  if (statusRespostas === "encerrado") {
+    payload.encerrado_em = new Date().toISOString()
+  }
+
+  if (statusRespostas === "fechado") {
+    payload.aberto_em = null
+    payload.encerrado_em = null
+  }
+
+  const { error } = await supabase
+    .from("feedback_ciclos")
+    .update(payload)
+    .eq("id", cicloId)
+
+  if (error) {
+    return {
+      success: false,
+      message: `Erro ao atualizar ciclo: ${error.message}`,
+    }
+  }
+
+  revalidatePath("/feedback-interno")
+  revalidatePath("/feedback-interno/responder")
+  revalidatePath("/feedback-interno/acompanhamento")
+  revalidatePath("/feedback-interno/analise")
+
+  return {
+    success: true,
+    message:
+      statusRespostas === "aberto"
+        ? "Ciclo liberado para respostas."
+        : statusRespostas === "encerrado"
+          ? "Ciclo encerrado com sucesso."
+          : "Ciclo fechado para respostas.",
+  }
 }

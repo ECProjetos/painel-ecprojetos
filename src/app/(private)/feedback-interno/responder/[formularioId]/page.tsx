@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "next/link"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -6,34 +6,35 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+} from "@/components/ui/breadcrumb"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Lock } from "lucide-react";
+} from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft, Lock } from "lucide-react"
 import {
   getFeedbackFormularioParaResponder,
   responderFeedbackInterno,
-} from "@/app/actions/feedback-interno";
+  verificarDisponibilidadeFormularioFeedback,
+} from "@/app/actions/feedback-interno"
 
 type PageProps = {
   params: Promise<{
-    formularioId: string;
-  }>;
-};
+    formularioId: string
+  }>
+}
 
 function renderCampoPergunta(pergunta: {
-  id: string;
-  ordem: number | null;
-  pergunta: string | null;
-  tipo_resposta: string | null;
+  id: string
+  ordem: number | null
+  pergunta: string | null
+  tipo_resposta: string | null
 }) {
   if (pergunta.tipo_resposta === "escala_1_5") {
     return (
@@ -53,7 +54,7 @@ function renderCampoPergunta(pergunta: {
           </label>
         ))}
       </div>
-    );
+    )
   }
 
   if (pergunta.tipo_resposta === "escala_1_10") {
@@ -74,7 +75,7 @@ function renderCampoPergunta(pergunta: {
           </label>
         ))}
       </div>
-    );
+    )
   }
 
   return (
@@ -85,18 +86,68 @@ function renderCampoPergunta(pergunta: {
       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
       placeholder="Digite sua resposta"
     />
-  );
+  )
 }
 
 export default async function FeedbackFormularioResponderPage({
   params,
 }: PageProps) {
-  const { formularioId } = await params;
+  const { formularioId } = await params
 
+  const disponibilidade =
+    await verificarDisponibilidadeFormularioFeedback(formularioId)
+
+  if (!disponibilidade.aberto) {
+    return (
+      <div className="flex min-w-0 flex-col gap-4 p-4 pt-0">
+        <header className="flex h-16 shrink-0 items-center gap-2">
+          <SidebarTrigger className="-ml-1" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/controle-horarios/inicio">
+                  Início
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/feedback-interno">
+                  Feedback Interno
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbPage>Responder</BreadcrumbPage>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </header>
+
+        <div className="mx-auto flex min-h-[60vh] w-full max-w-2xl items-center justify-center">
+          <div className="w-full rounded-xl border bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+              <Lock className="h-6 w-6 text-gray-600" />
+            </div>
+
+            <h1 className="text-xl font-semibold text-gray-900">
+              Formulário indisponível
+            </h1>
+
+            <p className="mt-2 text-sm text-gray-600">
+              {disponibilidade.motivo ??
+                "Este formulário de feedback não está disponível para resposta no momento."}
+            </p>
+
+            <p className="mt-4 text-xs text-gray-500">
+              Aguarde a liberação pelo RH ou gestor responsável.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
   const { formulario, jaRespondido, usuario } =
-    await getFeedbackFormularioParaResponder(formularioId);
+    await getFeedbackFormularioParaResponder(formularioId)
 
-  const isAnonimo = formulario.confidencialidade === "anonimo";
+  const isAnonimo = formulario.confidencialidade === "anonimo"
 
   return (
     <div className="flex min-w-0 flex-col gap-4 p-4 pt-0">
@@ -202,8 +253,8 @@ export default async function FeedbackFormularioResponderPage({
                   <div className="flex gap-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
                     <Lock className="mt-0.5 h-4 w-4 shrink-0" />
                     <p>
-                      Este formulário é anônimo. O sistema não salva seu nome nem
-                      e-mail na resposta.
+                      Este formulário é anônimo. O sistema não salva seu nome
+                      nem e-mail na resposta.
                     </p>
                   </div>
                 )}
@@ -248,5 +299,5 @@ export default async function FeedbackFormularioResponderPage({
         )}
       </section>
     </div>
-  );
+  )
 }

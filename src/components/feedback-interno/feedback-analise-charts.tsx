@@ -4,13 +4,14 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  LabelList,
+  Cell,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts"
-
 import {
   Card,
   CardContent,
@@ -19,113 +20,161 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-type LinhaAnaliseFeedback = {
-  formulario_titulo: string | null
-  categoria: string | null
-  pergunta: string | null
-  media_atual_100: number | string | null
-  variacao_100: number | string | null
-  tendencia: string | null
-  prioridade: string | null
-}
+type LinhaAnalise = Record<string, any>
 
 type FeedbackAnaliseChartsProps = {
-  linhas: LinhaAnaliseFeedback[]
+  linhas: LinhaAnalise[]
 }
 
-function formatCategoria(categoria: string | null | undefined) {
-  const labels: Record<string, string> = {
-    feedback_geral_empresa: "Feedback Geral",
-    feedback_colaborador_gestor: "Colaborador para Gestor",
-    feedback_tecnico_operacional: "Técnico e Operacional",
-    feedback_gestor_colaborador: "Gestor para Colaborador",
+function numero(valor: unknown) {
+  const convertido = Number(valor)
+
+  if (Number.isNaN(convertido)) {
+    return 0
   }
 
-  return categoria ? labels[categoria] ?? categoria : "-"
+  return convertido
 }
 
-function truncateText(value: string | null | undefined, max = 42) {
-  if (!value) return "-"
+function texto(valor: unknown, fallback = "-") {
+  if (valor === null || valor === undefined || valor === "") {
+    return fallback
+  }
 
-  if (value.length <= max) return value
-
-  return `${value.slice(0, max)}...`
+  return String(valor)
 }
 
-function toNumber(value: number | string | null | undefined) {
-  const number = Number(value)
+function getScore(item: LinhaAnalise) {
+  return numero(
+    item.media_executiva_100 ??
+      item.media_atual_100 ??
+      item.score_atual ??
+      item.score_100 ??
+      item.media_100 ??
+      item.media,
+  )
+}
 
-  return Number.isFinite(number) ? number : 0
+function getVariacao(item: LinhaAnalise) {
+  return numero(
+    item.variacao_media_100 ??
+      item.variacao_100 ??
+      item.variacao_score ??
+      item.variacao,
+  )
+}
+
+function getFormulario(item: LinhaAnalise) {
+  return texto(
+    item.formulario_titulo ??
+      item.formulario ??
+      item.tipo_feedback ??
+      item.categoria,
+    "Feedback",
+  )
+}
+
+function getIndicador(item: LinhaAnalise) {
+  return texto(
+    item.pergunta ??
+      item.pergunta_texto ??
+      item.indicador ??
+      item.titulo ??
+      item.descricao,
+    "Indicador",
+  )
+}
+
+function montarScorePorTipo(linhas: LinhaAnalise[]) {
+  const mapa = new Map<string, { nome: string; total: number; quantidade: number }>()
+
+  for (const item of linhas) {
+    const nome = getFormulario(item)
+    const score = getScore(item)
+
+    const atual = mapa.get(nome) ?? {
+      nome,
+      total: 0,
+      quantidade: 0,
+    }
+
+    atual.total += score
+    atual.quantidade += 1
+
+    mapa.set(nome, atual)
+  }
+
+  return Array.from(mapa.values()).map((item) => ({
+    nome: item.nome,
+    score: item.quantidade > 0 ? Number((item.total / item.quantidade).toFixed(1)) : 0,
+  }))
+}
+
+function montarTendencia(linhas: LinhaAnalise[]) {
+  let melhoraram = 0
+  let pioraram = 0
+  let estaveis = 0
+
+  for (const item of linhas) {
+    const variacao = getVariacao(item)
+
+    if (variacao > 0.5) {
+      melhoraram += 1
+    } else if (variacao < -0.5) {
+      pioraram += 1
+    } else {
+      estaveis += 1
+    }
+  }
+
+  return [
+    {
+      nome: "Melhoraram",
+      quantidade: melhoraram,
+    },
+    {
+      nome: "Estáveis",
+      quantidade: estaveis,
+    },
+    {
+      nome: "Pioraram",
+      quantidade: pioraram,
+    },
+  ]
+}
+
+function montarTopCriticos(linhas: LinhaAnalise[]) {
+  return [...linhas]
+    .map((item) => ({
+      nome: getIndicador(item),
+      score: getScore(item),
+    }))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 5)
+    .map((item) => ({
+      ...item,
+      nomeCurto:
+        item.nome.length > 38 ? `${item.nome.slice(0, 38)}...` : item.nome,
+    }))
 }
 
 export function FeedbackAnaliseCharts({ linhas }: FeedbackAnaliseChartsProps) {
-  const resumoPorTipoMap = new Map<
-    string,
-    {
-      tipo: string
-      total: number
-      somaScore: number
-      somaVariacao: number
-    }
-  >()
+  const scorePorTipo = montarScorePorTipo(linhas)
+  const tendencia = montarTendencia(linhas)
+  const topCriticos = montarTopCriticos(linhas)
 
-  for (const item of linhas) {
-    const tipo = formatCategoria(item.categoria)
-
-    const atual = resumoPorTipoMap.get(tipo) ?? {
-      tipo,
-      total: 0,
-      somaScore: 0,
-      somaVariacao: 0,
-    }
-
-    atual.total += 1
-    atual.somaScore += toNumber(item.media_atual_100)
-    atual.somaVariacao += toNumber(item.variacao_100)
-
-    resumoPorTipoMap.set(tipo, atual)
+  if (!linhas || linhas.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Gráficos da análise</CardTitle>
+          <CardDescription>
+            Nenhum dado disponível para gerar gráficos neste ciclo.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    )
   }
-
-  const resumoPorTipo = Array.from(resumoPorTipoMap.values()).map((item) => ({
-    tipo: item.tipo,
-    score: item.total > 0 ? Number((item.somaScore / item.total).toFixed(1)) : 0,
-    variacao:
-      item.total > 0 ? Number((item.somaVariacao / item.total).toFixed(1)) : 0,
-  }))
-
-  const tendencias = [
-    {
-      status: "Melhorou",
-      total: linhas.filter((item) => item.tendencia === "Melhorou").length,
-    },
-    {
-      status: "Estável",
-      total: linhas.filter((item) => item.tendencia === "Estável").length,
-    },
-    {
-      status: "Piorou",
-      total: linhas.filter((item) => item.tendencia === "Piorou").length,
-    },
-  ]
-
-  const pontosCriticos = [...linhas]
-    .sort((a, b) => {
-      const prioridadeA =
-        a.prioridade === "Alta" ? 1 : a.prioridade === "Média" ? 2 : 3
-
-      const prioridadeB =
-        b.prioridade === "Alta" ? 1 : b.prioridade === "Média" ? 2 : 3
-
-      if (prioridadeA !== prioridadeB) return prioridadeA - prioridadeB
-
-      return toNumber(a.media_atual_100) - toNumber(b.media_atual_100)
-    })
-    .slice(0, 5)
-    .map((item) => ({
-      pergunta: truncateText(item.pergunta, 46),
-      score: Number(toNumber(item.media_atual_100).toFixed(1)),
-      tipo: formatCategoria(item.categoria),
-    }))
 
   return (
     <div className="grid gap-4 xl:grid-cols-3">
@@ -138,22 +187,21 @@ export function FeedbackAnaliseCharts({ linhas }: FeedbackAnaliseChartsProps) {
         </CardHeader>
 
         <CardContent>
-          <div className="h-[280px]">
+          <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={resumoPorTipo}>
-                <CartesianGrid vertical={false} />
+              <BarChart data={scorePorTipo}>
+                <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
-                  dataKey="tipo"
-                  tickLine={false}
-                  axisLine={false}
-                  interval={0}
+                  dataKey="nome"
                   tick={{ fontSize: 11 }}
+                  interval={0}
+                  angle={-15}
+                  textAnchor="end"
+                  height={70}
                 />
-                <YAxis domain={[0, 100]} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 100]} />
                 <Tooltip />
-                <Bar dataKey="score" radius={[6, 6, 0, 0]}>
-                  <LabelList dataKey="score" position="top" fontSize={12} />
-                </Bar>
+                <Bar dataKey="score" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -169,16 +217,14 @@ export function FeedbackAnaliseCharts({ linhas }: FeedbackAnaliseChartsProps) {
         </CardHeader>
 
         <CardContent>
-          <div className="h-[280px]">
+          <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={tendencias}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="status" tickLine={false} axisLine={false} />
-                <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+              <BarChart data={tendencia}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="total" radius={[6, 6, 0, 0]}>
-                  <LabelList dataKey="total" position="top" fontSize={12} />
-                </Bar>
+                <Bar dataKey="quantidade" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -194,26 +240,22 @@ export function FeedbackAnaliseCharts({ linhas }: FeedbackAnaliseChartsProps) {
         </CardHeader>
 
         <CardContent>
-          <div className="h-[280px]">
+          <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={pontosCriticos}
-                layout="vertical"
-                margin={{ left: 16, right: 24 }}
-              >
-                <CartesianGrid horizontal={false} />
+              <BarChart data={topCriticos} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" domain={[0, 100]} />
                 <YAxis
                   type="category"
-                  dataKey="pergunta"
-                  tickLine={false}
-                  axisLine={false}
+                  dataKey="nomeCurto"
                   width={150}
                   tick={{ fontSize: 11 }}
                 />
                 <Tooltip />
                 <Bar dataKey="score" radius={[0, 6, 6, 0]}>
-                  <LabelList dataKey="score" position="right" fontSize={12} />
+                  {topCriticos.map((_, index) => (
+                    <Cell key={`cell-${index}`} />
+                  ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

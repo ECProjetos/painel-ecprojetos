@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { StatusCicloActions } from "@/components/feedback-interno/status-ciclo-actions"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -47,7 +48,6 @@ type PageProps = {
     colaborador?: string
   }>
 }
-
 const categorias = [
   {
     value: "",
@@ -248,6 +248,63 @@ export default async function FeedbackInternoPage({ searchParams }: PageProps) {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Disponibilidade dos ciclos</CardTitle>
+            <CardDescription>
+              Abra ou encerre os ciclos para controlar quando os colaboradores
+              podem responder aos formulários.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            {ciclos.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-6 text-center">
+                <p className="text-sm text-gray-500">
+                  Nenhum ciclo de feedback encontrado.
+                </p>
+              </div>
+            ) : (
+              <div className="w-full overflow-hidden rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Ciclo</TableHead>
+                      <TableHead>Status das respostas</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {ciclos.map((ciclo) => (
+                      <TableRow key={ciclo.id}>
+                        <TableCell className="font-medium">
+                          {ciclo.nome}
+                        </TableCell>
+
+                        <TableCell>
+                          {ciclo.status_respostas === "aberto"
+                            ? "Liberado para respostas"
+                            : ciclo.status_respostas === "encerrado"
+                              ? "Encerrado"
+                              : "Fechado"}
+                        </TableCell>
+
+                        <TableCell className="flex justify-end">
+                          <StatusCicloActions
+                            cicloId={ciclo.id}
+                            statusRespostas={ciclo.status_respostas}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
