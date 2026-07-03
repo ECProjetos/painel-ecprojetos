@@ -5,8 +5,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,10 +18,39 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-type LinhaAnalise = Record<string, any>
+type LinhaAnalise = Record<string, unknown>
 
 type FeedbackAnaliseChartsProps = {
   linhas: LinhaAnalise[]
+}
+
+const chartColors = [
+  "#2563EB", // azul
+  "#16A34A", // verde
+  "#F97316", // laranja
+  "#9333EA", // roxo
+  "#DC2626", // vermelho
+  "#0891B2", // ciano
+  "#CA8A04", // amarelo escuro
+  "#DB2777", // rosa
+]
+
+const tendenciaColors: Record<string, string> = {
+  Melhoraram: "#16A34A",
+  Estáveis: "#F59E0B",
+  Pioraram: "#DC2626",
+}
+
+const criticoColors = [
+  "#DC2626",
+  "#EA580C",
+  "#F97316",
+  "#F59E0B",
+  "#EAB308",
+]
+
+function getChartColor(index: number) {
+  return chartColors[index % chartColors.length]
 }
 
 function numero(valor: unknown) {
@@ -86,7 +113,10 @@ function getIndicador(item: LinhaAnalise) {
 }
 
 function montarScorePorTipo(linhas: LinhaAnalise[]) {
-  const mapa = new Map<string, { nome: string; total: number; quantidade: number }>()
+  const mapa = new Map<
+    string,
+    { nome: string; total: number; quantidade: number }
+  >()
 
   for (const item of linhas) {
     const nome = getFormulario(item)
@@ -106,7 +136,10 @@ function montarScorePorTipo(linhas: LinhaAnalise[]) {
 
   return Array.from(mapa.values()).map((item) => ({
     nome: item.nome,
-    score: item.quantidade > 0 ? Number((item.total / item.quantidade).toFixed(1)) : 0,
+    score:
+      item.quantidade > 0
+        ? Number((item.total / item.quantidade).toFixed(1))
+        : 0,
   }))
 }
 
@@ -159,10 +192,6 @@ function montarTopCriticos(linhas: LinhaAnalise[]) {
 }
 
 export function FeedbackAnaliseCharts({ linhas }: FeedbackAnaliseChartsProps) {
-  const scorePorTipo = montarScorePorTipo(linhas)
-  const tendencia = montarTendencia(linhas)
-  const topCriticos = montarTopCriticos(linhas)
-
   if (!linhas || linhas.length === 0) {
     return (
       <Card>
@@ -175,6 +204,10 @@ export function FeedbackAnaliseCharts({ linhas }: FeedbackAnaliseChartsProps) {
       </Card>
     )
   }
+
+  const scorePorTipo = montarScorePorTipo(linhas)
+  const tendencia = montarTendencia(linhas)
+  const topCriticos = montarTopCriticos(linhas)
 
   return (
     <div className="grid gap-4 xl:grid-cols-3">
@@ -201,7 +234,14 @@ export function FeedbackAnaliseCharts({ linhas }: FeedbackAnaliseChartsProps) {
                 />
                 <YAxis domain={[0, 100]} />
                 <Tooltip />
-                <Bar dataKey="score" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="score" name="Score" radius={[6, 6, 0, 0]}>
+                  {scorePorTipo.map((_, index) => (
+                    <Cell
+                      key={`score-tipo-${index}`}
+                      fill={getChartColor(index)}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -224,7 +264,18 @@ export function FeedbackAnaliseCharts({ linhas }: FeedbackAnaliseChartsProps) {
                 <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
                 <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="quantidade" radius={[6, 6, 0, 0]} />
+                <Bar
+                  dataKey="quantidade"
+                  name="Quantidade"
+                  radius={[8, 8, 0, 0]}
+                >
+                  {tendencia.map((item, index) => (
+                    <Cell
+                      key={`tendencia-${index}`}
+                      fill={tendenciaColors[item.nome] ?? getChartColor(index)}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -252,9 +303,12 @@ export function FeedbackAnaliseCharts({ linhas }: FeedbackAnaliseChartsProps) {
                   tick={{ fontSize: 11 }}
                 />
                 <Tooltip />
-                <Bar dataKey="score" radius={[0, 6, 6, 0]}>
+                <Bar dataKey="score" name="Score" radius={[0, 8, 8, 0]}>
                   {topCriticos.map((_, index) => (
-                    <Cell key={`cell-${index}`} />
+                    <Cell
+                      key={`critico-${index}`}
+                      fill={criticoColors[index % criticoColors.length]}
+                    />
                   ))}
                 </Bar>
               </BarChart>
