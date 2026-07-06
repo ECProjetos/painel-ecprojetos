@@ -12,6 +12,16 @@ export type FeedbackHistoricoFiltros = {
   departamento?: string
 }
 
+const equipesFeedback = [
+  "Departamento Administrativo",
+  "Departamento de Economia",
+  "Departamento de Engenharia",
+  "Departamento de Meio Ambiente e Geoprocessamento",
+]
+
+export async function getFeedbackEquipes() {
+  return equipesFeedback
+}
 export async function getFeedbackCiclos() {
   const supabase = await createClient()
 
@@ -722,14 +732,16 @@ export async function getFeedbackAcompanhamentoAbertos() {
 }
 
 export type FeedbackAnaliseFiltros = {
-  cicloId?: string;
-  categoria?: string;
-};
+  cicloId?: string
+  tipoFormulario?: string
+  categoria?: string
+  equipe?: string
+}
 
 export async function getFeedbackAnaliseResultados(
-  filtros?: FeedbackAnaliseFiltros
+  filtros?: FeedbackAnaliseFiltros,
 ) {
-  const supabase = await createClient();
+  const supabase = await createClient()
 
   let query = supabase
     .from("vw_feedback_analise_executiva")
@@ -738,13 +750,21 @@ export async function getFeedbackAnaliseResultados(
     .order("ano", { ascending: false })
     .order("mes", { ascending: false })
     .order("formulario_titulo", { ascending: true })
-    .order("ordem", { ascending: true });
+    .order("ordem", { ascending: true })
 
-  if (filtros?.categoria) {
-    query = query.eq("categoria", filtros.categoria);
+  if (filtros?.categoria && filtros.categoria !== "todos") {
+    query = query.eq("categoria", filtros.categoria)
   }
 
-  const { data, error } = await query;
+  if (filtros?.tipoFormulario && filtros.tipoFormulario !== "todos") {
+    query = query.eq("tipo_formulario", filtros.tipoFormulario)
+  }
+
+  if (filtros?.equipe && filtros.equipe !== "todos") {
+    query = query.eq("departamento", filtros.equipe)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error("Erro ao buscar análise dos feedbacks:", error);

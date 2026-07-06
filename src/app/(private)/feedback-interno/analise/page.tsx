@@ -34,12 +34,16 @@ import {
   TrendingUp,
   X,
 } from "lucide-react"
-import { getFeedbackAnaliseResultados } from "@/app/actions/feedback-interno"
-  type PageProps = {
-    searchParams: Promise<{
+import {
+  getFeedbackAnaliseResultados,
+  getFeedbackEquipes,
+} from "@/app/actions/feedback-interno"
+type PageProps = {
+  searchParams: Promise<{
     cicloId?: string
     formulario?: string
     categoria?: string
+    equipe?: string
   }>
 }
 
@@ -173,10 +177,15 @@ function truncateText(value: string | null | undefined, max = 110) {
 export default async function FeedbackAnalisePage({ searchParams }: PageProps) {
   const params = await searchParams
 
+  const equipeSelecionada = params.equipe ?? "todos"
+
+  const equipes = await getFeedbackEquipes()
+
   const { linhas, ciclos, cicloSelecionadoId } =
     await getFeedbackAnaliseResultados({
       cicloId: params.cicloId || undefined,
       categoria: params.categoria || undefined,
+      equipe: equipeSelecionada !== "todos" ? equipeSelecionada : undefined,
     })
 
   const cicloSelecionado = ciclos.find(
@@ -311,7 +320,7 @@ export default async function FeedbackAnalisePage({ searchParams }: PageProps) {
           </CardHeader>
 
           <CardContent>
-            <form className="grid gap-3 md:grid-cols-3">
+            <form className="grid gap-3 md:grid-cols-4">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-600">
                   Ciclo
@@ -343,6 +352,26 @@ export default async function FeedbackAnalisePage({ searchParams }: PageProps) {
                   {categorias.map((categoria) => (
                     <option key={categoria.value} value={categoria.value}>
                       {categoria.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-600">
+                  Equipe
+                </label>
+
+                <select
+                  name="equipe"
+                  defaultValue={equipeSelecionada}
+                  className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="todos">Todas</option>
+
+                  {equipes.map((equipe) => (
+                    <option key={equipe} value={equipe}>
+                      {equipe}
                     </option>
                   ))}
                 </select>
