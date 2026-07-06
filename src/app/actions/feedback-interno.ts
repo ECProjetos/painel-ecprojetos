@@ -19,6 +19,33 @@ const equipesFeedback = [
   "Departamento de Meio Ambiente e Geoprocessamento",
 ]
 
+const departamentosPorEquipe: Record<string, string[]> = {
+  "Departamento Administrativo": [
+    "Departamento Administrativo",
+    "Administrativo",
+    "Adm/Finan/Mkt",
+    "Adm/Fin/RH",
+    "Gestão ADM/Financeira/MKT",
+  ],
+  "Departamento de Economia": [
+    "Departamento de Economia",
+    "Economia",
+    "Operações e Econômico",
+  ],
+  "Departamento de Engenharia": [
+    "Departamento de Engenharia",
+    "Engenharia",
+    "Engenharia Consultiva e Arquitetura",
+    "Engenharia Construtiva e Arquitetura",
+    "Engenharia e Sustentabilidade",
+  ],
+  "Departamento de Meio Ambiente e Geoprocessamento": [
+    "Departamento de Meio Ambiente e Geoprocessamento",
+    "Meio Ambiente",
+    "Meio Ambiente e Geoprocessamento",
+  ],
+}
+
 export async function getFeedbackEquipes() {
   return equipesFeedback
 }
@@ -738,6 +765,13 @@ export async function getFeedbackAnaliseResultados(
 ) {
   const supabase = await createClient()
 
+  const equipeSelecionada = filtros?.equipe ?? "todos"
+
+  const departamentosFiltro =
+    equipeSelecionada !== "todos"
+      ? departamentosPorEquipe[equipeSelecionada] ?? [equipeSelecionada]
+      : []
+
   let query = supabase
     .from("vw_feedback_analise_executiva")
     .select("*")
@@ -747,18 +781,20 @@ export async function getFeedbackAnaliseResultados(
     .order("formulario_titulo", { ascending: true })
     .order("ordem", { ascending: true })
 
+  if (equipeSelecionada === "todos") {
+    query = query.eq("departamento", "Todos")
+  } else {
+    query = query.in("departamento", departamentosFiltro)
+  }
+
   if (filtros?.categoria && filtros.categoria !== "todos") {
     query = query.eq("categoria", filtros.categoria)
   }
 
-  if (filtros?.tipoFormulario && filtros.tipoFormulario !== "todos") {
-    query = query.eq("tipo_formulario", filtros.tipoFormulario)
+
+  if (filtros?.cicloId) {
+    query = query.eq("ciclo_id", filtros.cicloId)
   }
-
-  const departamentoFiltro =
-    filtros?.equipe && filtros.equipe !== "todos" ? filtros.equipe : "Todos"
-
-  query = query.eq("departamento", departamentoFiltro)
 
   const { data, error } = await query
 
@@ -767,7 +803,29 @@ export async function getFeedbackAnaliseResultados(
     throw new Error("Não foi possível buscar a análise dos feedbacks.")
   }
 
-  const linhas = data ?? []
+  let ciclosQuery = supabase
+    .from("vw_feedback_analise_executiva")
+    .select("ciclo_id, ciclo_nome, ano, mes, departamento, categoria")
+    .order("ano", { ascending: false })
+    .order("mes", { ascending: false })
+
+  if (equipeSelecionada === "todos") {
+    ciclosQuery = ciclosQuery.eq("departamento", "Todos")
+  } else {
+    ciclosQuery = ciclosQuery.in("departamento", departamentosFiltro)
+  }
+
+  if (filtros?.categoria && filtros.categoria !== "todos") {
+    ciclosQuery = ciclosQuery.eq("categoria", filtros.categoria)
+  }
+
+
+  const { data: ciclosData, error: ciclosError } = await ciclosQuery
+
+  if (ciclosError) {
+    console.error("Erro ao buscar ciclos da análise:", ciclosError)
+    throw new Error("Não foi possível buscar os ciclos da análise.")
+  }
 
   const ciclosMap = new Map<
     string,
@@ -779,7 +837,7 @@ export async function getFeedbackAnaliseResultados(
     }
   >()
 
-  for (const item of linhas) {
+  for (const item of ciclosData ?? []) {
     if (!item.ciclo_id) continue
 
     ciclosMap.set(item.ciclo_id, {
@@ -797,13 +855,8 @@ export async function getFeedbackAnaliseResultados(
 
   const cicloSelecionadoId = filtros?.cicloId ?? ciclos[0]?.id ?? null
 
-  const linhasFiltradas = linhas.filter((item) => {
-    if (!cicloSelecionadoId) return true
-    return item.ciclo_id === cicloSelecionadoId
-  })
-
   return {
-    linhas: linhasFiltradas,
+    linhas: data ?? [],
     ciclos,
     cicloSelecionadoId,
   }
