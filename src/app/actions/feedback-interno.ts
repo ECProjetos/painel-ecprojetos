@@ -41,8 +41,6 @@ export async function getFeedbackCiclos() {
   return data ?? []
 }
 
-
-
 export async function getFeedbackHistorico(filtros?: FeedbackHistoricoFiltros) {
   const supabase = await createClient()
 
@@ -89,8 +87,6 @@ export type FeedbackAnexosFiltros = {
   cicloId?: string
   categoria?: string
 }
-
-
 
 export async function getFeedbackRespostaDetalhe(respostaId: string) {
   const supabase = await createClient()
@@ -281,7 +277,6 @@ export async function getFeedbackConsolidadoDetalhe(
     comentarios: comentarios ?? [],
   }
 }
-
 
 export async function getFeedbackAnexosHistoricos(
   filtros?: FeedbackAnexosFiltros,
@@ -716,19 +711,19 @@ export async function responderFeedbackInterno(formData: FormData) {
 }
 
 export async function getFeedbackAcompanhamentoAbertos() {
-  const supabase = await createClient();
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from("vw_feedback_acompanhamento_abertos")
     .select("*")
-    .order("ordem", { ascending: true });
+    .order("ordem", { ascending: true })
 
   if (error) {
-    console.error("Erro ao buscar acompanhamento de feedbacks:", error);
-    throw new Error("Não foi possível buscar o acompanhamento dos feedbacks.");
+    console.error("Erro ao buscar acompanhamento de feedbacks:", error)
+    throw new Error("Não foi possível buscar o acompanhamento dos feedbacks.")
   }
 
-  return data ?? [];
+  return data ?? []
 }
 
 export type FeedbackAnaliseFiltros = {
@@ -760,57 +755,58 @@ export async function getFeedbackAnaliseResultados(
     query = query.eq("tipo_formulario", filtros.tipoFormulario)
   }
 
-  if (filtros?.equipe && filtros.equipe !== "todos") {
-    query = query.eq("departamento", filtros.equipe)
-  }
+  const departamentoFiltro =
+    filtros?.equipe && filtros.equipe !== "todos" ? filtros.equipe : "Todos"
+
+  query = query.eq("departamento", departamentoFiltro)
 
   const { data, error } = await query
 
   if (error) {
-    console.error("Erro ao buscar análise dos feedbacks:", error);
-    throw new Error("Não foi possível buscar a análise dos feedbacks.");
+    console.error("Erro ao buscar análise dos feedbacks:", error)
+    throw new Error("Não foi possível buscar a análise dos feedbacks.")
   }
 
-  const linhas = data ?? [];
+  const linhas = data ?? []
 
   const ciclosMap = new Map<
     string,
     {
-      id: string;
-      nome: string;
-      ano: number;
-      mes: number;
+      id: string
+      nome: string
+      ano: number
+      mes: number
     }
-  >();
+  >()
 
   for (const item of linhas) {
-    if (!item.ciclo_id) continue;
+    if (!item.ciclo_id) continue
 
     ciclosMap.set(item.ciclo_id, {
       id: item.ciclo_id,
       nome: item.ciclo_nome,
       ano: Number(item.ano ?? 0),
       mes: Number(item.mes ?? 0),
-    });
+    })
   }
 
   const ciclos = Array.from(ciclosMap.values()).sort((a, b) => {
-    if (b.ano !== a.ano) return b.ano - a.ano;
-    return b.mes - a.mes;
-  });
+    if (b.ano !== a.ano) return b.ano - a.ano
+    return b.mes - a.mes
+  })
 
-  const cicloSelecionadoId = filtros?.cicloId ?? ciclos[0]?.id ?? null;
+  const cicloSelecionadoId = filtros?.cicloId ?? ciclos[0]?.id ?? null
 
   const linhasFiltradas = linhas.filter((item) => {
-    if (!cicloSelecionadoId) return true;
-    return item.ciclo_id === cicloSelecionadoId;
-  });
+    if (!cicloSelecionadoId) return true
+    return item.ciclo_id === cicloSelecionadoId
+  })
 
   return {
     linhas: linhasFiltradas,
     ciclos,
     cicloSelecionadoId,
-  };
+  }
 }
 
 type StatusRespostasFeedback = "fechado" | "aberto" | "encerrado"
@@ -855,7 +851,8 @@ async function verificarPermissaoGerenciarFeedback() {
   if (!rolesPermitidas.includes(perfil.role)) {
     return {
       autorizado: false,
-      message: "Você não tem permissão para alterar a disponibilidade do ciclo.",
+      message:
+        "Você não tem permissão para alterar a disponibilidade do ciclo.",
     }
   }
 
