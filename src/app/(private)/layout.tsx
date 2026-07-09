@@ -1,26 +1,28 @@
-import { ReactNode } from "react";
-import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
+import { ReactNode } from "react"
+import { redirect } from "next/navigation"
+import { createClient } from "@/utils/supabase/server"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { AppSidebar } from "@/components/sidebar/app-sidebar"
+import { isRhFeriasAdmin } from "@/app/actions/ferias"
+
 export default async function PrivateLayout({
   children,
 }: {
-  children: ReactNode;
+  children: ReactNode
 }) {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getUser();
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.getUser()
 
   if (error || !data?.user) {
-    redirect("/login");
+    redirect("/login")
   }
+
+  const temAcessoFerias = await isRhFeriasAdmin()
+
   return (
     <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        {/* Aqui entram os filhos: layouts e páginas aninhadas */}
-        {children}
-      </SidebarInset>
+      <AppSidebar temAcessoFerias={temAcessoFerias} />
+      <SidebarInset>{children}</SidebarInset>
     </SidebarProvider>
-  );
+  )
 }

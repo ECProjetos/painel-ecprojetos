@@ -89,6 +89,33 @@ function renderCampoPergunta(pergunta: {
   )
 }
 
+function separarPerguntaEDescricao(texto: string | null) {
+  const textoLimpo = (texto ?? "").trim()
+
+  if (textoLimpo.includes("\n\n")) {
+    const [titulo, ...descricaoPartes] = textoLimpo.split("\n\n")
+
+    return {
+      titulo: titulo.trim(),
+      descricao: descricaoPartes.join("\n\n").trim(),
+    }
+  }
+
+  const inicioDescricao = textoLimpo.indexOf("1 =")
+
+  if (inicioDescricao > -1) {
+    return {
+      titulo: textoLimpo.slice(0, inicioDescricao).trim(),
+      descricao: textoLimpo.slice(inicioDescricao).trim(),
+    }
+  }
+
+  return {
+    titulo: textoLimpo,
+    descricao: "",
+  }
+}
+
 export default async function FeedbackFormularioResponderPage({
   params,
 }: PageProps) {
@@ -144,6 +171,7 @@ export default async function FeedbackFormularioResponderPage({
       </div>
     )
   }
+
   const { formulario, jaRespondido, usuario } =
     await getFeedbackFormularioParaResponder(formularioId)
 
@@ -270,21 +298,38 @@ export default async function FeedbackFormularioResponderPage({
               </CardHeader>
 
               <CardContent className="space-y-5">
-                {formulario.feedback_perguntas.map((pergunta) => (
-                  <div
-                    key={pergunta.id}
-                    className="rounded-lg border bg-white p-4 shadow-sm"
-                  >
-                    <div className="mb-3 flex items-start gap-2">
-                      <Badge variant="secondary">{pergunta.ordem}</Badge>
-                      <p className="font-medium text-gray-900">
-                        {pergunta.pergunta}
-                      </p>
-                    </div>
+                {formulario.feedback_perguntas.map((pergunta) => {
+                  const { titulo, descricao } = separarPerguntaEDescricao(
+                    pergunta.pergunta,
+                  )
 
-                    {renderCampoPergunta(pergunta)}
-                  </div>
-                ))}
+                  return (
+                    <div
+                      key={pergunta.id}
+                      className="rounded-lg border bg-white p-4 shadow-sm"
+                    >
+                      <div className="mb-3 flex items-start gap-2">
+                        <Badge variant="secondary" className="shrink-0">
+                          {pergunta.ordem}
+                        </Badge>
+
+                        <div className="space-y-1">
+                          <p className="font-medium leading-relaxed text-gray-900">
+                            {titulo}
+                          </p>
+
+                          {descricao ? (
+                            <p className="text-sm font-normal leading-relaxed text-gray-500">
+                              {descricao}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {renderCampoPergunta(pergunta)}
+                    </div>
+                  )
+                })}
               </CardContent>
             </Card>
 

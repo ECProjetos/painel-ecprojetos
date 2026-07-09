@@ -3,13 +3,11 @@
 import { useUserStore } from "@/stores/userStore"
 import { usePathname } from "next/navigation"
 import { ComponentProps } from "react"
-import { BarChart3 } from "lucide-react"
-
 import Image from "next/image"
-
 import { logout } from "@/hooks/use-logout"
 
 import {
+  BarChart3,
   Briefcase,
   ClipboardList,
   Clock,
@@ -21,6 +19,7 @@ import {
   NotepadText,
   LucideNotebook,
   User,
+  CalendarDays,
 } from "lucide-react"
 
 import {
@@ -35,14 +34,11 @@ import {
 } from "@/components/ui/sidebar"
 
 import { Skeleton } from "@/components/ui/skeleton"
-
 import { NavGeneral } from "./nav-general"
 import { NavDiretor } from "./nav-diretor"
-
-import { roles } from "@/constants/roles"
-
-import { Button } from "../ui/button"
 import { NavGestor } from "./nav-gestor"
+import { roles } from "@/constants/roles"
+import { Button } from "../ui/button"
 
 const createData = (pathname: string, userId?: string) => ({
   navGeneral: [
@@ -78,6 +74,7 @@ const createData = (pathname: string, userId?: string) => ({
       isActive: pathname.startsWith("/feedback-interno/responder"),
     },
   ],
+
   navGestor: [
     {
       title: "Controle de Horários",
@@ -99,7 +96,7 @@ const createData = (pathname: string, userId?: string) => ({
       items: [
         {
           title: "Visualizar",
-          url: "/plano-carreira/view ",
+          url: "/plano-carreira/view",
           isActive: pathname.startsWith("/plano-carreira/view"),
         },
         {
@@ -128,6 +125,7 @@ const createData = (pathname: string, userId?: string) => ({
       isActive: pathname.startsWith("/inventario"),
     },
   ],
+
   navDiretor: [
     {
       title: "Controle de Horários",
@@ -194,8 +192,9 @@ const createData = (pathname: string, userId?: string) => ({
 
 function getRoleLabel(role: string) {
   if (!role || role === "authenticated") {
-    return null // tratar como “sem role”
+    return null
   }
+
   switch (role) {
     case roles.diretor:
       return "Diretor"
@@ -204,11 +203,16 @@ function getRoleLabel(role: string) {
     case roles.colaborador:
       return "Colaborador"
     default:
-      return role //
+      return role
   }
 }
 
-export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  temAcessoFerias = false,
+  ...props
+}: ComponentProps<typeof Sidebar> & {
+  temAcessoFerias?: boolean
+}) {
   const { open, toggleSidebar } = useSidebar()
   const pathname = usePathname()
   const user = useUserStore((state) => state.user)
@@ -216,9 +220,27 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const id = user?.id
 
   const data = createData(pathname, id)
+
+  if (temAcessoFerias) {
+    const feriasItem = {
+      title: "Gestão de Férias",
+      url: "/rh/ferias",
+      icon: CalendarDays,
+      isActive: pathname.startsWith("/rh/ferias"),
+    }
+
+    data.navGeneral = [...data.navGeneral, feriasItem]
+    data.navGestor = [...data.navGestor, feriasItem]
+    data.navDiretor = [...data.navDiretor, feriasItem]
+  }
+
   const navData = {
     ...data,
     navGeneral: data.navGeneral.map((item) => ({
+      ...item,
+      isActive: item.isActive || pathname.startsWith(item.url),
+    })),
+    navGestor: data.navGestor.map((item) => ({
       ...item,
       isActive: item.isActive || pathname.startsWith(item.url),
     })),
@@ -232,23 +254,22 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
     <Sidebar
       collapsible="icon"
       {...props}
-      className={
-        open
-          ? "border-none !min-h-[115vh] pb-3"
-          : "border-none !min-h-[115vh] pb-3"
-      }
+      className="border-none !min-h-[115vh] pb-3"
     >
       <SidebarHeader>
         <div className="flex items-center p-2">
           <div className="flex items-center gap-2">
             <Image src="/images/logo.png" alt="logo" width={64} height={72} />
+
             {open && (
               <div className="flex flex-col">
                 <h1 className="text-sm font-bold">EC Projetos</h1>
+
                 {(() => {
-                  const label = getRoleLabel(userRole!)
+                  const label = getRoleLabel(userRole ?? "")
+
                   return label ? (
-                    <p className="text-xs text-gray-500"> {label} </p>
+                    <p className="text-xs text-gray-500">{label}</p>
                   ) : (
                     <Skeleton className="h-3 w-16" />
                   )
@@ -259,9 +280,8 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarHeader>
 
-      {/* Floating rounded toggle button on the edge of sidebar */}
       <div
-        className="absolute z-30 "
+        className="absolute z-30"
         style={{
           left: open
             ? "calc(var(--sidebar-width) - 14px)"
@@ -273,7 +293,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
           variant="secondary"
           size="icon"
           onClick={toggleSidebar}
-          className="h-7 w-7 rounded-full border border-gray-200 flex items-center justify-center"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200"
           aria-label="Toggle sidebar"
         >
           {open ? (
@@ -284,7 +304,6 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
         </Button>
       </div>
 
-      {/* Sidebar controle de horario e plano de carreira */}
       <SidebarContent className="h-full">
         {userRole === roles.diretor ? (
           <NavDiretor items={navData.navDiretor} />
@@ -293,8 +312,9 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
         ) : (
           <NavGeneral items={navData.navGeneral} />
         )}
+
         <Button
-          className="mx-auto w-full mt-10"
+          className="mx-auto mt-10 w-full"
           size="icon"
           variant="outline"
           onClick={logout}
@@ -303,32 +323,27 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
         </Button>
       </SidebarContent>
 
-      {/* Add visible toggle button for easier mobile access */}
       <div className="p-2 md:hidden">
         <Button
           variant="outline"
-          className="w-full flex items-center justify-center gap-2"
+          className="flex w-full items-center justify-center gap-2"
           onClick={toggleSidebar}
         >
           {open ? (
             <>
               <PanelLeftClose className="h-4 w-4" />
-              <span>Collapse sidebar</span>
+              <span>Recolher menu</span>
             </>
           ) : (
             <>
               <PanelLeftOpen className="h-4 w-4" />
-              <span>Expand sidebar</span>
+              <span>Expandir menu</span>
             </>
           )}
         </Button>
       </div>
 
-      {/*
-      para ajusatar o do footer quando estiver no momento 
-      <SidebarFooter>{user && <NavUser user={user} />}</SidebarFooter>
-      */}
-      <SidebarFooter></SidebarFooter>
+      <SidebarFooter />
       <SidebarRail />
     </Sidebar>
   )
