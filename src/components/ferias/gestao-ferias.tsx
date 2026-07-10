@@ -35,14 +35,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -158,19 +157,18 @@ const statusClasses: Record<FeriasStatus, string> = {
 }
 
 const pastelBarColors = [
-  "#22C55E", // verde
-  "#06B6D4", // ciano
-  "#A855F7", // roxo
-  "#F59E0B", // laranja
-  "#EC4899", // rosa
-  "#3B82F6", // azul
-  "#14B8A6", // verde água
-  "#F97316", // laranja forte
-  "#8B5CF6", // violeta
-  "#10B981", // esmeralda
+  "#22C55E",
+  "#06B6D4",
+  "#A855F7",
+  "#F59E0B",
+  "#EC4899",
+  "#3B82F6",
+  "#14B8A6",
+  "#F97316",
+  "#8B5CF6",
+  "#10B981",
 ]
 
-const DIA_WIDTH = 42
 const WEEK_DAYS = ["D", "S", "T", "Q", "Q", "S", "S"]
 
 export default function GestaoFerias({
@@ -222,11 +220,13 @@ export default function GestaoFerias({
 
   const anosDisponiveis = useMemo(() => {
     const anoBase = filtrosIniciais.ano
+
     return [anoBase - 1, anoBase, anoBase + 1, anoBase + 2]
   }, [filtrosIniciais.ano])
 
   const diasDoMes = useMemo(() => {
     const total = new Date(Number(ano), Number(mes), 0).getDate()
+
     return Array.from({ length: total }, (_, index) => index + 1)
   }, [ano, mes])
 
@@ -246,13 +246,18 @@ export default function GestaoFerias({
       .filter((item) => {
         const inicio = parseDate(item.data_inicio)
         const fim = parseDate(item.data_fim)
+
         return inicio <= fimMes && fim >= inicioMes
       })
       .sort((a, b) => {
-        const diff =
+        const diferenca =
           parseDate(a.data_inicio).getTime() -
           parseDate(b.data_inicio).getTime()
-        if (diff !== 0) return diff
+
+        if (diferenca !== 0) {
+          return diferenca
+        }
+
         return a.colaborador_nome.localeCompare(b.colaborador_nome)
       })
   }, [solicitacoes, inicioMes, fimMes])
@@ -287,7 +292,11 @@ export default function GestaoFerias({
 
     if (status === "reprovada" || status === "cancelada") {
       const texto = window.prompt("Informe uma observação/motivo:")
-      if (texto === null) return
+
+      if (texto === null) {
+        return
+      }
+
       observacao = texto
     }
 
@@ -295,6 +304,7 @@ export default function GestaoFerias({
       void (async () => {
         try {
           await atualizarStatusFerias(solicitacaoId, status, observacao)
+
           toast.success(`Solicitação ${statusLabels[status].toLowerCase()}.`)
           router.refresh()
         } catch (error) {
@@ -313,12 +323,15 @@ export default function GestaoFerias({
       "Tem certeza que deseja excluir esta solicitação?",
     )
 
-    if (!confirmado) return
+    if (!confirmado) {
+      return
+    }
 
     startTransition(() => {
       void (async () => {
         try {
           await excluirFeriasSolicitacao(solicitacaoId)
+
           toast.success("Solicitação excluída.")
           router.refresh()
         } catch (error) {
@@ -339,6 +352,7 @@ export default function GestaoFerias({
           <h1 className="text-2xl font-semibold tracking-tight">
             Gestão de Férias
           </h1>
+
           <p className="text-sm text-muted-foreground">
             Controle visual das férias e ausências por mês, com foco em quem
             realmente estará fora no período selecionado.
@@ -355,6 +369,7 @@ export default function GestaoFerias({
                 aria-label="Solicitações pendentes"
               >
                 <Bell className="h-4 w-4" />
+
                 <span className="font-medium">Solicitações</span>
 
                 <span className="ml-1 inline-flex min-w-6 items-center justify-center rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white">
@@ -363,15 +378,20 @@ export default function GestaoFerias({
               </Button>
             </PopoverTrigger>
 
-            <PopoverContent align="end" className="w-[380px] p-0">
+            <PopoverContent
+              align="end"
+              className="w-[calc(100vw-2rem)] p-0 sm:w-[380px]"
+            >
               <div className="border-b p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold">Solicitações pendentes</p>
+
                     <p className="text-xs text-muted-foreground">
                       Pedidos aguardando aprovação ou reprovação.
                     </p>
                   </div>
+
                   <Badge variant="secondary">{pendencias.length}</Badge>
                 </div>
               </div>
@@ -391,6 +411,7 @@ export default function GestaoFerias({
                         <p className="font-medium">
                           {solicitacao.colaborador_nome}
                         </p>
+
                         <p className="text-xs text-muted-foreground">
                           {solicitacao.equipe ?? "Sem equipe"}
                         </p>
@@ -401,6 +422,7 @@ export default function GestaoFerias({
                           {formatarData(solicitacao.data_inicio)} a{" "}
                           {formatarData(solicitacao.data_fim)}
                         </p>
+
                         <p className="text-xs text-muted-foreground">
                           {tipoLabels[solicitacao.tipo]} ·{" "}
                           {solicitacao.dias_corridos} dias
@@ -419,6 +441,7 @@ export default function GestaoFerias({
                         >
                           Aprovar
                         </Button>
+
                         <Button
                           type="button"
                           size="sm"
@@ -448,24 +471,28 @@ export default function GestaoFerias({
           description="no período"
           icon={Users}
         />
+
         <ResumoCard
           title="Pendentes"
           value={resumo.pendentes}
           description="aguardando análise"
           icon={Clock3}
         />
+
         <ResumoCard
           title="Aprovadas"
           value={resumo.aprovadas}
           description="confirmadas"
           icon={CheckCircle2}
         />
+
         <ResumoCard
           title="Em férias hoje"
           value={resumo.emFeriasHoje}
           description="ausentes hoje"
           icon={Plane}
         />
+
         <ResumoCard
           title="Conflitos"
           value={resumo.conflitos}
@@ -473,6 +500,7 @@ export default function GestaoFerias({
           icon={AlertTriangle}
           className={resumo.conflitos > 0 ? "border-amber-300" : ""}
         />
+
         <ResumoCard
           title="Canceladas"
           value={resumo.canceladas}
@@ -484,6 +512,7 @@ export default function GestaoFerias({
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
+
           <CardDescription>
             Filtre o mês, ano, status, equipe e colaborador para analisar as
             férias do período.
@@ -494,10 +523,12 @@ export default function GestaoFerias({
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <div className="space-y-2">
               <Label>Mês</Label>
+
               <Select value={mes} onValueChange={setMes}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Mês" />
                 </SelectTrigger>
+
                 <SelectContent>
                   {meses.map((item) => (
                     <SelectItem key={item.value} value={item.value}>
@@ -510,10 +541,12 @@ export default function GestaoFerias({
 
             <div className="space-y-2">
               <Label>Ano</Label>
+
               <Select value={ano} onValueChange={setAno}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Ano" />
                 </SelectTrigger>
+
                 <SelectContent>
                   {anosDisponiveis.map((item) => (
                     <SelectItem key={item} value={String(item)}>
@@ -526,6 +559,7 @@ export default function GestaoFerias({
 
             <div className="space-y-2">
               <Label>Status</Label>
+
               <Select
                 value={statusFiltro}
                 onValueChange={(value) =>
@@ -535,6 +569,7 @@ export default function GestaoFerias({
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
+
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="pendente">Pendentes</SelectItem>
@@ -547,12 +582,15 @@ export default function GestaoFerias({
 
             <div className="space-y-2">
               <Label>Equipe</Label>
+
               <Select value={equipeFiltro} onValueChange={setEquipeFiltro}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Equipe" />
                 </SelectTrigger>
+
                 <SelectContent>
                   <SelectItem value="todos">Todas</SelectItem>
+
                   {equipes.map((equipe) => (
                     <SelectItem key={equipe} value={equipe}>
                       {equipe}
@@ -564,16 +602,28 @@ export default function GestaoFerias({
 
             <div className="space-y-2 xl:col-span-2">
               <Label>Colaborador</Label>
+
               <div className="flex gap-2">
                 <Input
                   value={colaboradorBusca}
                   onChange={(event) => setColaboradorBusca(event.target.value)}
                   placeholder="Buscar por nome"
                 />
-                <Button type="button" onClick={aplicarFiltros}>
+
+                <Button
+                  type="button"
+                  onClick={aplicarFiltros}
+                  aria-label="Aplicar filtros"
+                >
                   <Search className="h-4 w-4" />
                 </Button>
-                <Button type="button" variant="outline" onClick={limparFiltros}>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={limparFiltros}
+                  aria-label="Limpar filtros"
+                >
                   <RefreshCcw className="h-4 w-4" />
                 </Button>
               </div>
@@ -583,26 +633,31 @@ export default function GestaoFerias({
       </Card>
 
       <Tabs defaultValue="calendario" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[420px]">
-          <TabsTrigger value="calendario">
-            <CalendarDays className="mr-2 h-4 w-4" />
-            Calendário
-          </TabsTrigger>
-          <TabsTrigger value="tabela">
-            <CalendarCheck2 className="mr-2 h-4 w-4" />
-            Tabela
-          </TabsTrigger>
-          <TabsTrigger value="conflitos">
-            <AlertTriangle className="mr-2 h-4 w-4" />
-            Conflitos
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex justify-center">
+          <TabsList className="grid w-full max-w-[460px] grid-cols-3">
+            <TabsTrigger value="calendario">
+              <CalendarDays className="mr-2 h-4 w-4" />
+              Calendário
+            </TabsTrigger>
+
+            <TabsTrigger value="tabela">
+              <CalendarCheck2 className="mr-2 h-4 w-4" />
+              Tabela
+            </TabsTrigger>
+
+            <TabsTrigger value="conflitos">
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              Conflitos
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="calendario" className="mt-4">
-          <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="grid items-start gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
             <Card className="h-fit">
               <CardHeader>
                 <CardTitle>Férias neste mês</CardTitle>
+
                 <CardDescription>
                   Somente colaboradores com férias/ausências no mês selecionado.
                 </CardDescription>
@@ -621,11 +676,12 @@ export default function GestaoFerias({
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="h-fit self-start">
               <CardHeader>
                 <CardTitle>
                   {meses.find((item) => item.value === mes)?.label} de {ano}
                 </CardTitle>
+
                 <CardDescription>
                   Visualização mensal no estilo agenda, com barras por
                   colaborador.
@@ -639,17 +695,12 @@ export default function GestaoFerias({
                   </div>
                 ) : (
                   <>
-                    <div className="overflow-x-auto rounded-xl border">
-                      <div
-                        className="min-w-max bg-white"
-                        style={{
-                          width: 260 + diasDoMes.length * DIA_WIDTH,
-                        }}
-                      >
+                    <div className="overflow-hidden rounded-xl border">
+                      <div className="w-full bg-white">
                         <div
                           className="grid border-b bg-slate-50"
                           style={{
-                            gridTemplateColumns: `260px repeat(${diasDoMes.length}, ${DIA_WIDTH}px)`,
+                            gridTemplateColumns: `minmax(190px, 250px) repeat(${diasDoMes.length}, minmax(0, 1fr))`,
                           }}
                         >
                           <div className="border-r p-3 font-medium">
@@ -662,23 +713,26 @@ export default function GestaoFerias({
                               Number(mes) - 1,
                               dia,
                             )
+
                             const dayOfWeek = dataDia.getDay()
-                            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+                            const isWeekend =
+                              dayOfWeek === 0 || dayOfWeek === 6
                             const isToday = isSameDay(dataDia, new Date())
 
                             return (
                               <div
                                 key={dia}
                                 className={cn(
-                                  "border-r px-1 py-2 text-center",
+                                  "min-w-0 border-r px-0.5 py-2 text-center",
                                   isWeekend && "bg-slate-100",
                                   isToday && "bg-blue-50",
                                 )}
                               >
-                                <div className="text-[10px] text-muted-foreground">
+                                <div className="text-[9px] text-muted-foreground">
                                   {WEEK_DAYS[dayOfWeek]}
                                 </div>
-                                <div className="text-sm font-semibold">
+
+                                <div className="text-xs font-semibold">
                                   {dia}
                                 </div>
                               </div>
@@ -694,32 +748,37 @@ export default function GestaoFerias({
                             inicioOriginal < inicioMes
                               ? inicioMes
                               : inicioOriginal
+
                           const fimVisivel =
                             fimOriginal > fimMes ? fimMes : fimOriginal
 
                           const startDay = inicioVisivel.getDate()
                           const endDay = fimVisivel.getDate()
 
-                          const left = (startDay - 1) * DIA_WIDTH + 4
-                          const width = (endDay - startDay + 1) * DIA_WIDTH - 8
+                          const leftPercent =
+                            ((startDay - 1) / diasDoMes.length) * 100
+
+                          const widthPercent =
+                            ((endDay - startDay + 1) / diasDoMes.length) * 100
 
                           return (
                             <div
                               key={item.id}
                               className="grid border-b last:border-b-0"
                               style={{
-                                gridTemplateColumns: `260px ${
-                                  diasDoMes.length * DIA_WIDTH
-                                }px`,
+                                gridTemplateColumns:
+                                  "minmax(190px, 250px) minmax(0, 1fr)",
                               }}
                             >
                               <div className="border-r p-3">
                                 <div className="font-medium leading-tight">
                                   {item.colaborador_nome}
                                 </div>
+
                                 <div className="mt-1 text-xs text-muted-foreground">
                                   {item.equipe ?? "Sem equipe"}
                                 </div>
+
                                 <div className="mt-2 flex items-center gap-2">
                                   <Badge
                                     variant="outline"
@@ -727,17 +786,18 @@ export default function GestaoFerias({
                                   >
                                     {statusLabels[item.status]}
                                   </Badge>
+
                                   <span className="text-xs text-muted-foreground">
                                     {item.dias_corridos} dias
                                   </span>
                                 </div>
                               </div>
 
-                              <div className="relative" style={{ height: 68 }}>
+                              <div className="relative h-[68px] min-w-0">
                                 <div
                                   className="absolute inset-0 grid"
                                   style={{
-                                    gridTemplateColumns: `repeat(${diasDoMes.length}, ${DIA_WIDTH}px)`,
+                                    gridTemplateColumns: `repeat(${diasDoMes.length}, minmax(0, 1fr))`,
                                   }}
                                 >
                                   {diasDoMes.map((dia) => {
@@ -746,6 +806,7 @@ export default function GestaoFerias({
                                       Number(mes) - 1,
                                       dia,
                                     )
+
                                     const dayOfWeek = dataDia.getDay()
                                     const isWeekend =
                                       dayOfWeek === 0 || dayOfWeek === 6
@@ -758,7 +819,7 @@ export default function GestaoFerias({
                                       <div
                                         key={`${item.id}-${dia}`}
                                         className={cn(
-                                          "border-r",
+                                          "min-w-0 border-r",
                                           isWeekend && "bg-slate-50",
                                           isToday && "bg-blue-50/70",
                                         )}
@@ -768,10 +829,10 @@ export default function GestaoFerias({
                                 </div>
 
                                 <div
-                                  className="absolute top-1/2 flex h-9 -translate-y-1/2 items-center rounded-full px-4 text-xs font-semibold shadow-sm"
+                                  className="absolute top-1/2 flex h-9 -translate-y-1/2 items-center overflow-hidden rounded-full px-3 text-[10px] font-semibold shadow-sm xl:text-xs"
                                   style={{
-                                    left,
-                                    width: Math.max(width, 32),
+                                    left: `calc(${leftPercent}% + 4px)`,
+                                    width: `max(4px, calc(${widthPercent}% - 8px))`,
                                     ...getCalendarBarStyle(item),
                                   }}
                                   title={`${item.colaborador_nome} • ${formatarData(
@@ -791,11 +852,14 @@ export default function GestaoFerias({
 
                     <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
                       <LegendaItem color="#22C55E" label="Aprovada" />
+
                       <LegendaItem color="#F59E0B" label="Pendente" />
+
                       <LegendaItem
                         color="#EF4444"
                         label="Reprovada/Cancelada"
                       />
+
                       <LegendaItem
                         color="#EFF6FF"
                         borderColor="#CBD5E1"
@@ -813,6 +877,7 @@ export default function GestaoFerias({
           <Card>
             <CardHeader>
               <CardTitle>Solicitações</CardTitle>
+
               <CardDescription>
                 Lista completa das solicitações cadastradas no período.
               </CardDescription>
@@ -852,22 +917,31 @@ export default function GestaoFerias({
                             <p className="font-medium">
                               {solicitacao.colaborador_nome}
                             </p>
+
                             <p className="text-xs text-muted-foreground">
                               {solicitacao.cargo ?? "Cargo não informado"}
                             </p>
                           </div>
                         </TableCell>
+
                         <TableCell>
                           {solicitacao.equipe ?? "Sem equipe"}
                         </TableCell>
-                        <TableCell>{tipoLabels[solicitacao.tipo]}</TableCell>
+
+                        <TableCell>
+                          {tipoLabels[solicitacao.tipo]}
+                        </TableCell>
+
                         <TableCell>
                           {formatarData(solicitacao.data_inicio)}
                         </TableCell>
+
                         <TableCell>
                           {formatarData(solicitacao.data_fim)}
                         </TableCell>
+
                         <TableCell>{solicitacao.dias_corridos}</TableCell>
+
                         <TableCell>
                           <Badge
                             variant="outline"
@@ -876,6 +950,7 @@ export default function GestaoFerias({
                             {statusLabels[solicitacao.status]}
                           </Badge>
                         </TableCell>
+
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             {solicitacao.status === "pendente" && (
@@ -923,7 +998,10 @@ export default function GestaoFerias({
                               size="sm"
                               variant="ghost"
                               disabled={isPending}
-                              onClick={() => excluirSolicitacao(solicitacao.id)}
+                              onClick={() =>
+                                excluirSolicitacao(solicitacao.id)
+                              }
+                              aria-label={`Excluir solicitação de ${solicitacao.colaborador_nome}`}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -942,6 +1020,7 @@ export default function GestaoFerias({
           <Card>
             <CardHeader>
               <CardTitle>Conflitos de período</CardTitle>
+
               <CardDescription>
                 Pessoas da mesma equipe com datas sobrepostas.
               </CardDescription>
@@ -1001,10 +1080,13 @@ function ResumoCard({
     <Card className={className}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
+
         <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
+
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
+
         <p className="text-xs text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
@@ -1016,11 +1098,14 @@ function ResumoFeriasMesCard({ item }: { item: FeriasSolicitacao }) {
     <div className="rounded-xl border bg-white p-3 shadow-sm">
       <div
         className="mb-3 h-2.5 w-20 rounded-full"
-        style={{ backgroundColor: getPastelBarColor(item.colaborador_id) }}
+        style={{
+          backgroundColor: getPastelBarColor(item.colaborador_id),
+        }}
       />
+
       <div className="flex items-start gap-3">
         <div
-          className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
           style={getAvatarStyle(item.colaborador_id)}
         >
           {getInitials(item.colaborador_nome)}
@@ -1029,6 +1114,7 @@ function ResumoFeriasMesCard({ item }: { item: FeriasSolicitacao }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="truncate font-medium">{item.colaborador_nome}</p>
+
             <Badge variant="outline" className={statusClasses[item.status]}>
               {statusLabels[item.status]}
             </Badge>
@@ -1069,12 +1155,15 @@ function LegendaItem({
           borderColor: borderColor ?? color,
         }}
       />
+
       <span>{label}</span>
     </div>
   )
 }
+
 function parseDate(value: string) {
   const [year, month, day] = value.split("-").map(Number)
+
   return new Date(year, month - 1, day)
 }
 
@@ -1090,24 +1179,30 @@ function getInitials(nome: string) {
   const partes = nome.trim().split(" ").filter(Boolean)
   const primeira = partes[0]?.[0] ?? ""
   const segunda = partes[1]?.[0] ?? ""
+
   return `${primeira}${segunda}`.toUpperCase()
 }
 
 function formatarData(data: string) {
-  if (!data) return "-"
+  if (!data) {
+    return "-"
+  }
+
   const [ano, mes, dia] = data.split("-")
+
   return `${dia}/${mes}/${ano}`
 }
 
 function getPastelBarColor(chave: string) {
   let hash = 0
 
-  for (let i = 0; i < chave.length; i++) {
-    hash = chave.charCodeAt(i) + ((hash << 5) - hash)
+  for (let index = 0; index < chave.length; index++) {
+    hash = chave.charCodeAt(index) + ((hash << 5) - hash)
   }
 
-  const index = Math.abs(hash) % pastelBarColors.length
-  return pastelBarColors[index]
+  const colorIndex = Math.abs(hash) % pastelBarColors.length
+
+  return pastelBarColors[colorIndex]
 }
 
 function getCalendarBarStyle(item: FeriasSolicitacao) {
@@ -1139,11 +1234,11 @@ function getAvatarStyle(chave: string) {
 
 function hexToRgba(hex: string, alpha: number) {
   const normalized = hex.replace("#", "")
-
   const bigint = Number.parseInt(normalized, 16)
-  const r = (bigint >> 16) & 255
-  const g = (bigint >> 8) & 255
-  const b = bigint & 255
 
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  const red = (bigint >> 16) & 255
+  const green = (bigint >> 8) & 255
+  const blue = bigint & 255
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
 }
