@@ -9,17 +9,17 @@ import { logout } from "@/hooks/use-logout"
 import {
   BarChart3,
   Briefcase,
+  CalendarDays,
+  CalendarPlus,
   ClipboardList,
   Clock,
   LogOut,
+  LucideNotebook,
+  NotebookPen,
+  NotepadText,
   PanelLeftClose,
   PanelLeftOpen,
   ThumbsUpIcon,
-  NotebookPen,
-  NotepadText,
-  LucideNotebook,
-  User,
-  CalendarDays,
 } from "lucide-react"
 
 import {
@@ -28,8 +28,6 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
 
@@ -72,6 +70,12 @@ const createData = (pathname: string, userId?: string) => ({
       url: "/feedback-interno/responder",
       icon: ClipboardList,
       isActive: pathname.startsWith("/feedback-interno/responder"),
+    },
+    {
+      title: "Solicitação de Férias",
+      url: "/rh/minhas-ferias",
+      icon: CalendarPlus,
+      isActive: pathname.startsWith("/rh/minhas-ferias"),
     },
   ],
 
@@ -123,6 +127,12 @@ const createData = (pathname: string, userId?: string) => ({
       url: "/inventario",
       icon: LucideNotebook,
       isActive: pathname.startsWith("/inventario"),
+    },
+    {
+      title: "Solicitação de Férias",
+      url: "/rh/minhas-ferias",
+      icon: CalendarPlus,
+      isActive: pathname.startsWith("/rh/minhas-ferias"),
     },
   ],
 
@@ -186,6 +196,12 @@ const createData = (pathname: string, userId?: string) => ({
       url: "/inventario",
       icon: LucideNotebook,
       isActive: pathname.startsWith("/inventario"),
+    },
+    {
+      title: "Solicitação de Férias",
+      url: "/rh/minhas-ferias",
+      icon: CalendarPlus,
+      isActive: pathname.startsWith("/rh/minhas-ferias"),
     },
   ],
 })

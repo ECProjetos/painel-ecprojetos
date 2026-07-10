@@ -1,17 +1,17 @@
 "use client"
 
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   AlertTriangle,
   Ban,
+  Bell,
   CalendarCheck2,
   CalendarDays,
   CheckCircle2,
   Clock3,
   Plane,
-  Plus,
   RefreshCcw,
   Search,
   Trash2,
@@ -21,7 +21,6 @@ import {
 
 import {
   atualizarStatusFerias,
-  criarFeriasSolicitacao,
   excluirFeriasSolicitacao,
   type FeriasStatus,
   type FeriasTipo,
@@ -36,15 +35,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+
 import { Input } from "@/components/ui/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -62,7 +59,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 type ColaboradorFerias = {
@@ -112,6 +108,7 @@ type FeriasConflito = {
 type GestaoFeriasProps = {
   colaboradores: ColaboradorFerias[]
   solicitacoes: FeriasSolicitacao[]
+  pendencias: FeriasSolicitacao[]
   resumo: FeriasResumo
   conflitos: FeriasConflito[]
   filtrosIniciais: {
@@ -121,18 +118,6 @@ type GestaoFeriasProps = {
     colaborador: string
     equipe: string
   }
-}
-
-type NovoForm = {
-  colaboradorId: string
-  dataInicio: string
-  dataFim: string
-  tipo: FeriasTipo
-  observacao: string
-  periodoAquisitivoInicio: string
-  periodoAquisitivoFim: string
-  diasVendidos: string
-  adiantamento13: boolean
 }
 
 const meses = [
@@ -172,37 +157,18 @@ const statusClasses: Record<FeriasStatus, string> = {
   cancelada: "border-slate-200 bg-slate-50 text-slate-600",
 }
 
-const barraClasses: Record<FeriasStatus, string> = {
-  pendente: "bg-amber-400 text-amber-950",
-  aprovada: "bg-emerald-500 text-white",
-  reprovada: "bg-rose-400 text-white",
-  cancelada: "bg-slate-300 text-slate-700",
-}
-
 const pastelBarColors = [
-  "bg-[#22C55E] text-white", // verde
-  "bg-[#A855F7] text-white", // roxo
-  "bg-[#F59E0B] text-white", // laranja
-  "bg-[#06B6D4] text-white", // ciano
-  "bg-[#EC4899] text-white", // rosa
-  "bg-[#3B82F6] text-white", // azul
-  "bg-[#14B8A6] text-white", // verde água
-  "bg-[#F97316] text-white", // laranja forte
-  "bg-[#8B5CF6] text-white", // violeta
-  "bg-[#10B981] text-white", // esmeralda
+  "#22C55E", // verde
+  "#06B6D4", // ciano
+  "#A855F7", // roxo
+  "#F59E0B", // laranja
+  "#EC4899", // rosa
+  "#3B82F6", // azul
+  "#14B8A6", // verde água
+  "#F97316", // laranja forte
+  "#8B5CF6", // violeta
+  "#10B981", // esmeralda
 ]
-
-const formInicial: NovoForm = {
-  colaboradorId: "",
-  dataInicio: "",
-  dataFim: "",
-  tipo: "ferias",
-  observacao: "",
-  periodoAquisitivoInicio: "",
-  periodoAquisitivoFim: "",
-  diasVendidos: "0",
-  adiantamento13: false,
-}
 
 const DIA_WIDTH = 42
 const WEEK_DAYS = ["D", "S", "T", "Q", "Q", "S", "S"]
@@ -210,15 +176,13 @@ const WEEK_DAYS = ["D", "S", "T", "Q", "Q", "S", "S"]
 export default function GestaoFerias({
   colaboradores,
   solicitacoes,
+  pendencias,
   resumo,
   conflitos,
   filtrosIniciais,
 }: GestaoFeriasProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-
-  const [dialogAberto, setDialogAberto] = useState(false)
-  const [form, setForm] = useState<NovoForm>(formInicial)
 
   const [ano, setAno] = useState(String(filtrosIniciais.ano))
   const [mes, setMes] = useState(String(filtrosIniciais.mes))
@@ -293,16 +257,6 @@ export default function GestaoFerias({
       })
   }, [solicitacoes, inicioMes, fimMes])
 
-  function atualizarForm<K extends keyof NovoForm>(
-    campo: K,
-    valor: NovoForm[K],
-  ) {
-    setForm((atual) => ({
-      ...atual,
-      [campo]: valor,
-    }))
-  }
-
   function aplicarFiltros() {
     const params = new URLSearchParams()
 
@@ -326,39 +280,6 @@ export default function GestaoFerias({
 
   function limparFiltros() {
     router.push("/rh/ferias")
-  }
-
-  function criarSolicitacao(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    startTransition(() => {
-      void (async () => {
-        try {
-          await criarFeriasSolicitacao({
-            colaboradorId: form.colaboradorId,
-            dataInicio: form.dataInicio,
-            dataFim: form.dataFim,
-            tipo: form.tipo,
-            observacao: form.observacao || undefined,
-            periodoAquisitivoInicio: form.periodoAquisitivoInicio || undefined,
-            periodoAquisitivoFim: form.periodoAquisitivoFim || undefined,
-            diasVendidos: Number(form.diasVendidos || 0),
-            adiantamento13: form.adiantamento13,
-          })
-
-          toast.success("Solicitação cadastrada com sucesso.")
-          setForm(formInicial)
-          setDialogAberto(false)
-          router.refresh()
-        } catch (error) {
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : "Erro ao cadastrar solicitação.",
-          )
-        }
-      })()
-    })
   }
 
   function alterarStatus(solicitacaoId: string, status: FeriasStatus) {
@@ -424,10 +345,100 @@ export default function GestaoFerias({
           </p>
         </div>
 
-        <Button onClick={() => setDialogAberto(true)}>
-          <Plus className="h-4 w-4" />
-          Nova solicitação
-        </Button>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex items-center gap-2 px-3 py-2"
+                aria-label="Solicitações pendentes"
+              >
+                <Bell className="h-4 w-4" />
+                <span className="font-medium">Solicitações</span>
+
+                <span className="ml-1 inline-flex min-w-6 items-center justify-center rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white">
+                  {pendencias.length > 99 ? "99+" : pendencias.length}
+                </span>
+              </Button>
+            </PopoverTrigger>
+
+            <PopoverContent align="end" className="w-[380px] p-0">
+              <div className="border-b p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">Solicitações pendentes</p>
+                    <p className="text-xs text-muted-foreground">
+                      Pedidos aguardando aprovação ou reprovação.
+                    </p>
+                  </div>
+                  <Badge variant="secondary">{pendencias.length}</Badge>
+                </div>
+              </div>
+
+              <div className="max-h-[460px] overflow-y-auto">
+                {pendencias.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">
+                    Nenhuma solicitação pendente.
+                  </div>
+                ) : (
+                  pendencias.map((solicitacao) => (
+                    <div
+                      key={solicitacao.id}
+                      className="space-y-3 border-b p-4 last:border-b-0"
+                    >
+                      <div>
+                        <p className="font-medium">
+                          {solicitacao.colaborador_nome}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {solicitacao.equipe ?? "Sem equipe"}
+                        </p>
+                      </div>
+
+                      <div className="text-sm">
+                        <p>
+                          {formatarData(solicitacao.data_inicio)} a{" "}
+                          {formatarData(solicitacao.data_fim)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {tipoLabels[solicitacao.tipo]} ·{" "}
+                          {solicitacao.dias_corridos} dias
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="flex-1"
+                          disabled={isPending}
+                          onClick={() =>
+                            alterarStatus(solicitacao.id, "aprovada")
+                          }
+                        >
+                          Aprovar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          disabled={isPending}
+                          onClick={() =>
+                            alterarStatus(solicitacao.id, "reprovada")
+                          }
+                        >
+                          Reprovar
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
@@ -757,19 +768,11 @@ export default function GestaoFerias({
                                 </div>
 
                                 <div
-                                  className={cn(
-                                    "absolute top-1/2 flex h-9 -translate-y-1/2 items-center rounded-full px-4 text-xs font-semibold shadow-sm",
-                                    getPastelBarColor(item.colaborador_id),
-                                    item.status === "pendente" && "opacity-95",
-                                    item.status === "aprovada" && "opacity-100",
-                                    item.status === "reprovada" &&
-                                      "bg-slate-300 text-slate-700",
-                                    item.status === "cancelada" &&
-                                      "bg-slate-200 text-slate-600",
-                                  )}
+                                  className="absolute top-1/2 flex h-9 -translate-y-1/2 items-center rounded-full px-4 text-xs font-semibold shadow-sm"
                                   style={{
                                     left,
                                     width: Math.max(width, 32),
+                                    ...getCalendarBarStyle(item),
                                   }}
                                   title={`${item.colaborador_nome} • ${formatarData(
                                     item.data_inicio,
@@ -787,13 +790,17 @@ export default function GestaoFerias({
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                      <LegendaItem className="bg-[#22C55E]" label="Aprovada" />
-                      <LegendaItem className="bg-[#F59E0B]" label="Pendente" />
+                      <LegendaItem color="#22C55E" label="Aprovada" />
+                      <LegendaItem color="#F59E0B" label="Pendente" />
                       <LegendaItem
-                        className="bg-slate-300"
+                        color="#ee0c04"
                         label="Reprovada/Cancelada"
                       />
-                      <LegendaItem className="border bg-blue-50" label="Hoje" />
+                      <LegendaItem
+                        color="#EFF6FF"
+                        borderColor="#CBD5E1"
+                        label="Hoje"
+                      />
                     </div>
                   </>
                 )}
@@ -871,7 +878,7 @@ export default function GestaoFerias({
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {solicitacao.status !== "aprovada" && (
+                            {solicitacao.status === "pendente" && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -884,7 +891,7 @@ export default function GestaoFerias({
                               </Button>
                             )}
 
-                            {solicitacao.status !== "reprovada" && (
+                            {solicitacao.status === "pendente" && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -897,7 +904,9 @@ export default function GestaoFerias({
                               </Button>
                             )}
 
-                            {solicitacao.status !== "cancelada" && (
+                            {["pendente", "aprovada"].includes(
+                              solicitacao.status,
+                            ) && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -971,157 +980,6 @@ export default function GestaoFerias({
           </Card>
         </TabsContent>
       </Tabs>
-
-      <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Nova solicitação</DialogTitle>
-            <DialogDescription>
-              Cadastre férias ou ausência para um colaborador ativo.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={criarSolicitacao} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <Label>Colaborador</Label>
-                <Select
-                  value={form.colaboradorId}
-                  onValueChange={(value) =>
-                    atualizarForm("colaboradorId", value)
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione o colaborador" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {colaboradores.map((colaborador) => (
-                      <SelectItem key={colaborador.id} value={colaborador.id}>
-                        {colaborador.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Tipo</Label>
-                <Select
-                  value={form.tipo}
-                  onValueChange={(value) =>
-                    atualizarForm("tipo", value as FeriasTipo)
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ferias">Férias</SelectItem>
-                    <SelectItem value="ausencia">Ausência</SelectItem>
-                    <SelectItem value="atestado">Atestado</SelectItem>
-                    <SelectItem value="day_off">Day off</SelectItem>
-                    <SelectItem value="licenca">Licença</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Dias vendidos</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={10}
-                  value={form.diasVendidos}
-                  onChange={(event) =>
-                    atualizarForm("diasVendidos", event.target.value)
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Data de início</Label>
-                <Input
-                  type="date"
-                  value={form.dataInicio}
-                  onChange={(event) =>
-                    atualizarForm("dataInicio", event.target.value)
-                  }
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Data de fim</Label>
-                <Input
-                  type="date"
-                  value={form.dataFim}
-                  onChange={(event) =>
-                    atualizarForm("dataFim", event.target.value)
-                  }
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Início do período aquisitivo</Label>
-                <Input
-                  type="date"
-                  value={form.periodoAquisitivoInicio}
-                  onChange={(event) =>
-                    atualizarForm("periodoAquisitivoInicio", event.target.value)
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Fim do período aquisitivo</Label>
-                <Input
-                  type="date"
-                  value={form.periodoAquisitivoFim}
-                  onChange={(event) =>
-                    atualizarForm("periodoAquisitivoFim", event.target.value)
-                  }
-                />
-              </div>
-
-              <label className="flex items-center gap-2 rounded-lg border p-3 text-sm md:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={form.adiantamento13}
-                  onChange={(event) =>
-                    atualizarForm("adiantamento13", event.target.checked)
-                  }
-                />
-                Solicitar adiantamento de 13º
-              </label>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label>Observação</Label>
-                <Textarea
-                  value={form.observacao}
-                  onChange={(event) =>
-                    atualizarForm("observacao", event.target.value)
-                  }
-                  placeholder="Observações internas, se houver"
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogAberto(false)}
-              >
-                Fechar
-              </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? "Salvando..." : "Salvar solicitação"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
@@ -1157,13 +1015,14 @@ function ResumoFeriasMesCard({ item }: { item: FeriasSolicitacao }) {
   return (
     <div className="rounded-xl border bg-white p-3 shadow-sm">
       <div
-        className={cn(
-          "mb-3 h-2.5 w-20 rounded-full",
-          getPastelBarColor(item.colaborador_id),
-        )}
+        className="mb-3 h-2.5 w-20 rounded-full"
+        style={{ backgroundColor: getPastelBarColor(item.colaborador_id) }}
       />
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold"
+          style={getAvatarStyle(item.colaborador_id)}
+        >
           {getInitials(item.colaborador_nome)}
         </div>
 
@@ -1193,20 +1052,27 @@ function ResumoFeriasMesCard({ item }: { item: FeriasSolicitacao }) {
 }
 
 function LegendaItem({
-  className,
+  color,
+  borderColor,
   label,
 }: {
-  className: string
+  color: string
+  borderColor?: string
   label: string
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className={cn("h-3 w-8 rounded-full", className)} />
+      <span
+        className="h-3 w-8 rounded-full border"
+        style={{
+          backgroundColor: color,
+          borderColor: borderColor ?? color,
+        }}
+      />
       <span>{label}</span>
     </div>
   )
 }
-
 function parseDate(value: string) {
   const [year, month, day] = value.split("-").map(Number)
   return new Date(year, month - 1, day)
@@ -1242,4 +1108,42 @@ function getPastelBarColor(chave: string) {
 
   const index = Math.abs(hash) % pastelBarColors.length
   return pastelBarColors[index]
+}
+
+function getCalendarBarStyle(item: FeriasSolicitacao) {
+  if (item.status === "reprovada" || item.status === "cancelada") {
+    return {
+      backgroundColor: "#E2E8F0",
+      color: "#475569",
+      opacity: 1,
+    }
+  }
+
+  const cor = getPastelBarColor(item.colaborador_id)
+
+  return {
+    backgroundColor: cor,
+    color: "#FFFFFF",
+    opacity: item.status === "pendente" ? 0.95 : 1,
+  }
+}
+
+function getAvatarStyle(chave: string) {
+  const cor = getPastelBarColor(chave)
+
+  return {
+    backgroundColor: hexToRgba(cor, 0.16),
+    color: cor,
+  }
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const normalized = hex.replace("#", "")
+
+  const bigint = Number.parseInt(normalized, 16)
+  const r = (bigint >> 16) & 255
+  const g = (bigint >> 8) & 255
+  const b = bigint & 255
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }

@@ -81,6 +81,7 @@ export default async function FeriasPage({ searchParams }: PageProps) {
       <GestaoFerias
         colaboradores={dashboard.colaboradores}
         solicitacoes={dashboard.solicitacoes}
+        pendencias={dashboard.pendencias}
         resumo={dashboard.resumo}
         conflitos={dashboard.conflitos}
         filtrosIniciais={filtros}

@@ -24,6 +24,11 @@ export type FeriasSolicitacaoInput = {
   adiantamento13?: boolean
 }
 
+export type MinhaFeriasSolicitacaoInput = Omit<
+  FeriasSolicitacaoInput,
+  "colaboradorId" | "tipo"
+>
+
 export type FeriasFiltros = {
   ano?: number
   mes?: number
@@ -31,6 +36,14 @@ export type FeriasFiltros = {
   colaborador?: string
   equipe?: string
 }
+
+ const EQUIPE_ENGENHARIA_SUSTENTABILIDADE =
+  "Engenharia/Sustentabilidade"
+
+const EQUIPES_ENGENHARIA_SUSTENTABILIDADE = [
+  "Departamento de Engenharia",
+  "Departamento de Meio Ambiente e Geoprocessamento",
+]
 
 async function getUsuarioLogado() {
   const supabase = await createClient()
@@ -123,7 +136,6 @@ export async function isRhFeriasAdmin() {
 
 async function ensureRhFeriasPermission() {
   const user = await getUsuarioLogado()
-
   const permitido = await isRhFeriasAdmin()
 
   if (!permitido) {
@@ -131,6 +143,54 @@ async function ensureRhFeriasPermission() {
   }
 
   return user
+}
+
+function normalizarEquipe(equipe: string | null) {
+  if (!equipe) {
+    return null
+  }
+
+  if (
+    EQUIPES_ENGENHARIA_SUSTENTABILIDADE.includes(equipe) ||
+    equipe === EQUIPE_ENGENHARIA_SUSTENTABILIDADE
+  ) {
+    return EQUIPE_ENGENHARIA_SUSTENTABILIDADE
+  }
+
+  return equipe
+}
+
+function normalizarSolicitacoes(solicitacoes: any[]) {
+  return solicitacoes.map((item) => ({
+    ...item,
+    equipe: normalizarEquipe(item.equipe ?? null),
+  }))
+}
+
+async function buscarPerfilCompleto(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("users")
+    .select(
+      `
+      id,
+      nome,
+      email,
+      status,
+      cargo:cargos(nome),
+      user_departments(
+        departments(name)
+      )
+    `,
+    )
+    .eq("id", userId)
+    .single()
+
+  if (error || !data) {
+    console.error("Erro ao buscar perfil do colaborador:", error)
+    throw new Error("Não foi possível localizar o perfil do colaborador.")
+  }
+
+  return data as any
 }
 
 export async function getColaboradoresFerias() {
@@ -167,7 +227,7 @@ export async function getColaboradoresFerias() {
       email: user.email,
       status: user.status,
       cargo: user.cargo?.nome ?? null,
-      equipe: departamento,
+      equipe: normalizarEquipe(departamento),
     }
   })
 }
@@ -198,7 +258,14 @@ export async function getFeriasSolicitacoes(filtros?: FeriasFiltros) {
   }
 
   if (filtros?.equipe) {
-    query = query.eq("equipe", filtros.equipe)
+    if (filtros.equipe === EQUIPE_ENGENHARIA_SUSTENTABILIDADE) {
+      query = query.in("equipe", [
+        ...EQUIPES_ENGENHARIA_SUSTENTABILIDADE,
+        EQUIPE_ENGENHARIA_SUSTENTABILIDADE,
+      ])
+    } else {
+      query = query.eq("equipe", filtros.equipe)
+    }
   }
 
   const { data, error } = await query
@@ -208,12 +275,28 @@ export async function getFeriasSolicitacoes(filtros?: FeriasFiltros) {
     throw new Error("Erro ao buscar solicitações de férias.")
   }
 
-  return data ?? []
+  return normalizarSolicitacoes(data ?? [])
+}
+
+export async function getFeriasPendentes() {
+  await ensureRhFeriasPermission()
+
+  const { data, error } = await supabaseAdmin
+    .from("ferias_solicitacoes")
+    .select("*")
+    .eq("status", "pendente")
+    .order("data_inicio", { ascending: true })
+
+  if (error) {
+    console.error("Erro ao buscar solicitações pendentes:", error)
+    throw new Error("Erro ao buscar solicitações pendentes.")
+  }
+
+  return normalizarSolicitacoes(data ?? [])
 }
 
 export async function getFeriasResumo(filtros?: FeriasFiltros) {
   const solicitacoes = await getFeriasSolicitacoes(filtros)
-
   const hoje = new Date().toISOString().slice(0, 10)
 
   const total = solicitacoes.length
@@ -253,10 +336,14 @@ export async function getFeriasResumo(filtros?: FeriasFiltros) {
 export async function getFeriasDashboard(filtros?: FeriasFiltros) {
   await ensureRhFeriasPermission()
 
-  const [colaboradores, solicitacoes] = await Promise.all([
+  const [colaboradores, solicitacoes, pendencias] = await Promise.all([
     getColaboradoresFerias(),
     getFeriasSolicitacoes(filtros),
+    getFeriasPendentes(),
   ])
+
+  const hoje = new Date().toISOString().slice(0, 10)
+  const conflitos = calcularConflitos(solicitacoes)
 
   const resumo = {
     total: solicitacoes.length,
@@ -266,82 +353,297 @@ export async function getFeriasDashboard(filtros?: FeriasFiltros) {
       .length,
     canceladas: solicitacoes.filter((item) => item.status === "cancelada")
       .length,
-    emFeriasHoje: solicitacoes.filter((item) => {
-      const hoje = new Date().toISOString().slice(0, 10)
-      return (
+    emFeriasHoje: solicitacoes.filter(
+      (item) =>
         item.status === "aprovada" &&
         item.data_inicio <= hoje &&
-        item.data_fim >= hoje
-      )
-    }).length,
-    conflitos: calcularConflitos(solicitacoes).length,
+        item.data_fim >= hoje,
+    ).length,
+    conflitos: conflitos.length,
   }
 
   return {
     colaboradores,
     solicitacoes,
+    pendencias,
     resumo,
-    conflitos: calcularConflitos(solicitacoes),
+    conflitos,
   }
 }
 
 export async function criarFeriasSolicitacao(input: FeriasSolicitacaoInput) {
   const usuario = await ensureRhFeriasPermission()
 
+  validarDatasSolicitacao(input.dataInicio, input.dataFim)
+
   if (!input.colaboradorId) {
     throw new Error("Selecione um colaborador.")
   }
 
-  if (!input.dataInicio || !input.dataFim) {
-    throw new Error("Informe a data de início e a data de fim.")
-  }
+  const colaborador = await buscarPerfilCompleto(input.colaboradorId)
 
-  if (input.dataFim < input.dataInicio) {
-    throw new Error("A data final não pode ser anterior à data inicial.")
-  }
-  const diasCorridos = calcularDiasCorridos(input.dataInicio, input.dataFim)
-
-  const { data: colaborador, error: colaboradorError } = await supabaseAdmin
-    .from("users")
-    .select(
-      `
-      id,
-      nome,
-      status,
-      cargo:cargos(nome),
-      user_departments(
-        departments(name)
-      )
-    `,
-    )
-    .eq("id", input.colaboradorId)
-    .single()
-
-  if (colaboradorError || !colaborador) {
-    console.error("Erro ao buscar colaborador:", colaboradorError)
-
-    throw new Error(
-      colaboradorError?.message
-        ? `Erro ao buscar colaborador: ${colaboradorError.message}`
-        : "Colaborador não encontrado.",
-    )
-  }
   if (colaborador.status !== "ativo") {
     throw new Error("Não é possível lançar férias para colaborador inativo.")
   }
 
   const equipe =
-    (colaborador as any).user_departments?.[0]?.departments?.name ?? null
+    colaborador.user_departments?.[0]?.departments?.name ?? null
+  const cargo = colaborador.cargo?.nome ?? null
 
-  const cargo = (colaborador as any).cargo?.nome ?? null
+  await inserirSolicitacao({
+    colaboradorId: colaborador.id,
+    colaboradorNome: colaborador.nome,
+    equipe,
+    cargo,
+    dataInicio: input.dataInicio,
+    dataFim: input.dataFim,
+    tipo: input.tipo,
+    observacao: input.observacao,
+    periodoAquisitivoInicio: input.periodoAquisitivoInicio,
+    periodoAquisitivoFim: input.periodoAquisitivoFim,
+    diasVendidos: input.diasVendidos,
+    adiantamento13: input.adiantamento13,
+    criadoPor: usuario.publicUserId,
+  })
+
+  revalidatePath("/rh/ferias")
+  revalidatePath("/rh/minhas-ferias")
+
+  return { success: true }
+}
+
+export async function getMinhasFeriasDashboard() {
+  const usuario = await getUsuarioLogado()
+  const perfil = await buscarPerfilCompleto(usuario.publicUserId)
+
+  const { data, error } = await supabaseAdmin
+    .from("ferias_solicitacoes")
+    .select("*")
+    .eq("colaborador_id", usuario.publicUserId)
+    .order("data_inicio", { ascending: false })
+
+  if (error) {
+    console.error("Erro ao buscar solicitações do colaborador:", error)
+    throw new Error("Erro ao buscar suas solicitações de férias.")
+  }
+
+  const solicitacoes = normalizarSolicitacoes(data ?? [])
+
+  return {
+    colaborador: {
+      id: perfil.id,
+      nome: perfil.nome,
+      email: perfil.email,
+      status: perfil.status,
+      cargo: perfil.cargo?.nome ?? null,
+      equipe: normalizarEquipe(
+        perfil.user_departments?.[0]?.departments?.name ?? null,
+      ),
+    },
+    solicitacoes,
+    resumo: {
+      total: solicitacoes.length,
+      pendentes: solicitacoes.filter((item) => item.status === "pendente")
+        .length,
+      aprovadas: solicitacoes.filter((item) => item.status === "aprovada")
+        .length,
+      reprovadas: solicitacoes.filter((item) => item.status === "reprovada")
+        .length,
+      canceladas: solicitacoes.filter((item) => item.status === "cancelada")
+        .length,
+    },
+  }
+}
+
+export async function criarMinhaSolicitacaoFerias(
+  input: MinhaFeriasSolicitacaoInput,
+) {
+  const usuario = await getUsuarioLogado()
+  const colaborador = await buscarPerfilCompleto(usuario.publicUserId)
+
+  validarDatasSolicitacao(input.dataInicio, input.dataFim)
+
+  if (colaborador.status !== "ativo") {
+    throw new Error("Seu usuário está inativo e não pode criar solicitações.")
+  }
+
+  const equipe =
+    colaborador.user_departments?.[0]?.departments?.name ?? null
+  const cargo = colaborador.cargo?.nome ?? null
+
+  await inserirSolicitacao({
+    colaboradorId: colaborador.id,
+    colaboradorNome: colaborador.nome,
+    equipe,
+    cargo,
+    dataInicio: input.dataInicio,
+    dataFim: input.dataFim,
+    tipo: "ferias",
+    observacao: input.observacao,
+    periodoAquisitivoInicio: input.periodoAquisitivoInicio,
+    periodoAquisitivoFim: input.periodoAquisitivoFim,
+    diasVendidos: input.diasVendidos,
+    adiantamento13: input.adiantamento13,
+    criadoPor: usuario.publicUserId,
+  })
+
+  revalidatePath("/rh/minhas-ferias")
+  revalidatePath("/rh/ferias")
+
+  return { success: true }
+}
+
+export async function cancelarMinhaSolicitacaoFerias(
+  solicitacaoId: string,
+  observacao?: string,
+) {
+  const usuario = await getUsuarioLogado()
+
+  const { data: atual, error: atualError } = await supabaseAdmin
+    .from("ferias_solicitacoes")
+    .select("id, colaborador_id, status")
+    .eq("id", solicitacaoId)
+    .eq("colaborador_id", usuario.publicUserId)
+    .single()
+
+  if (atualError || !atual) {
+    throw new Error("Solicitação não encontrada.")
+  }
+
+  if (atual.status !== "pendente") {
+    throw new Error("Somente solicitações pendentes podem ser canceladas.")
+  }
+
+  const { error } = await supabaseAdmin
+    .from("ferias_solicitacoes")
+    .update({
+      status: "cancelada",
+      motivo_reprovacao: observacao || "Cancelada pelo colaborador.",
+    })
+    .eq("id", solicitacaoId)
+    .eq("colaborador_id", usuario.publicUserId)
+
+  if (error) {
+    console.error("Erro ao cancelar solicitação do colaborador:", error)
+    throw new Error("Erro ao cancelar sua solicitação.")
+  }
+
+  await supabaseAdmin.from("ferias_historico").insert({
+    solicitacao_id: solicitacaoId,
+    acao: "cancelada",
+    status_anterior: atual.status,
+    status_novo: "cancelada",
+    observacao: observacao || "Cancelada pelo colaborador.",
+    usuario_id: usuario.publicUserId,
+  })
+
+  revalidatePath("/rh/minhas-ferias")
+  revalidatePath("/rh/ferias")
+
+  return { success: true }
+}
+
+export async function atualizarStatusFerias(
+  solicitacaoId: string,
+  status: FeriasStatus,
+  observacao?: string,
+) {
+  const usuario = await ensureRhFeriasPermission()
+
+  const { data: atual, error: atualError } = await supabaseAdmin
+    .from("ferias_solicitacoes")
+    .select("id, status")
+    .eq("id", solicitacaoId)
+    .single()
+
+  if (atualError || !atual) {
+    throw new Error("Solicitação não encontrada.")
+  }
+
+  const payload: Record<string, unknown> = {
+    status,
+  }
+
+  if (status === "aprovada") {
+    payload.aprovado_por = usuario.publicUserId
+    payload.aprovado_em = new Date().toISOString()
+    payload.motivo_reprovacao = null
+  }
+
+  if (status === "reprovada" || status === "cancelada") {
+    payload.motivo_reprovacao = observacao || null
+  }
+
+  const { error } = await supabaseAdmin
+    .from("ferias_solicitacoes")
+    .update(payload)
+    .eq("id", solicitacaoId)
+
+  if (error) {
+    console.error("Erro ao atualizar status das férias:", error)
+    throw new Error("Erro ao atualizar status das férias.")
+  }
+
+  await supabaseAdmin.from("ferias_historico").insert({
+    solicitacao_id: solicitacaoId,
+    acao: status,
+    status_anterior: atual.status,
+    status_novo: status,
+    observacao: observacao || null,
+    usuario_id: usuario.publicUserId,
+  })
+
+  revalidatePath("/rh/ferias")
+  revalidatePath("/rh/minhas-ferias")
+
+  return { success: true }
+}
+
+export async function excluirFeriasSolicitacao(solicitacaoId: string) {
+  await ensureRhFeriasPermission()
+
+  const { error } = await supabaseAdmin
+    .from("ferias_solicitacoes")
+    .delete()
+    .eq("id", solicitacaoId)
+
+  if (error) {
+    console.error("Erro ao excluir solicitação:", error)
+    throw new Error("Erro ao excluir solicitação.")
+  }
+
+  revalidatePath("/rh/ferias")
+  revalidatePath("/rh/minhas-ferias")
+
+  return { success: true }
+}
+
+type InserirSolicitacaoInput = {
+  colaboradorId: string
+  colaboradorNome: string
+  equipe: string | null
+  cargo: string | null
+  dataInicio: string
+  dataFim: string
+  tipo: FeriasTipo
+  observacao?: string
+  periodoAquisitivoInicio?: string
+  periodoAquisitivoFim?: string
+  diasVendidos?: number
+  adiantamento13?: boolean
+  criadoPor: string
+}
+
+async function inserirSolicitacao(input: InserirSolicitacaoInput) {
+  const diasCorridos = calcularDiasCorridos(input.dataInicio, input.dataFim)
 
   const { data: solicitacao, error } = await supabaseAdmin
     .from("ferias_solicitacoes")
     .insert({
       colaborador_id: input.colaboradorId,
-      colaborador_nome: colaborador.nome,
-      equipe,
-      cargo,
+      colaborador_nome: input.colaboradorNome,
+      equipe: input.equipe,
+      cargo: input.cargo,
       data_inicio: input.dataInicio,
       data_fim: input.dataFim,
       dias_corridos: diasCorridos,
@@ -352,7 +654,7 @@ export async function criarFeriasSolicitacao(input: FeriasSolicitacaoInput) {
       dias_vendidos: input.diasVendidos ?? 0,
       adiantamento_13: input.adiantamento13 ?? false,
       observacao: input.observacao || null,
-      criado_por: usuario.publicUserId,
+      criado_por: input.criadoPor,
     })
     .select("id")
     .single()
@@ -380,7 +682,7 @@ export async function criarFeriasSolicitacao(input: FeriasSolicitacaoInput) {
       status_anterior: null,
       status_novo: "pendente",
       observacao: input.observacao || null,
-      usuario_id: usuario.publicUserId,
+      usuario_id: input.criadoPor,
     })
 
   if (historicoError) {
@@ -395,87 +697,16 @@ export async function criarFeriasSolicitacao(input: FeriasSolicitacaoInput) {
       `Solicitação criada, mas houve erro ao salvar histórico: ${historicoError.message}`,
     )
   }
-
-  revalidatePath("/rh/ferias")
-
-  return { success: true }
 }
 
-export async function atualizarStatusFerias(
-  solicitacaoId: string,
-  status: FeriasStatus,
-  observacao?: string,
-) {
-  const usuario = await ensureRhFeriasPermission()
-
-  const { data: atual, error: atualError } = await supabaseAdmin
-    .from("ferias_solicitacoes")
-    .select("id, status")
-    .eq("id", solicitacaoId)
-    .single()
-
-  if (atualError || !atual) {
-    throw new Error("Solicitação não encontrada.")
+function validarDatasSolicitacao(dataInicio: string, dataFim: string) {
+  if (!dataInicio || !dataFim) {
+    throw new Error("Informe a data de início e a data de fim.")
   }
 
-  const payload: Record<string, any> = {
-    status,
+  if (dataFim < dataInicio) {
+    throw new Error("A data final não pode ser anterior à data inicial.")
   }
-
-  if (status === "aprovada") {
-    payload.aprovado_por = usuario.publicUserId
-    payload.aprovado_em = new Date().toISOString()
-    payload.motivo_reprovacao = null
-  }
-
-  if (status === "reprovada") {
-    payload.motivo_reprovacao = observacao || null
-  }
-
-  if (status === "cancelada") {
-    payload.motivo_reprovacao = observacao || null
-  }
-
-  const { error } = await supabaseAdmin
-    .from("ferias_solicitacoes")
-    .update(payload)
-    .eq("id", solicitacaoId)
-
-  if (error) {
-    console.error("Erro ao atualizar status das férias:", error)
-    throw new Error("Erro ao atualizar status das férias.")
-  }
-
-  await supabaseAdmin.from("ferias_historico").insert({
-    solicitacao_id: solicitacaoId,
-    acao: status,
-    status_anterior: atual.status,
-    status_novo: status,
-    observacao: observacao || null,
-    usuario_id: usuario.publicUserId,
-  })
-
-  revalidatePath("/rh/ferias")
-
-  return { success: true }
-}
-
-export async function excluirFeriasSolicitacao(solicitacaoId: string) {
-  await ensureRhFeriasPermission()
-
-  const { error } = await supabaseAdmin
-    .from("ferias_solicitacoes")
-    .delete()
-    .eq("id", solicitacaoId)
-
-  if (error) {
-    console.error("Erro ao excluir solicitação:", error)
-    throw new Error("Erro ao excluir solicitação.")
-  }
-
-  revalidatePath("/rh/ferias")
-
-  return { success: true }
 }
 
 function calcularConflitos(solicitacoes: any[]) {
@@ -489,8 +720,10 @@ function calcularConflitos(solicitacoes: any[]) {
     for (let j = i + 1; j < consideradas.length; j++) {
       const a = consideradas[i]
       const b = consideradas[j]
+      const equipeA = normalizarEquipe(a.equipe ?? null)
+      const equipeB = normalizarEquipe(b.equipe ?? null)
 
-      if (!a.equipe || !b.equipe || a.equipe !== b.equipe) {
+      if (!equipeA || !equipeB || equipeA !== equipeB) {
         continue
       }
 
@@ -499,7 +732,7 @@ function calcularConflitos(solicitacoes: any[]) {
 
       if (sobrepoe) {
         conflitos.push({
-          equipe: a.equipe,
+          equipe: equipeA,
           colaboradorA: a.colaborador_nome,
           colaboradorB: b.colaborador_nome,
           inicioA: a.data_inicio,
@@ -517,11 +750,9 @@ function calcularConflitos(solicitacoes: any[]) {
 function calcularDiasCorridos(dataInicio: string, dataFim: string) {
   const inicio = criarDataLocal(dataInicio)
   const fim = criarDataLocal(dataFim)
-
   const diferencaMs = fim.getTime() - inicio.getTime()
-  const dias = Math.floor(diferencaMs / (1000 * 60 * 60 * 24)) + 1
 
-  return dias
+  return Math.floor(diferencaMs / (1000 * 60 * 60 * 24)) + 1
 }
 
 function criarDataLocal(data: string) {
