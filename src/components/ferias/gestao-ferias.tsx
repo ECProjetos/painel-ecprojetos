@@ -793,7 +793,7 @@ export default function GestaoFerias({
                       <LegendaItem color="#22C55E" label="Aprovada" />
                       <LegendaItem color="#F59E0B" label="Pendente" />
                       <LegendaItem
-                        color="#ee0c04"
+                        color="#EF4444"
                         label="Reprovada/Cancelada"
                       />
                       <LegendaItem
