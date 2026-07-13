@@ -9,12 +9,12 @@ import {
   Download,
   Gauge,
   Loader2,
+  Pencil,
   RefreshCcw,
   Search,
   Target,
   TrendingDown,
   TrendingUp,
-  Users,
 } from "lucide-react"
 import {
   Bar,
@@ -32,9 +32,13 @@ import {
 import { toast } from "sonner"
 
 import {
+  getColaboradoresAtivosIndicadoresPainel,
   getIndicadoresDashboard,
+  getPermissaoEdicaoIndicadores,
+  type ColaboradorIndicadoresPainel,
   type IndicadorDashboardItem,
 } from "@/app/actions/indicadores-dashboard"
+import IndicadoresCorrecaoDialog from "@/components/indicadores/indicadores-correcao-dialog"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -42,12 +46,8 @@ import { Label } from "@/components/ui/label"
 
 type IndicadorKey = "idi" | "ies" | "ip" | "iq" | "iev"
 type StatusIndicador = "OK" | "Atenção" | "Crítico"
-type SortKey =
-  | "risco"
-  | "idi_desc"
-  | "idi_asc"
-  | "entregas_desc"
-  | "nome_asc"
+type StatusQuadro = StatusIndicador | "Sem dados"
+type SortKey = "risco" | "idi_desc" | "idi_asc" | "entregas_desc" | "nome_asc"
 
 type FiltrosState = {
   ano: string
@@ -63,6 +63,11 @@ type IndicadorComStatus = IndicadorDashboardItem & {
   mediaIdiTrimestre: number
   limiteAtencao: number
   diferencaMedia: number
+}
+
+type QuadroGeralItem = Omit<IndicadorComStatus, "status"> & {
+  status: StatusQuadro
+  temDados: boolean
 }
 
 type MediaEquipe = {
@@ -123,10 +128,11 @@ const INDICADORES: Record<
   },
 }
 
-const STATUS_ORDER: Record<StatusIndicador, number> = {
+const QUADRO_STATUS_ORDER: Record<StatusQuadro, number> = {
   Crítico: 0,
   Atenção: 1,
   OK: 2,
+  "Sem dados": 3,
 }
 
 const STATUS_STYLE: Record<
@@ -174,7 +180,10 @@ const INDICADOR_COLORS: Record<IndicadorKey, string> = {
   iev: "#f97316",
 }
 
-const MEDIA_TRIMESTRE_FIELD: Record<IndicadorKey, keyof IndicadorDashboardItem> = {
+const MEDIA_TRIMESTRE_FIELD: Record<
+  IndicadorKey,
+  keyof IndicadorDashboardItem
+> = {
   idi: "media_idi_trimestre",
   ies: "media_ies_trimestre",
   ip: "media_ip_trimestre",
@@ -197,7 +206,9 @@ function formatNumber(value?: number | null, digits = 1) {
 }
 
 function formatInteger(value?: number | null) {
-  return new Intl.NumberFormat("pt-BR").format(Math.round(toFiniteNumber(value)))
+  return new Intl.NumberFormat("pt-BR").format(
+    Math.round(toFiniteNumber(value)),
+  )
 }
 
 function formatDelta(value: number) {
@@ -206,7 +217,9 @@ function formatDelta(value: number) {
   return `${signal}${formatNumber(value)} pts.`
 }
 
-function getPeriodoKey(item: Pick<IndicadorDashboardItem, "ano" | "trimestre">) {
+function getPeriodoKey(
+  item: Pick<IndicadorDashboardItem, "ano" | "trimestre">,
+) {
   return `${item.ano}-T${item.trimestre}`
 }
 
@@ -214,25 +227,17 @@ function getPeriodoLabel(ano: number, trimestre: number) {
   return `${trimestre}º tri. ${ano}`
 }
 
-function getPreviousPeriod(ano: number, trimestre: number) {
-  if (trimestre > 1) {
-    return { ano, trimestre: trimestre - 1 }
-  }
-
-  return { ano: ano - 1, trimestre: 4 }
-}
-
 function getPeriodoMaisRecenteFromItems(
   data: Pick<IndicadorDashboardItem, "ano" | "trimestre">[],
 ) {
   if (!data.length) return null
 
-  return [...data].sort(
-    (a, b) => b.ano - a.ano || b.trimestre - a.trimestre,
-  )[0]
+  return [...data].sort((a, b) => b.ano - a.ano || b.trimestre - a.trimestre)[0]
 }
 
-function buildDefaultFiltros(data: IndicadorDashboardItem[] = []): FiltrosState {
+function buildDefaultFiltros(
+  data: IndicadorDashboardItem[] = [],
+): FiltrosState {
   const periodoMaisRecente = getPeriodoMaisRecenteFromItems(data)
 
   return {
@@ -261,7 +266,10 @@ function getMedia(items: IndicadorDashboardItem[], field: IndicadorKey) {
 }
 
 function getSomaEntregas(items: IndicadorDashboardItem[]) {
-  return items.reduce((acc, item) => acc + toFiniteNumber(item.total_entregas), 0)
+  return items.reduce(
+    (acc, item) => acc + toFiniteNumber(item.total_entregas),
+    0,
+  )
 }
 
 function getMediaIdiPorTrimestre(items: IndicadorDashboardItem[]) {
@@ -355,7 +363,10 @@ function downloadCsv(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url)
 }
 
-function getIndicadorValue(item: IndicadorDashboardItem, indicador: IndicadorKey) {
+function getIndicadorValue(
+  item: IndicadorDashboardItem,
+  indicador: IndicadorKey,
+) {
   return toFiniteNumber(item[indicador])
 }
 
@@ -365,6 +376,12 @@ function getBarChartHeight(length: number) {
 
 export default function IndicadoresDashboard() {
   const [items, setItems] = useState<IndicadorDashboardItem[]>([])
+  const [colaboradoresAtivos, setColaboradoresAtivos] = useState<
+    ColaboradorIndicadoresPainel[]
+  >([])
+  const [podeEditar, setPodeEditar] = useState(false)
+  const [correcaoSelecionada, setCorrecaoSelecionada] =
+    useState<QuadroGeralItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [indicadorSelecionado, setIndicadorSelecionado] =
@@ -382,8 +399,15 @@ export default function IndicadoresDashboard() {
         setLoading(true)
       }
 
-      const data = await getIndicadoresDashboard()
+      const [data, colaboradores, permissao] = await Promise.all([
+        getIndicadoresDashboard(),
+        getColaboradoresAtivosIndicadoresPainel(),
+        getPermissaoEdicaoIndicadores(),
+      ])
+
       setItems(data)
+      setColaboradoresAtivos(colaboradores)
+      setPodeEditar(permissao.podeEditar)
       setFiltros((prev) => {
         const usuarioJaEscolheuPeriodo = Boolean(prev.ano || prev.trimestre)
 
@@ -422,38 +446,34 @@ export default function IndicadoresDashboard() {
   }
 
   const filtrosOpcoes = useMemo(() => {
-    const anos: number[] = Array.from(new Set<number>(items.map((item) => item.ano)))
+    const anos: number[] = Array.from(
+      new Set<number>(items.map((item) => item.ano)),
+    )
       .filter((ano): ano is number => Number.isFinite(ano))
       .sort((a, b) => b - a)
 
-    const trimestres: number[] = Array.from(new Set<number>(items.map((item) => item.trimestre)))
+    const trimestres: number[] = Array.from(
+      new Set<number>(items.map((item) => item.trimestre)),
+    )
       .filter((trimestre): trimestre is number => Number.isFinite(trimestre))
       .sort((a, b) => a - b)
 
+    const equipesBase = colaboradoresAtivos.length
+      ? colaboradoresAtivos.map((item) => item.equipe)
+      : items.map((item) => item.equipe)
+
     const equipes: string[] = Array.from(
       new Set<string>(
-        items
-          .map((item) => item.equipe)
-          .filter(
-            (equipe): equipe is string =>
-              typeof equipe === "string" && equipe.trim().length > 0,
-          ),
+        equipesBase.filter(
+          (equipe): equipe is string =>
+            typeof equipe === "string" && equipe.trim().length > 0,
+        ),
       ),
     ).sort((a, b) => a.localeCompare(b, "pt-BR"))
 
-    const colaboradores: { id: string; nome: string }[] = Array.from(
-      new Map<string, { id: string; nome: string }>(
-        items
-          .filter((item) => item.colaborador_id && item.colaborador_nome)
-          .map((item) => [
-            item.colaborador_id,
-            {
-              id: item.colaborador_id,
-              nome: item.colaborador_nome,
-            },
-          ]),
-      ).values(),
-    ).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    const colaboradores: { id: string; nome: string }[] = colaboradoresAtivos
+      .map((item) => ({ id: item.id, nome: item.nome }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 
     return {
       anos,
@@ -461,7 +481,7 @@ export default function IndicadoresDashboard() {
       equipes,
       colaboradores,
     }
-  }, [items])
+  }, [items, colaboradoresAtivos])
 
   const mediaIdiPorTrimestre = useMemo(
     () => getMediaIdiPorTrimestre(items),
@@ -470,7 +490,8 @@ export default function IndicadoresDashboard() {
 
   const itemsComStatus = useMemo<IndicadorComStatus[]>(() => {
     return items.map((item) => {
-      const mediaIdiTrimestre = mediaIdiPorTrimestre.get(getPeriodoKey(item)) ?? 0
+      const mediaIdiTrimestre =
+        mediaIdiPorTrimestre.get(getPeriodoKey(item)) ?? 0
       const limiteAtencao = mediaIdiTrimestre * 0.9
       const idi = toFiniteNumber(item.idi)
       const status = getStatusByMediaTrimestre(idi, mediaIdiTrimestre)
@@ -513,15 +534,113 @@ export default function IndicadoresDashboard() {
     })
   }, [itemsComStatus, filtros])
 
+  const periodoExatoSelecionado = Boolean(filtros.ano && filtros.trimestre)
+
+  const quadroGeralFiltrado = useMemo<QuadroGeralItem[]>(() => {
+    let base: QuadroGeralItem[]
+
+    if (periodoExatoSelecionado && colaboradoresAtivos.length) {
+      const ano = Number(filtros.ano)
+      const trimestre = Number(filtros.trimestre)
+      const keyPeriodo = `${ano}-T${trimestre}`
+      const mediaPeriodo = mediaIdiPorTrimestre.get(keyPeriodo) ?? 0
+      const itensPeriodo = new Map(
+        itemsComStatus
+          .filter((item) => item.ano === ano && item.trimestre === trimestre)
+          .map((item) => [item.colaborador_id, item]),
+      )
+
+      base = colaboradoresAtivos.map((colaborador) => {
+        const item = itensPeriodo.get(colaborador.id)
+
+        if (item) {
+          return {
+            ...item,
+            temDados: true,
+          }
+        }
+
+        return {
+          colaborador_id: colaborador.id,
+          colaborador_nome: colaborador.nome,
+          equipe: colaborador.equipe,
+          ano,
+          trimestre,
+          total_entregas: 0,
+          ies: 0,
+          ip: 0,
+          iq: 0,
+          iev: 0,
+          idi: 0,
+          media_ies_trimestre: null,
+          media_ip_trimestre: null,
+          media_iq_trimestre: null,
+          media_iev_trimestre: null,
+          media_idi_trimestre: mediaPeriodo,
+          limite_atencao_trimestre: mediaPeriodo * 0.9,
+          status_trimestre: null,
+          status: "Sem dados",
+          mediaIdiTrimestre: mediaPeriodo,
+          limiteAtencao: mediaPeriodo * 0.9,
+          diferencaMedia: 0,
+          temDados: false,
+        }
+      })
+    } else {
+      base = itemsComStatus.map((item) => ({
+        ...item,
+        temDados: true,
+      }))
+    }
+
+    const termo = normalizeText(filtros.busca)
+
+    return base.filter((item) => {
+      const textoBusca = normalizeText(
+        `${item.colaborador_nome} ${item.equipe ?? ""} ${item.ano} ${item.trimestre}`,
+      )
+
+      const matchBusca = !termo || textoBusca.includes(termo)
+      const matchAno = !filtros.ano || item.ano === Number(filtros.ano)
+      const matchTrimestre =
+        !filtros.trimestre || item.trimestre === Number(filtros.trimestre)
+      const matchEquipe = !filtros.equipe || item.equipe === filtros.equipe
+      const matchColaborador =
+        !filtros.colaboradorId || item.colaborador_id === filtros.colaboradorId
+      const matchStatus = !filtros.status || item.status === filtros.status
+
+      return (
+        matchBusca &&
+        matchAno &&
+        matchTrimestre &&
+        matchEquipe &&
+        matchColaborador &&
+        matchStatus
+      )
+    })
+  }, [
+    colaboradoresAtivos,
+    filtros,
+    itemsComStatus,
+    mediaIdiPorTrimestre,
+    periodoExatoSelecionado,
+  ])
+
   const itemsOrdenados = useMemo(() => {
-    const sorted = [...itemsFiltrados]
+    const sorted = [...quadroGeralFiltrado]
 
     if (sortKey === "idi_desc") {
-      return sorted.sort((a, b) => b.idi - a.idi)
+      return sorted.sort((a, b) => {
+        if (a.temDados !== b.temDados) return a.temDados ? -1 : 1
+        return b.idi - a.idi
+      })
     }
 
     if (sortKey === "idi_asc") {
-      return sorted.sort((a, b) => a.idi - b.idi)
+      return sorted.sort((a, b) => {
+        if (a.temDados !== b.temDados) return a.temDados ? -1 : 1
+        return a.idi - b.idi
+      })
     }
 
     if (sortKey === "entregas_desc") {
@@ -535,13 +654,14 @@ export default function IndicadoresDashboard() {
     }
 
     return sorted.sort((a, b) => {
-      const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
+      const statusDiff =
+        QUADRO_STATUS_ORDER[a.status] - QUADRO_STATUS_ORDER[b.status]
 
       if (statusDiff !== 0) return statusDiff
 
       return a.idi - b.idi
     })
-  }, [itemsFiltrados, sortKey])
+  }, [quadroGeralFiltrado, sortKey])
 
   const metricas = useMemo(() => {
     const totalColaboradores = new Set(
@@ -590,7 +710,9 @@ export default function IndicadoresDashboard() {
       totalCritico,
       menorIndicador,
       maiorIndicador,
-      taxaOk: itemsFiltrados.length ? (totalOk / itemsFiltrados.length) * 100 : 0,
+      taxaOk: itemsFiltrados.length
+        ? (totalOk / itemsFiltrados.length) * 100
+        : 0,
     }
   }, [itemsFiltrados, filtros])
 
@@ -680,7 +802,9 @@ export default function IndicadoresDashboard() {
     return Array.from(mapa.entries())
       .map(([equipe, value]) => ({
         equipe,
-        idi: value.quantidade ? Number((value.somaIdi / value.quantidade).toFixed(2)) : 0,
+        idi: value.quantidade
+          ? Number((value.somaIdi / value.quantidade).toFixed(2))
+          : 0,
         indicadorSelecionado: value.quantidade
           ? Number((value.somaIndicador / value.quantidade).toFixed(2))
           : 0,
@@ -728,61 +852,15 @@ export default function IndicadoresDashboard() {
         periodo: getPeriodoLabel(value.ano, value.trimestre),
         ano: value.ano,
         trimestre: value.trimestre,
-        idi: value.quantidade ? Number((value.somaIdi / value.quantidade).toFixed(2)) : 0,
+        idi: value.quantidade
+          ? Number((value.somaIdi / value.quantidade).toFixed(2))
+          : 0,
         indicadorSelecionado: value.quantidade
           ? Number((value.somaIndicador / value.quantidade).toFixed(2))
           : 0,
         entregas: value.entregas,
       }))
   }, [itemsFiltrados, indicadorSelecionado])
-
-  const periodoMaisRecente = useMemo(() => {
-    if (!itemsFiltrados.length) return null
-
-    return [...itemsFiltrados].sort(
-      (a, b) => b.ano - a.ano || b.trimestre - a.trimestre,
-    )[0]
-  }, [itemsFiltrados])
-
-  const analiseContinua = useMemo(() => {
-    if (!periodoMaisRecente) {
-      return {
-        periodoAtualLabel: "Sem período",
-        mediaAtual: 0,
-        mediaAnterior: 0,
-        delta: 0,
-      }
-    }
-
-    const periodoAtual = {
-      ano: periodoMaisRecente.ano,
-      trimestre: periodoMaisRecente.trimestre,
-    }
-    const periodoAnterior = getPreviousPeriod(
-      periodoAtual.ano,
-      periodoAtual.trimestre,
-    )
-
-    const itensAtual = itemsFiltrados.filter(
-      (item) =>
-        item.ano === periodoAtual.ano && item.trimestre === periodoAtual.trimestre,
-    )
-    const itensAnterior = itemsFiltrados.filter(
-      (item) =>
-        item.ano === periodoAnterior.ano &&
-        item.trimestre === periodoAnterior.trimestre,
-    )
-
-    const mediaAtual = getMedia(itensAtual, "idi")
-    const mediaAnterior = getMedia(itensAnterior, "idi")
-
-    return {
-      periodoAtualLabel: getPeriodoLabel(periodoAtual.ano, periodoAtual.trimestre),
-      mediaAtual,
-      mediaAnterior,
-      delta: mediaAnterior ? mediaAtual - mediaAnterior : 0,
-    }
-  }, [itemsFiltrados, periodoMaisRecente])
 
   const destaques = useMemo(() => {
     const equipeDestaque = mediaPorEquipe[0]
@@ -831,15 +909,15 @@ export default function IndicadoresDashboard() {
       `${item.trimestre}º`,
       item.colaborador_nome,
       item.equipe ?? "Sem equipe",
-      String(item.total_entregas),
-      formatNumber(item.ies),
-      formatNumber(item.ip),
-      formatNumber(item.iq),
-      formatNumber(item.iev),
-      formatNumber(item.idi),
-      formatNumber(item.mediaIdiTrimestre),
-      formatNumber(item.limiteAtencao),
-      formatNumber(item.diferencaMedia),
+      item.temDados ? String(item.total_entregas) : "0",
+      item.temDados ? formatNumber(item.ies) : "",
+      item.temDados ? formatNumber(item.ip) : "",
+      item.temDados ? formatNumber(item.iq) : "",
+      item.temDados ? formatNumber(item.iev) : "",
+      item.temDados ? formatNumber(item.idi) : "",
+      item.temDados ? formatNumber(item.mediaIdiTrimestre) : "",
+      item.temDados ? formatNumber(item.limiteAtencao) : "",
+      item.temDados ? formatNumber(item.diferencaMedia) : "",
       item.status,
     ])
 
@@ -916,7 +994,9 @@ export default function IndicadoresDashboard() {
               <Input
                 id="busca_indicadores"
                 value={filtros.busca}
-                onChange={(event: { target: { value: string } }) => updateFiltro("busca", event.target.value)}
+                onChange={(event: { target: { value: string } }) =>
+                  updateFiltro("busca", event.target.value)
+                }
                 placeholder="Colaborador, equipe, ano ou trimestre"
                 className="h-11 rounded-xl pl-9"
               />
@@ -928,7 +1008,9 @@ export default function IndicadoresDashboard() {
             <select
               id="filtro_ano"
               value={filtros.ano}
-              onChange={(event: { target: { value: string } }) => updateFiltro("ano", event.target.value)}
+              onChange={(event: { target: { value: string } }) =>
+                updateFiltro("ano", event.target.value)
+              }
               className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
             >
               <option value="">Todos</option>
@@ -964,7 +1046,9 @@ export default function IndicadoresDashboard() {
             <select
               id="filtro_equipe"
               value={filtros.equipe}
-              onChange={(event: { target: { value: string } }) => updateFiltro("equipe", event.target.value)}
+              onChange={(event: { target: { value: string } }) =>
+                updateFiltro("equipe", event.target.value)
+              }
               className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
             >
               <option value="">Todas</option>
@@ -981,13 +1065,16 @@ export default function IndicadoresDashboard() {
             <select
               id="filtro_status"
               value={filtros.status}
-              onChange={(event: { target: { value: string } }) => updateFiltro("status", event.target.value)}
+              onChange={(event: { target: { value: string } }) =>
+                updateFiltro("status", event.target.value)
+              }
               className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
             >
               <option value="">Todos</option>
               <option value="OK">OK</option>
               <option value="Atenção">Atenção</option>
               <option value="Crítico">Crítico</option>
+              <option value="Sem dados">Sem dados</option>
             </select>
           </div>
         </div>
@@ -1122,7 +1209,9 @@ export default function IndicadoresDashboard() {
         <Card className="rounded-2xl border bg-card p-4 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm text-muted-foreground">Entregas no período</p>
+              <p className="text-sm text-muted-foreground">
+                Entregas no período
+              </p>
               <p className="mt-2 text-3xl font-bold">
                 {formatInteger(metricas.totalEntregas)}
               </p>
@@ -1214,8 +1303,8 @@ export default function IndicadoresDashboard() {
                 Evolução trimestral: {indicadorAtual.label}
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Leitura contínua por ano e trimestre, para evitar análise isolada
-                de um único trimestre.
+                Leitura contínua por ano e trimestre, para evitar análise
+                isolada de um único trimestre.
               </p>
             </div>
             <div className="rounded-xl border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
@@ -1240,10 +1329,19 @@ export default function IndicadoresDashboard() {
                     textAnchor="end"
                     height={55}
                   />
-                  <YAxis domain={[0, 100]} tickFormatter={(value: number | string) => String(value).replace(".", ",")} />
+                  <YAxis
+                    domain={[0, 100]}
+                    tickFormatter={(value: number | string) =>
+                      String(value).replace(".", ",")
+                    }
+                  />
                   <Tooltip
-                    formatter={(value: number | string) => formatIndicador(Number(value))}
-                    labelFormatter={(label: string | number) => `Período: ${label}`}
+                    formatter={(value: number | string) =>
+                      formatIndicador(Number(value))
+                    }
+                    labelFormatter={(label: string | number) =>
+                      `Período: ${label}`
+                    }
                   />
                   <Line
                     type="monotone"
@@ -1288,10 +1386,19 @@ export default function IndicadoresDashboard() {
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="indicador" />
-                  <YAxis domain={[0, 100]} tickFormatter={(value: number | string) => String(value).replace(".", ",")} />
+                  <YAxis
+                    domain={[0, 100]}
+                    tickFormatter={(value: number | string) =>
+                      String(value).replace(".", ",")
+                    }
+                  />
                   <Tooltip
-                    formatter={(value: number | string) => formatIndicador(Number(value))}
-                    labelFormatter={(label: string | number) => `Indicador: ${label}`}
+                    formatter={(value: number | string) =>
+                      formatIndicador(Number(value))
+                    }
+                    labelFormatter={(label: string | number) =>
+                      `Indicador: ${label}`
+                    }
                   />
                   <ReferenceLine y={metricas.mediaIDI} strokeDasharray="4 4" />
                   <Bar dataKey="valor" name="Média" radius={[8, 8, 0, 0]}>
@@ -1330,7 +1437,11 @@ export default function IndicadoresDashboard() {
             <EmptyState message="Nenhum colaborador encontrado para o ranking." />
           ) : (
             <div className="min-w-0">
-              <div style={{ height: getBarChartHeight(rankingColaboradores.length) }}>
+              <div
+                style={{
+                  height: getBarChartHeight(rankingColaboradores.length),
+                }}
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={rankingColaboradores}
@@ -1338,7 +1449,13 @@ export default function IndicadoresDashboard() {
                     margin={{ top: 8, right: 16, left: 20, bottom: 8 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" domain={[0, 100]} tickFormatter={(value: number | string) => String(value).replace(".", ",")} />
+                    <XAxis
+                      type="number"
+                      domain={[0, 100]}
+                      tickFormatter={(value: number | string) =>
+                        String(value).replace(".", ",")
+                      }
+                    />
                     <YAxis
                       type="category"
                       dataKey="nome"
@@ -1346,15 +1463,23 @@ export default function IndicadoresDashboard() {
                       tick={{ fontSize: 12 }}
                     />
                     <Tooltip
-                      formatter={(value: number | string) => formatIndicador(Number(value))}
-                      labelFormatter={(label: string | number) => `Colaborador: ${label}`}
+                      formatter={(value: number | string) =>
+                        formatIndicador(Number(value))
+                      }
+                      labelFormatter={(label: string | number) =>
+                        `Colaborador: ${label}`
+                      }
                     />
                     <ReferenceLine
                       x={metricas.mediaIDI}
                       strokeDasharray="4 4"
                       label="Média IDI"
                     />
-                    <Bar dataKey="valor" name={indicadorAtual.label} radius={[0, 8, 8, 0]}>
+                    <Bar
+                      dataKey="valor"
+                      name={indicadorAtual.label}
+                      radius={[0, 8, 8, 0]}
+                    >
                       {rankingColaboradores.map((entry) => (
                         <Cell
                           key={`ranking-${entry.colaborador}-${entry.status}`}
@@ -1434,8 +1559,8 @@ export default function IndicadoresDashboard() {
           <div className="mb-5">
             <h3 className="text-xl font-semibold">Comparativo por equipe</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Média de {indicadorAtual.label}, volume de entregas e quantidade de
-              colaboradores avaliados por equipe.
+              Média de {indicadorAtual.label}, volume de entregas e quantidade
+              de colaboradores avaliados por equipe.
             </p>
           </div>
 
@@ -1446,7 +1571,9 @@ export default function IndicadoresDashboard() {
               <table className="w-full table-fixed text-xs md:text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold">Equipe</th>
+                    <th className="px-4 py-3 text-left font-semibold">
+                      Equipe
+                    </th>
                     <th className="px-4 py-3 text-center font-semibold">
                       {indicadorAtual.label}
                     </th>
@@ -1461,7 +1588,10 @@ export default function IndicadoresDashboard() {
                 </thead>
                 <tbody>
                   {mediaPorEquipe.map((item) => (
-                    <tr key={item.equipe} className="border-t hover:bg-muted/30">
+                    <tr
+                      key={item.equipe}
+                      className="border-t hover:bg-muted/30"
+                    >
                       <td className="px-4 py-3 font-medium">{item.equipe}</td>
                       <td className="px-4 py-3 text-center font-semibold">
                         {formatIndicador(item.indicadorSelecionado)}
@@ -1485,7 +1615,9 @@ export default function IndicadoresDashboard() {
 
         <Card className="rounded-2xl border bg-card p-5 shadow-sm md:p-6">
           <div className="mb-5">
-            <h3 className="text-xl font-semibold">Colaboradores prioritários</h3>
+            <h3 className="text-xl font-semibold">
+              Colaboradores prioritários
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Lista objetiva para acompanhamento gerencial, reuniões individuais
               e plano de desenvolvimento.
@@ -1516,13 +1648,28 @@ export default function IndicadoresDashboard() {
       </div>
 
       <Card className="rounded-2xl border bg-card p-5 shadow-sm md:p-6">
-        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h3 className="text-xl font-semibold">Base consolidada do painel</h3>
+        <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-4xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-xl font-semibold">
+                Quadro geral de indicadores
+              </h3>
+              <span className="rounded-full border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                {itemsOrdenados.length} colaboradores
+              </span>
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Tabela com os mesmos dados essenciais do painel geral do Excel,
-              acrescida da média de referência, limite de atenção e status
-              dinâmico por trimestre.
+              {periodoExatoSelecionado
+                ? `Visão completa de ${getPeriodoLabel(
+                    Number(filtros.ano),
+                    Number(filtros.trimestre),
+                  )}, incluindo colaboradores ativos ainda sem avaliação.`
+                : "Selecione um ano e um trimestre para incluir também os colaboradores sem avaliação no período."}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              As correções alteram as avaliações de origem: IES e IP por
+              entrega, as quatro notas que compõem o IQ e a nota trimestral do
+              IEV. O IDI permanece calculado automaticamente.
             </p>
           </div>
 
@@ -1531,7 +1678,9 @@ export default function IndicadoresDashboard() {
             <select
               id="ordenacao_tabela"
               value={sortKey}
-              onChange={(event: { target: { value: string } }) => setSortKey(event.target.value as SortKey)}
+              onChange={(event: { target: { value: string } }) =>
+                setSortKey(event.target.value as SortKey)
+              }
               className="flex h-11 w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring"
             >
               <option value="risco">Risco primeiro</option>
@@ -1544,17 +1693,21 @@ export default function IndicadoresDashboard() {
         </div>
 
         {itemsOrdenados.length === 0 ? (
-          <EmptyState message="Nenhum indicador encontrado para os filtros selecionados." />
+          <EmptyState message="Nenhum colaborador encontrado para os filtros selecionados." />
         ) : (
-          <div className="rounded-xl border">
-            <table className="w-full table-fixed text-xs md:text-sm">
-              <thead className="sticky top-0 z-10 bg-muted">
+          <div className="max-h-[680px] overflow-auto rounded-xl border">
+            <table className="min-w-[1460px] w-full text-xs md:text-sm">
+              <thead className="sticky top-0 z-20 bg-muted">
                 <tr className="border-b">
-                  <th className="px-4 py-3 text-left font-semibold">
+                  <th className="sticky left-0 z-30 min-w-56 bg-muted px-4 py-3 text-left font-semibold">
                     Colaborador
                   </th>
-                  <th className="px-4 py-3 text-left font-semibold">Equipe</th>
-                  <th className="px-4 py-3 text-center font-semibold">Período</th>
+                  <th className="min-w-48 px-4 py-3 text-left font-semibold">
+                    Equipe
+                  </th>
+                  <th className="px-4 py-3 text-center font-semibold">
+                    Período
+                  </th>
                   <th className="px-4 py-3 text-center font-semibold">
                     Entregas
                   </th>
@@ -1569,65 +1722,109 @@ export default function IndicadoresDashboard() {
                   <th className="px-4 py-3 text-center font-semibold">
                     Diferença
                   </th>
-                  <th className="px-4 py-3 text-center font-semibold">Status</th>
+                  <th className="px-4 py-3 text-center font-semibold">
+                    Status
+                  </th>
+                  <th className="sticky right-0 z-30 min-w-32 bg-muted px-4 py-3 text-center font-semibold">
+                    Ações
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {itemsOrdenados.map((item) => {
-                  const status = STATUS_STYLE[item.status]
-                  const Icon = status.icon
+                  const status =
+                    item.status === "Sem dados"
+                      ? null
+                      : STATUS_STYLE[item.status]
+                  const Icon = status?.icon
 
                   return (
                     <tr
                       key={`${item.colaborador_id}-${item.ano}-${item.trimestre}`}
-                      className="border-b last:border-b-0 hover:bg-muted/40"
+                      className={`border-b last:border-b-0 hover:bg-muted/40 ${
+                        item.temDados ? "" : "bg-muted/10 text-muted-foreground"
+                      }`}
                     >
-                      <td className="px-4 py-3 font-medium">
+                      <td className="sticky left-0 z-10 bg-card px-4 py-3 font-medium">
                         {item.colaborador_nome}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {item.equipe ?? "Sem equipe"}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="whitespace-nowrap px-4 py-3 text-center">
                         {getPeriodoLabel(item.ano, item.trimestre)}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {formatInteger(item.total_entregas)}
+                        {item.temDados
+                          ? formatInteger(item.total_entregas)
+                          : "—"}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {formatIndicador(item.ies)}
+                        {item.temDados ? formatIndicador(item.ies) : "—"}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {formatIndicador(item.ip)}
+                        {item.temDados ? formatIndicador(item.ip) : "—"}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {formatIndicador(item.iq)}
+                        {item.temDados ? formatIndicador(item.iq) : "—"}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {formatIndicador(item.iev)}
+                        {item.temDados ? formatIndicador(item.iev) : "—"}
                       </td>
                       <td className="px-4 py-3 text-center font-semibold">
-                        {formatIndicador(item.idi)}
+                        {item.temDados ? formatIndicador(item.idi) : "—"}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {formatIndicador(item.mediaIdiTrimestre)}
+                        {item.temDados
+                          ? formatIndicador(item.mediaIdiTrimestre)
+                          : "—"}
                       </td>
                       <td
                         className={`px-4 py-3 text-center font-semibold ${
-                          item.diferencaMedia >= 0
-                            ? "text-emerald-700"
-                            : "text-rose-700"
+                          !item.temDados
+                            ? "text-muted-foreground"
+                            : item.diferencaMedia >= 0
+                              ? "text-emerald-700"
+                              : "text-rose-700"
                         }`}
                       >
-                        {formatDelta(item.diferencaMedia)}
+                        {item.temDados ? formatDelta(item.diferencaMedia) : "—"}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${status.borderClass} ${status.softClass} ${status.textClass}`}
-                        >
-                          <Icon className="h-3.5 w-3.5" />
-                          {status.label}
-                        </span>
+                        {status && Icon ? (
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${status.borderClass} ${status.softClass} ${status.textClass}`}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                            {status.label}
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full border bg-muted/40 px-3 py-1 text-xs font-semibold text-muted-foreground">
+                            Sem dados
+                          </span>
+                        )}
+                      </td>
+                      <td className="sticky right-0 z-10 bg-card px-4 py-3 text-center">
+                        {podeEditar && item.temDados ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-lg"
+                            onClick={() => setCorrecaoSelecionada(item)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            Corrigir
+                          </Button>
+                        ) : item.temDados ? (
+                          <span className="text-xs text-muted-foreground">
+                            Somente leitura
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            Sem avaliação
+                          </span>
+                        )}
                       </td>
                     </tr>
                   )
@@ -1637,6 +1834,18 @@ export default function IndicadoresDashboard() {
           </div>
         )}
       </Card>
+
+      <IndicadoresCorrecaoDialog
+        open={Boolean(correcaoSelecionada)}
+        onOpenChange={(open) => {
+          if (!open) setCorrecaoSelecionada(null)
+        }}
+        colaboradorId={correcaoSelecionada?.colaborador_id ?? null}
+        colaboradorNome={correcaoSelecionada?.colaborador_nome ?? null}
+        ano={correcaoSelecionada?.ano ?? null}
+        trimestre={correcaoSelecionada?.trimestre ?? null}
+        onSaved={() => carregarIndicadores(false)}
+      />
     </div>
   )
 }
@@ -1709,15 +1918,19 @@ function PriorityGroup({
               <div>
                 <p className="font-medium">{item.colaborador_nome}</p>
                 <p className="text-xs text-muted-foreground">
-                  {item.equipe ?? "Sem equipe"} · {getPeriodoLabel(item.ano, item.trimestre)}
+                  {item.equipe ?? "Sem equipe"} ·{" "}
+                  {getPeriodoLabel(item.ano, item.trimestre)}
                 </p>
               </div>
-              <div className={`text-right text-sm font-bold ${style.textClass}`}>
+              <div
+                className={`text-right text-sm font-bold ${style.textClass}`}
+              >
                 {formatIndicador(item.idi)}
               </div>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              Média do trimestre: {formatIndicador(item.mediaIdiTrimestre)} · Dif. {formatDelta(item.diferencaMedia)}
+              Média do trimestre: {formatIndicador(item.mediaIdiTrimestre)} ·
+              Dif. {formatDelta(item.diferencaMedia)}
             </p>
           </div>
         ))}
