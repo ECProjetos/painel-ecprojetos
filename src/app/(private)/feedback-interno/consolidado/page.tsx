@@ -33,7 +33,7 @@ function formatCategoria(categoria: string | null | undefined) {
 
   const labels: Record<string, string> = {
     feedback_colaborador_gestor: "Colaborador para Gestor",
-    feedback_tecnico_operacional: "Técnico e Operacional",
+    feedback_tecnico_operacional: "Operacional",
   };
 
   return labels[categoria] ?? categoria;
