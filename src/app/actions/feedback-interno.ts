@@ -19,6 +19,24 @@ const equipesFeedback = [
   "Departamento de Meio Ambiente e Geoprocessamento",
 ]
 
+type DepartamentoRelacionado = {
+  name?: string | null
+}
+
+function obterNomeDepartamento(valor: unknown): string | null {
+  if (Array.isArray(valor)) {
+    const primeiro = valor[0] as DepartamentoRelacionado | undefined
+    return typeof primeiro?.name === "string" ? primeiro.name : null
+  }
+
+  if (valor && typeof valor === "object" && "name" in valor) {
+    const nome = (valor as DepartamentoRelacionado).name
+    return typeof nome === "string" ? nome : null
+  }
+
+  return null
+}
+
 const departamentosPorEquipe: Record<string, string[]> = {
   "Departamento Administrativo": [
     "Departamento Administrativo",
@@ -635,10 +653,7 @@ export async function getFeedbackFormularioParaResponder(formularioId: string) {
     const departamentosPorUsuario = new Map<string, string>()
 
     for (const vinculo of departamentosData ?? []) {
-      const departamentoRaw = vinculo.departments
-      const departamento = Array.isArray(departamentoRaw)
-        ? departamentoRaw[0]?.name
-        : departamentoRaw?.name
+      const departamento = obterNomeDepartamento(vinculo.departments)
 
       if (departamento) {
         departamentosPorUsuario.set(vinculo.user_id, departamento)
@@ -839,10 +854,9 @@ export async function responderFeedbackInterno(formData: FormData) {
       throw new Error("Não foi possível identificar o departamento.")
     }
 
-    const departamentoRaw = vinculoDepartamento?.departments
-    const departamentoColaborador = Array.isArray(departamentoRaw)
-      ? departamentoRaw[0]?.name
-      : departamentoRaw?.name
+    const departamentoColaborador = obterNomeDepartamento(
+      vinculoDepartamento?.departments,
+    )
 
     const { data: respostaDuplicada, error: respostaDuplicadaError } =
       await supabase
