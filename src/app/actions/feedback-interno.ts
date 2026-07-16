@@ -399,6 +399,23 @@ export async function getFeedbackFormulariosAbertos() {
     throw new Error("Usuário não autenticado.")
   }
 
+  const { data: perfil, error: perfilError } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  if (perfilError || !perfil) {
+    console.error("Erro ao buscar perfil do usuário:", perfilError)
+    throw new Error("Não foi possível verificar o perfil do usuário.")
+  }
+
+  const role = String(perfil.role ?? "").toUpperCase()
+  const podeResponderComoGestor = ["GESTOR", "DIRETOR"].includes(role)
+  const publicosPermitidos = podeResponderComoGestor
+    ? ["colaborador", "gestor"]
+    : ["colaborador"]
+
   const { data: formularios, error } = await supabase
     .from("feedback_formularios")
     .select(
@@ -410,6 +427,7 @@ export async function getFeedbackFormulariosAbertos() {
       instrucoes,
       ordem,
       status,
+      publico_alvo,
       feedback_ciclos!inner (
         id,
         nome,
@@ -427,7 +445,7 @@ export async function getFeedbackFormulariosAbertos() {
     `,
     )
     .eq("status", "aberto")
-    .eq("publico_alvo", "colaborador")
+    .in("publico_alvo", publicosPermitidos)
     .eq("feedback_ciclos.status", "aberto")
     .eq("feedback_ciclos.status_respostas", "aberto")
     .order("ordem", { ascending: true })
@@ -486,12 +504,18 @@ export async function getFeedbackFormulariosAbertos() {
     ]),
   )
 
-  return formulariosDisponiveis.map((formulario) => ({
-    ...formulario,
-    total_perguntas: formulario.feedback_perguntas?.length ?? 0,
-    respondido: respondidos.has(formulario.id),
-    respondido_em: respondidos.get(formulario.id) ?? null,
-  }))
+  return formulariosDisponiveis.map((formulario) => {
+    const permiteMultiplasRespostas =
+      formulario.categoria === "feedback_gestor_colaborador"
+
+    return {
+      ...formulario,
+      total_perguntas: formulario.feedback_perguntas?.length ?? 0,
+      respondido: respondidos.has(formulario.id),
+      respondido_em: respondidos.get(formulario.id) ?? null,
+      permite_multiplas_respostas: permiteMultiplasRespostas,
+    }
+  })
 }
 
 export async function getFeedbackFormularioParaResponder(formularioId: string) {
@@ -504,6 +528,17 @@ export async function getFeedbackFormularioParaResponder(formularioId: string) {
 
   if (userError || !user) {
     throw new Error("Usuário não autenticado.")
+  }
+
+  const { data: perfil, error: perfilError } = await supabase
+    .from("users")
+    .select("id, nome, role")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  if (perfilError || !perfil) {
+    console.error("Erro ao buscar perfil do usuário:", perfilError)
+    throw new Error("Não foi possível verificar o perfil do usuário.")
   }
 
   const disponibilidade =
@@ -526,6 +561,7 @@ export async function getFeedbackFormularioParaResponder(formularioId: string) {
       confidencialidade,
       instrucoes,
       status,
+      publico_alvo,
       feedback_ciclos (
         id,
         nome,
@@ -551,12 +587,93 @@ export async function getFeedbackFormularioParaResponder(formularioId: string) {
     throw new Error("Formulário não encontrado ou não está aberto.")
   }
 
+  const permiteMultiplasRespostas =
+    formulario.categoria === "feedback_gestor_colaborador"
+
   const { data: participacao } = await supabase
     .from("feedback_participacoes")
     .select("id, respondido_em")
     .eq("formulario_id", formularioId)
     .eq("user_id", user.id)
     .maybeSingle()
+
+  let colaboradores: Array<{
+    id: string
+    nome: string
+    departamento: string | null
+    ja_avaliado: boolean
+  }> = []
+
+  if (permiteMultiplasRespostas) {
+    const { data: colaboradoresData, error: colaboradoresError } = await supabase
+      .from("users")
+      .select("id, nome")
+      .eq("status", "ativo")
+      .eq("role", "COLABORADOR")
+      .order("nome", { ascending: true })
+
+    if (colaboradoresError) {
+      console.error("Erro ao buscar colaboradores:", colaboradoresError)
+      throw new Error("Não foi possível buscar os colaboradores ativos.")
+    }
+
+    const colaboradorIds = (colaboradoresData ?? []).map((item) => item.id)
+
+    const { data: departamentosData, error: departamentosError } =
+      colaboradorIds.length > 0
+        ? await supabase
+            .from("user_departments")
+            .select("user_id, departments(name)")
+            .in("user_id", colaboradorIds)
+        : { data: [], error: null }
+
+    if (departamentosError) {
+      console.error("Erro ao buscar departamentos:", departamentosError)
+      throw new Error("Não foi possível buscar os departamentos.")
+    }
+
+    const departamentosPorUsuario = new Map<string, string>()
+
+    for (const vinculo of departamentosData ?? []) {
+      const departamentoRaw = vinculo.departments
+      const departamento = Array.isArray(departamentoRaw)
+        ? departamentoRaw[0]?.name
+        : departamentoRaw?.name
+
+      if (departamento) {
+        departamentosPorUsuario.set(vinculo.user_id, departamento)
+      }
+    }
+
+    const { data: respostasGestor, error: respostasGestorError } =
+      await supabase
+        .from("feedback_respostas")
+        .select("avaliado_user_id")
+        .eq("formulario_id", formularioId)
+        .eq("respondente_user_id", user.id)
+        .not("avaliado_user_id", "is", null)
+
+    if (respostasGestorError) {
+      console.error(
+        "Erro ao buscar colaboradores já avaliados:",
+        respostasGestorError,
+      )
+      throw new Error("Não foi possível verificar as avaliações já enviadas.")
+    }
+
+    const avaliados = new Set(
+      (respostasGestor ?? [])
+        .map((item) => item.avaliado_user_id)
+        .filter((id): id is string => Boolean(id)),
+    )
+
+    colaboradores = (colaboradoresData ?? []).map((colaborador) => ({
+      id: colaborador.id,
+      nome: colaborador.nome,
+      departamento: departamentosPorUsuario.get(colaborador.id) ?? null,
+      ja_avaliado: avaliados.has(colaborador.id),
+    }))
+  }
 
   return {
     formulario: {
@@ -565,12 +682,15 @@ export async function getFeedbackFormularioParaResponder(formularioId: string) {
         (a, b) => Number(a.ordem ?? 0) - Number(b.ordem ?? 0),
       ),
     },
-    jaRespondido: Boolean(participacao),
+    jaRespondido: permiteMultiplasRespostas ? false : Boolean(participacao),
     respondidoEm: participacao?.respondido_em ?? null,
+    permiteMultiplasRespostas,
+    colaboradores,
     usuario: {
       id: user.id,
       email: user.email ?? null,
       nome:
+        perfil.nome ??
         user.user_metadata?.full_name ??
         user.user_metadata?.name ??
         user.email ??
@@ -593,7 +713,12 @@ export async function responderFeedbackInterno(formData: FormData) {
 
   const formularioId = String(formData.get("formulario_id") ?? "")
   const nome = String(formData.get("nome") ?? "").trim()
-  const departamento = String(formData.get("departamento") ?? "").trim()
+  const departamentoInformado = String(
+    formData.get("departamento") ?? "",
+  ).trim()
+  const avaliadoUserId = String(
+    formData.get("avaliado_user_id") ?? "",
+  ).trim()
 
   if (!formularioId) {
     throw new Error("Formulário inválido.")
@@ -618,6 +743,7 @@ export async function responderFeedbackInterno(formData: FormData) {
       categoria,
       confidencialidade,
       status,
+      publico_alvo,
       feedback_perguntas (
         id,
         ordem,
@@ -635,14 +761,26 @@ export async function responderFeedbackInterno(formData: FormData) {
     throw new Error("Formulário não encontrado ou fechado.")
   }
 
-  const { data: participacaoExistente } = await supabase
-    .from("feedback_participacoes")
-    .select("id")
-    .eq("formulario_id", formularioId)
-    .eq("user_id", user.id)
-    .maybeSingle()
+  const isGestorColaborador =
+    formulario.categoria === "feedback_gestor_colaborador"
 
-  if (participacaoExistente) {
+  const { data: participacaoExistente, error: participacaoExistenteError } =
+    await supabase
+      .from("feedback_participacoes")
+      .select("id")
+      .eq("formulario_id", formularioId)
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+  if (participacaoExistenteError) {
+    console.error(
+      "Erro ao verificar participação existente:",
+      participacaoExistenteError,
+    )
+    throw new Error("Não foi possível verificar sua participação.")
+  }
+
+  if (participacaoExistente && !isGestorColaborador) {
     throw new Error("Você já respondeu este formulário.")
   }
 
@@ -658,8 +796,79 @@ export async function responderFeedbackInterno(formData: FormData) {
 
   const respondenteEmail = isAnonimo ? null : (user.email ?? null)
 
-  const avaliadoNome =
-    formulario.categoria === "feedback_geral_empresa" ? respondenteNome : null
+  let avaliadoNome: string | null =
+    formulario.categoria === "feedback_geral_empresa"
+      ? respondenteNome
+      : null
+  let avaliadoId: string | null = null
+  let departamentoResposta = departamentoInformado || null
+
+  if (isGestorColaborador) {
+    if (!avaliadoUserId) {
+      throw new Error("Selecione o colaborador que será avaliado.")
+    }
+
+    const { data: colaborador, error: colaboradorError } = await supabase
+      .from("users")
+      .select("id, nome, role, status")
+      .eq("id", avaliadoUserId)
+      .maybeSingle()
+
+    if (
+      colaboradorError ||
+      !colaborador ||
+      String(colaborador.role ?? "").toUpperCase() !== "COLABORADOR" ||
+      colaborador.status !== "ativo"
+    ) {
+      console.error("Erro ao validar colaborador avaliado:", colaboradorError)
+      throw new Error("O colaborador selecionado não está disponível.")
+    }
+
+    const { data: vinculoDepartamento, error: departamentoError } =
+      await supabase
+        .from("user_departments")
+        .select("departments(name)")
+        .eq("user_id", colaborador.id)
+        .maybeSingle()
+
+    if (departamentoError) {
+      console.error(
+        "Erro ao buscar departamento do colaborador:",
+        departamentoError,
+      )
+      throw new Error("Não foi possível identificar o departamento.")
+    }
+
+    const departamentoRaw = vinculoDepartamento?.departments
+    const departamentoColaborador = Array.isArray(departamentoRaw)
+      ? departamentoRaw[0]?.name
+      : departamentoRaw?.name
+
+    const { data: respostaDuplicada, error: respostaDuplicadaError } =
+      await supabase
+        .from("feedback_respostas")
+        .select("id")
+        .eq("formulario_id", formulario.id)
+        .eq("respondente_user_id", user.id)
+        .eq("avaliado_user_id", colaborador.id)
+        .maybeSingle()
+
+    if (respostaDuplicadaError) {
+      console.error(
+        "Erro ao verificar avaliação duplicada:",
+        respostaDuplicadaError,
+      )
+      throw new Error("Não foi possível verificar a avaliação selecionada.")
+    }
+
+    if (respostaDuplicada) {
+      throw new Error("Você já avaliou este colaborador neste ciclo.")
+    }
+
+    avaliadoId = colaborador.id
+    avaliadoNome = colaborador.nome
+    departamentoResposta = departamentoColaborador ?? null
+  }
 
   const { data: resposta, error: respostaError } = await supabase
     .from("feedback_respostas")
@@ -668,8 +877,9 @@ export async function responderFeedbackInterno(formData: FormData) {
       respondente_user_id: isAnonimo ? null : user.id,
       respondente_nome: respondenteNome,
       respondente_email: respondenteEmail,
+      avaliado_user_id: avaliadoId,
       avaliado_nome: avaliadoNome,
-      departamento: departamento || null,
+      departamento: departamentoResposta,
       anonimo: isAnonimo,
       origem_arquivo: null,
       data_inicio: new Date().toISOString(),
@@ -680,6 +890,11 @@ export async function responderFeedbackInterno(formData: FormData) {
 
   if (respostaError || !resposta) {
     console.error("Erro ao salvar resposta:", respostaError)
+
+    if (respostaError?.code === "23505" && isGestorColaborador) {
+      throw new Error("Você já avaliou este colaborador neste ciclo.")
+    }
+
     throw new Error("Não foi possível salvar a resposta.")
   }
 
@@ -720,17 +935,19 @@ export async function responderFeedbackInterno(formData: FormData) {
     }
   }
 
-  const { error: participacaoError } = await supabase
-    .from("feedback_participacoes")
-    .insert({
-      formulario_id: formulario.id,
-      user_id: user.id,
-      respondido_em: new Date().toISOString(),
-    })
+  if (!participacaoExistente) {
+    const { error: participacaoError } = await supabase
+      .from("feedback_participacoes")
+      .insert({
+        formulario_id: formulario.id,
+        user_id: user.id,
+        respondido_em: new Date().toISOString(),
+      })
 
-  if (participacaoError) {
-    console.error("Erro ao salvar participação:", participacaoError)
-    throw new Error("Não foi possível salvar a participação.")
+    if (participacaoError) {
+      console.error("Erro ao salvar participação:", participacaoError)
+      throw new Error("Não foi possível salvar a participação.")
+    }
   }
 
   revalidatePath("/feedback-interno/responder")
@@ -965,9 +1182,36 @@ export async function verificarDisponibilidadeFormularioFeedback(
 ) {
   const supabase = await createClient()
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    return {
+      aberto: false,
+      motivo: "Usuário não autenticado.",
+      ciclo: null,
+    }
+  }
+
+  const { data: perfil, error: perfilError } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  if (perfilError || !perfil) {
+    return {
+      aberto: false,
+      motivo: "Não foi possível verificar o perfil do usuário.",
+      ciclo: null,
+    }
+  }
+
   const { data: formulario, error: formularioError } = await supabase
     .from("feedback_formularios")
-    .select("id, titulo, ciclo_id")
+    .select("id, titulo, ciclo_id, status, publico_alvo")
     .eq("id", formularioId)
     .maybeSingle()
 
@@ -975,6 +1219,30 @@ export async function verificarDisponibilidadeFormularioFeedback(
     return {
       aberto: false,
       motivo: "Formulário de feedback não encontrado.",
+      ciclo: null,
+    }
+  }
+
+  if (formulario.status !== "aberto") {
+    return {
+      aberto: false,
+      motivo: "Este formulário de feedback está fechado.",
+      ciclo: null,
+    }
+  }
+
+  const role = String(perfil.role ?? "").toUpperCase()
+  const publicoAlvo = String(formulario.publico_alvo ?? "").toLowerCase()
+  const podeResponderComoGestor = ["GESTOR", "DIRETOR"].includes(role)
+
+  const publicoPermitido =
+    publicoAlvo === "colaborador" ||
+    (publicoAlvo === "gestor" && podeResponderComoGestor)
+
+  if (!publicoPermitido) {
+    return {
+      aberto: false,
+      motivo: "Este formulário não está disponível para o seu perfil.",
       ciclo: null,
     }
   }

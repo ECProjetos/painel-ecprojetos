@@ -172,10 +172,15 @@ export default async function FeedbackFormularioResponderPage({
     )
   }
 
-  const { formulario, jaRespondido, usuario } =
+  const { formulario, jaRespondido, usuario, colaboradores } =
     await getFeedbackFormularioParaResponder(formularioId)
 
   const isAnonimo = formulario.confidencialidade === "anonimo"
+  const isGestorColaborador =
+    formulario.categoria === "feedback_gestor_colaborador"
+  const possuiColaboradoresPendentes = colaboradores.some(
+    (colaborador) => !colaborador.ja_avaliado,
+  )
 
   return (
     <div className="flex min-w-0 flex-col gap-4 p-4 pt-0">
@@ -264,18 +269,56 @@ export default async function FeedbackFormularioResponderPage({
                     </div>
                   )}
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-gray-700">
-                      Departamento
-                    </label>
-                    <input
-                      name="departamento"
-                      required
-                      placeholder="Ex: Engenharia"
-                      className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
+                  {isGestorColaborador ? (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-gray-700">
+                        Colaborador avaliado
+                      </label>
+                      <select
+                        name="avaliado_user_id"
+                        required
+                        defaultValue=""
+                        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="" disabled>
+                          Selecione o colaborador
+                        </option>
+                        {colaboradores.map((colaborador) => (
+                          <option
+                            key={colaborador.id}
+                            value={colaborador.id}
+                            disabled={colaborador.ja_avaliado}
+                          >
+                            {colaborador.nome}
+                            {colaborador.departamento
+                              ? ` — ${colaborador.departamento}`
+                              : ""}
+                            {colaborador.ja_avaliado ? " (já avaliado)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-gray-700">
+                        Departamento
+                      </label>
+                      <input
+                        name="departamento"
+                        required
+                        placeholder="Ex: Engenharia"
+                        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      />
+                    </div>
+                  )}
                 </div>
+
+                {isGestorColaborador && !possuiColaboradoresPendentes && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    Todos os colaboradores ativos já foram avaliados por você
+                    neste ciclo.
+                  </div>
+                )}
 
                 {isAnonimo && (
                   <div className="flex gap-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
@@ -338,7 +381,12 @@ export default async function FeedbackFormularioResponderPage({
                 <Link href="/feedback-interno/responder">Cancelar</Link>
               </Button>
 
-              <Button type="submit">Enviar feedback</Button>
+              <Button
+                type="submit"
+                disabled={isGestorColaborador && !possuiColaboradoresPendentes}
+              >
+                Enviar feedback
+              </Button>
             </div>
           </form>
         )}

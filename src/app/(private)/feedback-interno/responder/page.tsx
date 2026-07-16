@@ -102,7 +102,13 @@ export default async function FeedbackResponderPage({
                       {formulario.titulo}
                     </CardTitle>
 
-                    {formulario.respondido ? (
+                    {formulario.permite_multiplas_respostas ? (
+                      formulario.respondido ? (
+                        <Badge variant="secondary">Em andamento</Badge>
+                      ) : (
+                        <Badge variant="default">Aberto</Badge>
+                      )
+                    ) : formulario.respondido ? (
                       <Badge variant="secondary">Respondido</Badge>
                     ) : (
                       <Badge variant="default">Aberto</Badge>
@@ -139,7 +145,8 @@ export default async function FeedbackResponderPage({
                     </div>
                   )}
                 <div className="mt-auto">
-                  {formulario.respondido ? (
+                  {formulario.respondido &&
+                  !formulario.permite_multiplas_respostas ? (
                     <Button variant="outline" disabled className="w-full">
                       <CheckCircle2 className="mr-2 h-4 w-4" />
                       Já respondido
@@ -148,7 +155,9 @@ export default async function FeedbackResponderPage({
                     <Button asChild className="w-full">
                       <Link href={`/feedback-interno/responder/${formulario.id}`}>
                         <Send className="mr-2 h-4 w-4" />
-                        Responder
+                        {formulario.permite_multiplas_respostas
+                          ? "Avaliar colaborador"
+                          : "Responder"}
                       </Link>
                     </Button>
                   )}
