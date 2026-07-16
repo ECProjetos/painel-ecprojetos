@@ -32,6 +32,7 @@ import {
   getFeedbackHistorico,
 } from "@/app/actions/feedback-interno"
 import {
+  ClipboardCheck,
   ClipboardList,
   Eye,
   Filter,
@@ -63,7 +64,7 @@ const categorias = [
   },
   {
     value: "feedback_tecnico_operacional",
-    label: "Operacional",
+    label: "Técnico e Operacional",
   },
   {
     value: "feedback_gestor_colaborador",
@@ -86,7 +87,7 @@ function formatCategoria(categoria: string | null) {
   const labels: Record<string, string> = {
     feedback_geral_empresa: "Feedback Geral",
     feedback_colaborador_gestor: "Colaborador para Gestor",
-    feedback_tecnico_operacional: "Operacional",
+    feedback_tecnico_operacional: "Técnico e Operacional",
     feedback_gestor_colaborador: "Gestor para Colaborador",
   }
 
@@ -164,6 +165,13 @@ export default async function FeedbackInternoPage({ searchParams }: PageProps) {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <Button asChild className="w-fit">
+              <Link href="/feedback-interno/responder">
+                <ClipboardCheck className="mr-2 h-4 w-4" />
+                Responder feedbacks
+              </Link>
+            </Button>
+
             <Button variant="outline" asChild className="w-fit">
               <Link href="/feedback-interno/acompanhamento">
                 <BarChart3 className="mr-2 h-4 w-4" />

@@ -115,6 +115,18 @@ const createData = (pathname: string, userId?: string) => ({
       url: "/feedback-interno",
       icon: ClipboardList,
       isActive: pathname.startsWith("/feedback-interno"),
+      items: [
+        {
+          title: "Responder feedbacks",
+          url: "/feedback-interno/responder",
+          isActive: pathname.startsWith("/feedback-interno/responder"),
+        },
+        {
+          title: "Histórico e gestão",
+          url: "/feedback-interno",
+          isActive: pathname === "/feedback-interno",
+        },
+      ],
     },
     {
       title: "Satisfação do cliente",
@@ -178,6 +190,18 @@ const createData = (pathname: string, userId?: string) => ({
       url: "/feedback-interno",
       icon: ClipboardList,
       isActive: pathname.startsWith("/feedback-interno"),
+      items: [
+        {
+          title: "Responder feedbacks",
+          url: "/feedback-interno/responder",
+          isActive: pathname.startsWith("/feedback-interno/responder"),
+        },
+        {
+          title: "Histórico e gestão",
+          url: "/feedback-interno",
+          isActive: pathname === "/feedback-interno",
+        },
+      ],
     },
     {
       title: "Projetos",
