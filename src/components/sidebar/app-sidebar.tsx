@@ -147,6 +147,63 @@ const createData = (pathname: string, userId?: string) => ({
       isActive: pathname.startsWith("/rh/minhas-ferias"),
     },
   ],
+  navLider: [
+    {
+      title: "Controle de Horários",
+      url: "/controle-horarios/inicio",
+      icon: Clock,
+      isActive: pathname.startsWith("/controle-horarios"),
+    },
+    {
+      title: "Indicadores",
+      url: "/indicadores-de-desempenho",
+      icon: BarChart3,
+      isActive: pathname.startsWith("/indicadores-de-desempenho"),
+    },
+    {
+      title: "Plano de Carreira",
+      url: "/plano-carreira",
+      icon: Briefcase,
+      isActive: pathname.startsWith("/plano-carreira"),
+      items: [
+        {
+          title: "Visualizar",
+          url: `/plano-carreira/view/${userId ?? ""}`,
+          isActive: pathname.startsWith("/plano-carreira/view"),
+        },
+      ],
+    },
+    {
+      title: "Feedback Interno",
+      url: "/feedback-interno",
+      icon: ClipboardList,
+      isActive: pathname.startsWith("/feedback-interno"),
+    },
+    {
+      title: "Projetos",
+      url: "/projetos",
+      icon: NotebookPen,
+      isActive: pathname.startsWith("/projetos"),
+    },
+    {
+      title: "Atividades",
+      url: "/atividades",
+      icon: NotepadText,
+      isActive: pathname.startsWith("/atividades"),
+    },
+    {
+      title: "Férias da Equipe",
+      url: "/rh/ferias-equipe",
+      icon: CalendarDays,
+      isActive: pathname.startsWith("/rh/ferias-equipe"),
+    },
+    {
+      title: "Solicitação de Férias",
+      url: "/rh/minhas-ferias",
+      icon: CalendarDays,
+      isActive: pathname.startsWith("/rh/minhas-ferias"),
+    },
+  ],
 
   navDiretor: [
     {
@@ -240,6 +297,8 @@ function getRoleLabel(role: string) {
       return "Diretor"
     case roles.gestor:
       return "Gestor"
+    case roles.lider:
+      return "Líder"
     case roles.colaborador:
       return "Colaborador"
     default:
@@ -281,6 +340,10 @@ export function AppSidebar({
       isActive: item.isActive || pathname.startsWith(item.url),
     })),
     navGestor: data.navGestor.map((item) => ({
+      ...item,
+      isActive: item.isActive || pathname.startsWith(item.url),
+    })),
+    navLider: data.navLider.map((item) => ({
       ...item,
       isActive: item.isActive || pathname.startsWith(item.url),
     })),
@@ -349,6 +412,8 @@ export function AppSidebar({
           <NavDiretor items={navData.navDiretor} />
         ) : userRole === roles.gestor ? (
           <NavGestor items={navData.navGestor} />
+        ) : userRole === roles.lider ? (
+          <NavGeneral items={navData.navLider} />
         ) : (
           <NavGeneral items={navData.navGeneral} />
         )}

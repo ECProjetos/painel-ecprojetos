@@ -1,22 +1,27 @@
 export const roles = {
     colaborador: "COLABORADOR",
-    gestor:       "GESTOR",
-    diretor:      "DIRETOR",
-}
-
-// 1) Manual
-export const rolesList = [
-    { label: "Colaborador", value: roles.colaborador },
-    { label: "Gestor",       value: roles.gestor },
-    { label: "Diretor",      value: roles.diretor },
-]
-
-// 2) Dinâmico
-export type RoleOption = { label: string; value: string }
-
-export const rolesListDynamic: RoleOption[] = Object.entries(roles).map(
-    ([key, value]) => ({
-        label: key.charAt(0).toUpperCase() + key.slice(1),
-        value,
-    })
-)
+    lider: "LIDER",
+    gestor: "GESTOR",
+    diretor: "DIRETOR",
+  } as const
+  
+  export type RoleValue = (typeof roles)[keyof typeof roles]
+  
+  export const roleLabels: Record<RoleValue, string> = {
+    COLABORADOR: "Colaborador",
+    LIDER: "Líder",
+    GESTOR: "Gestor",
+    DIRETOR: "Diretor",
+  }
+  
+  export type RoleOption = {
+    label: string
+    value: RoleValue
+  }
+  
+  export const rolesList: RoleOption[] = Object.values(roles).map((value) => ({
+    label: roleLabels[value],
+    value,
+  }))
+  
+  export const rolesListDynamic = rolesList
