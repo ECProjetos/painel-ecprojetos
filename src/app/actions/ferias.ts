@@ -21,6 +21,25 @@ export type FeriasSituacao =
   | "vencido"
   | "concluido"
 
+export type FeriasPeriodoGozoSituacao =
+  | "usufruido"
+  | "em_gozo"
+  | "programado"
+  | "pendente"
+
+export type FeriasPeriodoGozo = {
+  id: string
+  data_inicio: string
+  data_fim: string
+  data_retorno: string | null
+  dias_corridos: number
+  dias_vendidos: number
+  origem: FeriasOrigem
+  observacao: string | null
+  status: FeriasStatus
+  situacao_gozo: FeriasPeriodoGozoSituacao
+}
+
 export type FeriasSolicitacaoInput = {
   colaboradorId: string
   dataInicio: string
@@ -85,14 +104,19 @@ export type FeriasPeriodoResumo = {
   motivo_ajuste: string | null
   observacao: string | null
   quantidade_periodos_reservados: number
+  quantidade_periodos_aprovados: number
   dias_usufruidos: number
   dias_em_gozo: number
   dias_programados: number
   dias_pendentes: number
   dias_vendidos: number
+  dias_vendidos_pendentes: number
   primeiro_gozo: string | null
   ultimo_gozo: string | null
   possui_ferias_coletivas: boolean
+  periodos_aprovados: FeriasPeriodoGozo[]
+  periodos_pendentes: FeriasPeriodoGozo[]
+  solicitacoes_sem_vinculo: number
   saldo_aprovado: number
   saldo_apos_pendencias: number
   dias_para_vencer: number
@@ -477,7 +501,20 @@ export async function getFeriasProgramacao() {
     throw new Error("Erro ao buscar a programação consolidada de férias.")
   }
 
-  return (data ?? []) as FeriasPeriodoResumo[]
+  return (data ?? []).map((item: any) => ({
+    ...item,
+    periodos_aprovados: Array.isArray(item.periodos_aprovados)
+      ? item.periodos_aprovados
+      : [],
+    periodos_pendentes: Array.isArray(item.periodos_pendentes)
+      ? item.periodos_pendentes
+      : [],
+    quantidade_periodos_aprovados: Number(
+      item.quantidade_periodos_aprovados ?? 0,
+    ),
+    dias_vendidos_pendentes: Number(item.dias_vendidos_pendentes ?? 0),
+    solicitacoes_sem_vinculo: Number(item.solicitacoes_sem_vinculo ?? 0),
+  })) as FeriasPeriodoResumo[]
 }
 
 export async function getFeriasAlertasVencimento() {
