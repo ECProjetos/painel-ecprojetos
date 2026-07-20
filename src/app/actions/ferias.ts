@@ -13,6 +13,25 @@ export type FeriasOrigem = "individual" | "coletiva" | "ajuste_historico";
 export type FeriasSituacao =
   "regular" | "atencao" | "urgente" | "vencido" | "concluido";
 
+export type FeriasPeriodoGozoSituacao =
+  | "usufruido"
+  | "em_gozo"
+  | "programado"
+  | "pendente";
+
+export type FeriasPeriodoGozo = {
+  id: string;
+  data_inicio: string;
+  data_fim: string;
+  data_retorno: string | null;
+  dias_corridos: number;
+  dias_vendidos: number;
+  origem: FeriasOrigem;
+  observacao: string | null;
+  status: FeriasStatus;
+  situacao_gozo: FeriasPeriodoGozoSituacao;
+};
+
 export type FeriasSolicitacaoInput = {
   colaboradorId: string;
   dataInicio: string;
@@ -77,14 +96,19 @@ export type FeriasPeriodoResumo = {
   motivo_ajuste: string | null;
   observacao: string | null;
   quantidade_periodos_reservados: number;
+  quantidade_periodos_aprovados: number;
   dias_usufruidos: number;
   dias_em_gozo: number;
   dias_programados: number;
   dias_pendentes: number;
   dias_vendidos: number;
+  dias_vendidos_pendentes: number;
   primeiro_gozo: string | null;
   ultimo_gozo: string | null;
   possui_ferias_coletivas: boolean;
+  periodos_aprovados: FeriasPeriodoGozo[];
+  periodos_pendentes: FeriasPeriodoGozo[];
+  solicitacoes_sem_vinculo: number;
   saldo_aprovado: number;
   saldo_apos_pendencias: number;
   dias_para_vencer: number;
@@ -258,6 +282,213 @@ function normalizarSolicitacoes(solicitacoes: any[]) {
     ...item,
     equipe: normalizarEquipe(item.equipe ?? null),
   }));
+}
+
+type PeriodoAquisitivoRegistro = {
+  id: string;
+  colaborador_id: string;
+  aquisitivo_inicio: string;
+  aquisitivo_fim: string;
+  concessivo_inicio: string;
+  concessivo_fim: string;
+};
+
+type LocalizarPeriodoInput = {
+  colaboradorId: string;
+  dataInicio: string;
+  periodoAquisitivoId?: string;
+  periodoAquisitivoInicio?: string;
+  periodoAquisitivoFim?: string;
+};
+
+async function associarSolicitacoesLegadasColaborador(
+  colaboradorId: string,
+) {
+  const [solicitacoesResult, periodosResult] = await Promise.all([
+    supabaseAdmin
+      .from("ferias_solicitacoes")
+      .select(
+        "id, data_inicio, periodo_aquisitivo_inicio, periodo_aquisitivo_fim",
+      )
+      .eq("colaborador_id", colaboradorId)
+      .eq("tipo", "ferias")
+      .in("status", ["pendente", "aprovada"])
+      .is("periodo_aquisitivo_id", null),
+    supabaseAdmin
+      .from("ferias_periodos_aquisitivos")
+      .select(
+        "id, colaborador_id, aquisitivo_inicio, aquisitivo_fim, concessivo_inicio, concessivo_fim",
+      )
+      .eq("colaborador_id", colaboradorId),
+  ]);
+
+  if (solicitacoesResult.error || periodosResult.error) {
+    console.error("Erro ao associar solicitações antigas aos períodos:", {
+      solicitacoes: solicitacoesResult.error,
+      periodos: periodosResult.error,
+    });
+    return;
+  }
+
+  const periodos = (periodosResult.data ?? []) as PeriodoAquisitivoRegistro[];
+
+  await Promise.all(
+    (solicitacoesResult.data ?? []).map(async (solicitacao: any) => {
+      let candidatos = periodos.filter(
+        (periodo) =>
+          solicitacao.periodo_aquisitivo_inicio &&
+          solicitacao.periodo_aquisitivo_fim &&
+          periodo.aquisitivo_inicio ===
+            solicitacao.periodo_aquisitivo_inicio &&
+          periodo.aquisitivo_fim === solicitacao.periodo_aquisitivo_fim,
+      );
+
+      if (candidatos.length !== 1) {
+        candidatos = periodos.filter(
+          (periodo) =>
+            periodo.aquisitivo_fim < solicitacao.data_inicio &&
+            periodo.concessivo_inicio <= solicitacao.data_inicio &&
+            periodo.concessivo_fim >= solicitacao.data_inicio,
+        );
+      }
+
+      // Também permite férias concedidas fora do prazo quando existe apenas
+      // um único período adquirido antes do início do gozo.
+      if (candidatos.length !== 1) {
+        candidatos = periodos.filter(
+          (periodo) => periodo.aquisitivo_fim < solicitacao.data_inicio,
+        );
+      }
+
+      if (candidatos.length !== 1) {
+        return;
+      }
+
+      const periodo = candidatos[0];
+      const { error } = await supabaseAdmin
+        .from("ferias_solicitacoes")
+        .update({
+          periodo_aquisitivo_id: periodo.id,
+          periodo_aquisitivo_inicio: periodo.aquisitivo_inicio,
+          periodo_aquisitivo_fim: periodo.aquisitivo_fim,
+        })
+        .eq("id", solicitacao.id)
+        .is("periodo_aquisitivo_id", null);
+
+      if (error) {
+        console.error(
+          `Erro ao associar a solicitação ${solicitacao.id}:`,
+          error,
+        );
+      }
+    }),
+  );
+}
+
+async function localizarPeriodoAquisitivoParaSolicitacao(
+  input: LocalizarPeriodoInput,
+) {
+  if (input.periodoAquisitivoId) {
+    const { data, error } = await supabaseAdmin
+      .from("ferias_periodos_aquisitivos")
+      .select(
+        "id, colaborador_id, aquisitivo_inicio, aquisitivo_fim, concessivo_inicio, concessivo_fim",
+      )
+      .eq("id", input.periodoAquisitivoId)
+      .eq("colaborador_id", input.colaboradorId)
+      .single();
+
+    if (error || !data) {
+      throw new Error(
+        "O período aquisitivo selecionado não pertence ao colaborador.",
+      );
+    }
+
+    return data as PeriodoAquisitivoRegistro;
+  }
+
+  const { data: configuracao, error: configuracaoError } = await supabaseAdmin
+    .from("ferias_colaboradores_config")
+    .select("ativo_gestao_ferias, regime_contratacao")
+    .eq("colaborador_id", input.colaboradorId)
+    .maybeSingle();
+
+  if (configuracaoError && configuracaoError.code !== "42P01") {
+    console.error("Erro ao consultar configuração de férias:", configuracaoError);
+  }
+
+  const possuiGestaoClt = Boolean(
+    configuracao?.ativo_gestao_ferias &&
+      configuracao.regime_contratacao === "clt",
+  );
+
+  if (!possuiGestaoClt) {
+    return null;
+  }
+
+  const { error: gerarError } = await supabaseAdmin.rpc(
+    "ferias_gerar_periodos_colaborador",
+    { p_colaborador_id: input.colaboradorId },
+  );
+
+  if (gerarError) {
+    console.error("Erro ao gerar períodos do colaborador:", gerarError);
+  }
+
+  const { data: periodosData, error } = await supabaseAdmin
+    .from("ferias_periodos_aquisitivos")
+    .select(
+      "id, colaborador_id, aquisitivo_inicio, aquisitivo_fim, concessivo_inicio, concessivo_fim",
+    )
+    .eq("colaborador_id", input.colaboradorId)
+    .order("concessivo_fim", { ascending: true });
+
+  if (error) {
+    console.error("Erro ao localizar período aquisitivo:", error);
+    throw new Error("Erro ao localizar o período aquisitivo das férias.");
+  }
+
+  const periodos = (periodosData ?? []) as PeriodoAquisitivoRegistro[];
+  let candidatos: PeriodoAquisitivoRegistro[];
+
+  if (input.periodoAquisitivoInicio && input.periodoAquisitivoFim) {
+    candidatos = periodos.filter(
+      (periodo) =>
+        periodo.aquisitivo_inicio === input.periodoAquisitivoInicio &&
+        periodo.aquisitivo_fim === input.periodoAquisitivoFim,
+    );
+  } else {
+    candidatos = periodos.filter(
+      (periodo) =>
+        periodo.aquisitivo_fim < input.dataInicio &&
+        periodo.concessivo_inicio <= input.dataInicio &&
+        periodo.concessivo_fim >= input.dataInicio,
+    );
+
+    if (candidatos.length === 0) {
+      const adquiridosAntesDoGozo = periodos.filter(
+        (periodo) => periodo.aquisitivo_fim < input.dataInicio,
+      );
+
+      if (adquiridosAntesDoGozo.length === 1) {
+        candidatos = adquiridosAntesDoGozo;
+      }
+    }
+  }
+
+  if (candidatos.length === 1) {
+    return candidatos[0];
+  }
+
+  if (candidatos.length > 1) {
+    throw new Error(
+      "Há mais de um período aquisitivo disponível. Selecione o período que deverá fornecer o saldo.",
+    );
+  }
+
+  throw new Error(
+    "Não foi encontrado um período aquisitivo compatível. Confira a data de admissão e os períodos do colaborador.",
+  );
 }
 
 async function buscarPerfilCompleto(userId: string) {
@@ -448,7 +679,12 @@ async function garantirPeriodosConfigurados() {
           `Erro ao gerar períodos para ${configuracao.colaborador_id}:`,
           rpcError,
         );
+        return;
       }
+
+      await associarSolicitacoesLegadasColaborador(
+        configuracao.colaborador_id,
+      );
     }),
   );
 }
@@ -472,7 +708,20 @@ export async function getFeriasProgramacao() {
     throw new Error("Erro ao buscar a programação consolidada de férias.");
   }
 
-  return (data ?? []) as FeriasPeriodoResumo[];
+  return (data ?? []).map((item: any) => ({
+    ...item,
+    periodos_aprovados: Array.isArray(item.periodos_aprovados)
+      ? item.periodos_aprovados
+      : [],
+    periodos_pendentes: Array.isArray(item.periodos_pendentes)
+      ? item.periodos_pendentes
+      : [],
+    quantidade_periodos_aprovados: Number(
+      item.quantidade_periodos_aprovados ?? 0,
+    ),
+    dias_vendidos_pendentes: Number(item.dias_vendidos_pendentes ?? 0),
+    solicitacoes_sem_vinculo: Number(item.solicitacoes_sem_vinculo ?? 0),
+  })) as FeriasPeriodoResumo[];
 }
 
 export async function getFeriasAlertasVencimento() {
@@ -657,6 +906,8 @@ export async function salvarConfiguracaoFerias(input: FeriasConfiguracaoInput) {
         `Configuração salva, mas houve erro ao gerar períodos: ${rpcError.message}`,
       );
     }
+
+    await associarSolicitacoesLegadasColaborador(input.colaboradorId);
   }
 
   revalidarFerias();
@@ -915,18 +1166,46 @@ export async function atualizarStatusFerias(
     throw new Error("Solicitação não encontrada.");
   }
 
-  if (
-    status === "aprovada" &&
-    atual.tipo === "ferias" &&
-    atual.periodo_aquisitivo_id
-  ) {
-    await validarFracionamentoPeriodo({
-      periodoId: atual.periodo_aquisitivo_id,
+  let periodoAquisitivoId = atual.periodo_aquisitivo_id as string | null;
+
+  if (status === "aprovada" && atual.tipo === "ferias") {
+    const periodo = await localizarPeriodoAquisitivoParaSolicitacao({
+      colaboradorId: atual.colaborador_id,
       dataInicio: atual.data_inicio,
-      dataFim: atual.data_fim,
-      diasVendidos: Number(atual.dias_vendidos ?? 0),
-      solicitacaoIgnorarId: atual.id,
+      periodoAquisitivoId: periodoAquisitivoId ?? undefined,
+      periodoAquisitivoInicio: atual.periodo_aquisitivo_inicio ?? undefined,
+      periodoAquisitivoFim: atual.periodo_aquisitivo_fim ?? undefined,
     });
+
+    if (periodo) {
+      periodoAquisitivoId = periodo.id;
+
+      if (!atual.periodo_aquisitivo_id) {
+        const { error: vinculoError } = await supabaseAdmin
+          .from("ferias_solicitacoes")
+          .update({
+            periodo_aquisitivo_id: periodo.id,
+            periodo_aquisitivo_inicio: periodo.aquisitivo_inicio,
+            periodo_aquisitivo_fim: periodo.aquisitivo_fim,
+          })
+          .eq("id", atual.id);
+
+        if (vinculoError) {
+          console.error("Erro ao vincular período antes da aprovação:", vinculoError);
+          throw new Error(
+            "Não foi possível vincular a solicitação ao período aquisitivo.",
+          );
+        }
+      }
+
+      await validarFracionamentoPeriodo({
+        periodoId: periodo.id,
+        dataInicio: atual.data_inicio,
+        dataFim: atual.data_fim,
+        diasVendidos: Number(atual.dias_vendidos ?? 0),
+        solicitacaoIgnorarId: atual.id,
+      });
+    }
   }
 
   const payload: Record<string, unknown> = { status };
@@ -1004,19 +1283,31 @@ async function inserirSolicitacao(input: InserirSolicitacaoInput) {
   const diasVendidos = input.diasVendidos ?? 0;
   const requerAnaliseInicio = validarInicioFerias(input.dataInicio, input.tipo);
 
+  let periodoAquisitivoId = input.periodoAquisitivoId || null;
   let periodoAquisitivoInicio = input.periodoAquisitivoInicio || null;
   let periodoAquisitivoFim = input.periodoAquisitivoFim || null;
 
-  if (input.tipo === "ferias" && input.periodoAquisitivoId) {
-    const periodo = await validarFracionamentoPeriodo({
-      periodoId: input.periodoAquisitivoId,
+  if (input.tipo === "ferias") {
+    const periodo = await localizarPeriodoAquisitivoParaSolicitacao({
+      colaboradorId: input.colaboradorId,
       dataInicio: input.dataInicio,
-      dataFim: input.dataFim,
-      diasVendidos,
+      periodoAquisitivoId: input.periodoAquisitivoId,
+      periodoAquisitivoInicio: input.periodoAquisitivoInicio,
+      periodoAquisitivoFim: input.periodoAquisitivoFim,
     });
 
-    periodoAquisitivoInicio = periodo.aquisitivo_inicio;
-    periodoAquisitivoFim = periodo.aquisitivo_fim;
+    if (periodo) {
+      await validarFracionamentoPeriodo({
+        periodoId: periodo.id,
+        dataInicio: input.dataInicio,
+        dataFim: input.dataFim,
+        diasVendidos,
+      });
+
+      periodoAquisitivoId = periodo.id;
+      periodoAquisitivoInicio = periodo.aquisitivo_inicio;
+      periodoAquisitivoFim = periodo.aquisitivo_fim;
+    }
   }
 
   const { data: solicitacao, error } = await supabaseAdmin
@@ -1031,7 +1322,7 @@ async function inserirSolicitacao(input: InserirSolicitacaoInput) {
       dias_corridos: diasCorridos,
       tipo: input.tipo,
       status: "pendente",
-      periodo_aquisitivo_id: input.periodoAquisitivoId || null,
+      periodo_aquisitivo_id: periodoAquisitivoId,
       periodo_aquisitivo_inicio: periodoAquisitivoInicio,
       periodo_aquisitivo_fim: periodoAquisitivoFim,
       dias_vendidos: diasVendidos,

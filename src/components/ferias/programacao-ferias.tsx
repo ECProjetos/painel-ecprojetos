@@ -17,6 +17,7 @@ import {
   atualizarPeriodoAquisitivo,
   salvarConfiguracaoFerias,
   type FeriasAlerta,
+  type FeriasPeriodoGozo,
   type FeriasPeriodoResumo,
   type FeriasSituacao,
 } from "@/app/actions/ferias";
@@ -119,6 +120,26 @@ const situacaoClasses: Record<FeriasSituacao, string> = {
   urgente: "border-orange-200 bg-orange-50 text-orange-700",
   vencido: "border-rose-200 bg-rose-50 text-rose-700",
   concluido: "border-emerald-200 bg-emerald-50 text-emerald-700",
+};
+
+const gozoSituacaoLabels: Record<
+  FeriasPeriodoGozo["situacao_gozo"],
+  string
+> = {
+  usufruido: "Usufruído",
+  em_gozo: "Em gozo",
+  programado: "Programado",
+  pendente: "Pendente",
+};
+
+const gozoSituacaoClasses: Record<
+  FeriasPeriodoGozo["situacao_gozo"],
+  string
+> = {
+  usufruido: "border-zinc-200 bg-zinc-50 text-zinc-700",
+  em_gozo: "border-sky-200 bg-sky-50 text-sky-700",
+  programado: "border-indigo-200 bg-indigo-50 text-indigo-700",
+  pendente: "border-amber-200 bg-amber-50 text-amber-700",
 };
 
 const configInicial: ConfigForm = {
@@ -452,24 +473,28 @@ export default function ProgramacaoFerias({
         <CardHeader>
           <CardTitle>Programação consolidada de férias</CardTitle>
           <CardDescription>
-            Períodos aquisitivos, prazo para concessão, dias utilizados,
-            programados e saldo de cada colaborador CLT.
+            As datas e quantidades abaixo são calculadas automaticamente a
+            partir das solicitações de férias aprovadas e pendentes no sistema.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto rounded-md border">
-            <Table>
+            <Table className="min-w-[2100px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Colaborador</TableHead>
                   <TableHead>Admissão</TableHead>
                   <TableHead>Período aquisitivo</TableHead>
                   <TableHead>Prazo para concessão</TableHead>
-                  <TableHead>Usufruídos</TableHead>
-                  <TableHead>Programados</TableHead>
-                  <TableHead>Pendentes</TableHead>
+                  <TableHead className="text-center">Dias de direito</TableHead>
+                  <TableHead>Períodos aprovados para gozo</TableHead>
+                  <TableHead className="text-center">Dias usufruídos</TableHead>
+                  <TableHead className="text-center">Dias programados</TableHead>
+                  <TableHead className="text-center">Dias pendentes</TableHead>
                   <TableHead>Saldo</TableHead>
+                  <TableHead>Proximidade do vencimento</TableHead>
                   <TableHead>Situação</TableHead>
+                  <TableHead>Observações</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
@@ -477,7 +502,7 @@ export default function ProgramacaoFerias({
                 {programacaoFiltrada.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={10}
+                      colSpan={14}
                       className="h-24 text-center text-muted-foreground"
                     >
                       Nenhum período aquisitivo foi gerado. Configure ao menos
@@ -486,7 +511,7 @@ export default function ProgramacaoFerias({
                   </TableRow>
                 ) : (
                   programacaoFiltrada.map((periodo) => (
-                    <TableRow key={periodo.periodo_id}>
+                    <TableRow key={periodo.periodo_id} className="align-top">
                       <TableCell className="min-w-48">
                         <p className="font-medium">
                           {periodo.colaborador_nome}
@@ -506,16 +531,46 @@ export default function ProgramacaoFerias({
                         {formatarData(periodo.concessivo_inicio)} a{" "}
                         {formatarData(periodo.concessivo_fim)}
                       </TableCell>
-                      <TableCell>{periodo.dias_usufruidos}</TableCell>
-                      <TableCell>
-                        {periodo.dias_programados + periodo.dias_em_gozo}
+                      <TableCell className="text-center font-semibold">
+                        {periodo.dias_direito}
                       </TableCell>
-                      <TableCell>{periodo.dias_pendentes}</TableCell>
-                      <TableCell>
-                        <span className="font-semibold">
-                          {periodo.saldo_aprovado}
-                        </span>{" "}
-                        dias
+                      <TableCell className="min-w-[330px]">
+                        <PeriodosAprovadosCell
+                          periodos={periodo.periodos_aprovados ?? []}
+                        />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {periodo.dias_usufruidos}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <p className="font-medium">{periodo.dias_programados}</p>
+                        {periodo.dias_em_gozo > 0 ? (
+                          <p className="text-xs text-sky-700">
+                            {periodo.dias_em_gozo} em gozo
+                          </p>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <p>{periodo.dias_pendentes}</p>
+                        {(periodo.periodos_pendentes ?? []).length > 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            {(periodo.periodos_pendentes ?? []).length} solicitação(ões)
+                          </p>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="min-w-36">
+                        <p className="font-semibold">
+                          {periodo.saldo_aprovado} dias
+                        </p>
+                        {periodo.dias_pendentes > 0 ||
+                        periodo.dias_vendidos_pendentes > 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            Projetado: {periodo.saldo_apos_pendencias} dias
+                          </p>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="min-w-48">
+                        {formatarProximidade(periodo)}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -524,6 +579,9 @@ export default function ProgramacaoFerias({
                         >
                           {situacaoLabels[periodo.situacao]}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="min-w-64">
+                        <ObservacoesPeriodo periodo={periodo} />
                       </TableCell>
                       <TableCell className="text-right">
                         {podeEditar ? (
@@ -781,6 +839,97 @@ export default function ProgramacaoFerias({
       </Dialog>
     </div>
   );
+}
+
+function PeriodosAprovadosCell({
+  periodos,
+}: {
+  periodos: FeriasPeriodoGozo[];
+}) {
+  if (!periodos?.length) {
+    return <span className="text-sm text-muted-foreground">Nenhum</span>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {periodos.map((periodo) => (
+        <div key={periodo.id} className="rounded-md border px-2.5 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium">
+              {formatarData(periodo.data_inicio)} a{" "}
+              {formatarData(periodo.data_fim)}
+            </span>
+            <Badge variant="secondary">{periodo.dias_corridos} dias</Badge>
+            <Badge
+              variant="outline"
+              className={gozoSituacaoClasses[periodo.situacao_gozo]}
+            >
+              {gozoSituacaoLabels[periodo.situacao_gozo]}
+            </Badge>
+            {periodo.origem === "coletiva" ? (
+              <Badge variant="outline">Coletivas</Badge>
+            ) : null}
+          </div>
+          {periodo.observacao ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {periodo.observacao}
+            </p>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ObservacoesPeriodo({
+  periodo,
+}: {
+  periodo: FeriasPeriodoResumo;
+}) {
+  const possuiObservacao = Boolean(
+    periodo.observacao ||
+      periodo.motivo_ajuste ||
+      periodo.solicitacoes_sem_vinculo > 0,
+  );
+
+  if (!possuiObservacao) {
+    return <span className="text-sm text-muted-foreground">-</span>;
+  }
+
+  return (
+    <div className="space-y-1 text-sm">
+      {periodo.observacao ? <p>{periodo.observacao}</p> : null}
+      {periodo.motivo_ajuste ? (
+        <p className="text-xs text-muted-foreground">
+          Ajuste: {periodo.motivo_ajuste}
+        </p>
+      ) : null}
+      {periodo.solicitacoes_sem_vinculo > 0 ? (
+        <p className="flex items-start gap-1 text-xs font-medium text-amber-700">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {periodo.solicitacoes_sem_vinculo} solicitação(ões) de férias ainda
+          sem vínculo com um período aquisitivo.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function formatarProximidade(periodo: FeriasPeriodoResumo) {
+  if (periodo.situacao === "concluido") {
+    return "Concluído";
+  }
+
+  if (periodo.dias_para_vencer < 0) {
+    const dias = Math.abs(periodo.dias_para_vencer);
+    return `Vencido há ${dias} dia${dias === 1 ? "" : "s"}`;
+  }
+
+  if (periodo.dias_para_vencer === 0) {
+    return "Vence hoje";
+  }
+
+  return `Vence em ${periodo.dias_para_vencer} dias`;
 }
 
 function IndicadorCard({
