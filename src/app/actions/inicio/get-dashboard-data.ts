@@ -15,8 +15,8 @@ type VPontoRow = {
   user_id: string
   user_name: string
   entry_date: string
-  projeto: number
-  projeto_nome: string
+  projeto: number | null
+  projeto_nome: string | null
   worked_time: string
 }
 
@@ -56,9 +56,21 @@ export type DashboardColaboradorProjetoFiltrado = {
   data_ultima_atuacao: string | null
 }
 
+export type DashboardColaboradorDiaProjetoFiltrado = {
+  entry_date: string
+  user_id: string
+  user_name: string
+  projeto_id: number | null
+  projeto_codigo: string
+  projeto_nome: string
+  horas_feitas: number
+  total_horas_dia: number
+}
+
 export type DashboardDataResponse = {
   projetos: DashboardProjetoFiltrado[]
   colaboradores: DashboardColaboradorProjetoFiltrado[]
+  diario: DashboardColaboradorDiaProjetoFiltrado[]
 }
 
 function intervalToHours(value: string | null | undefined) {
@@ -147,7 +159,6 @@ async function fetchAllVPontoRows(
       .select(
         "user_id, user_name, entry_date, projeto, projeto_nome, worked_time",
       )
-      .not("projeto", "is", null)
       .range(from, from + pageSize - 1)
 
     if (startDate) {
@@ -200,7 +211,11 @@ export async function getDashboardDataFiltered(
   }
 
   const projetoIds = [
-    ...new Set(rows.map((row) => row.projeto).filter(Boolean)),
+    ...new Set(
+      rows
+        .map((row) => row.projeto)
+        .filter((projeto): projeto is number => projeto !== null),
+    ),
   ]
 
   let projectsQuery = supabase
@@ -223,13 +238,42 @@ export async function getDashboardDataFiltered(
 
   const projetoAgg = new Map<number, DashboardProjetoFiltrado>()
   const colaboradorAgg = new Map<string, DashboardColaboradorProjetoFiltrado>()
+  const diarioProjetoAgg = new Map<
+    string,
+    Omit<DashboardColaboradorDiaProjetoFiltrado, "total_horas_dia">
+  >()
+  const totalDiaAgg = new Map<string, number>()
 
   for (const row of rows) {
-    const project = projectMap.get(row.projeto)
-
-    if (!project) continue
-
     const horas = intervalToHours(row.worked_time)
+    const project =
+      row.projeto !== null ? projectMap.get(row.projeto) : undefined
+    const projetoCodigo = project?.code ?? "SEM-PROJETO"
+    const projetoNome =
+      project?.name ?? row.projeto_nome?.trim() ?? "Sem projeto informado"
+    const diarioProjetoKey = `${row.entry_date}|${row.user_id}|${
+      row.projeto ?? "sem-projeto"
+    }`
+    const diarioProjetoAtual = diarioProjetoAgg.get(diarioProjetoKey)
+
+    if (!diarioProjetoAtual) {
+      diarioProjetoAgg.set(diarioProjetoKey, {
+        entry_date: row.entry_date,
+        user_id: row.user_id,
+        user_name: row.user_name,
+        projeto_id: row.projeto,
+        projeto_codigo: projetoCodigo,
+        projeto_nome: projetoNome,
+        horas_feitas: horas,
+      })
+    } else {
+      diarioProjetoAtual.horas_feitas += horas
+    }
+
+    const totalDiaKey = `${row.entry_date}|${row.user_id}`
+    totalDiaAgg.set(totalDiaKey, (totalDiaAgg.get(totalDiaKey) ?? 0) + horas)
+
+    if (row.projeto === null || !project) continue
 
     const projetoAtual = projetoAgg.get(row.projeto)
 
@@ -340,8 +384,27 @@ export async function getDashboardDataFiltered(
 
   projetos.sort((a, b) => b.horas_feitas - a.horas_feitas)
 
+  const diario = [...diarioProjetoAgg.values()]
+    .map((item) => ({
+      ...item,
+      horas_feitas: round2(item.horas_feitas),
+      total_horas_dia: round2(
+        totalDiaAgg.get(`${item.entry_date}|${item.user_id}`) ?? 0,
+      ),
+    }))
+    .sort((a, b) => {
+      const dateComparison = a.entry_date.localeCompare(b.entry_date)
+      if (dateComparison !== 0) return dateComparison
+
+      const userComparison = a.user_name.localeCompare(b.user_name, "pt-BR")
+      if (userComparison !== 0) return userComparison
+
+      return a.projeto_codigo.localeCompare(b.projeto_codigo, "pt-BR")
+    })
+
   return {
     projetos,
     colaboradores,
+    diario,
   }
 }

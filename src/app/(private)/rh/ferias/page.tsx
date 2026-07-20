@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation"
-import { getFeriasDashboard, isRhFeriasAdmin } from "@/app/actions/ferias"
-import GestaoFerias from "@/components/ferias/gestao-ferias"
+import { redirect } from "next/navigation";
+import { getFeriasDashboard, isRhFeriasAdmin } from "@/app/actions/ferias";
+import GestaoFerias from "@/components/ferias/gestao-ferias";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,57 +8,59 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+} from "@/components/ui/breadcrumb";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
 type PageProps = {
   searchParams?: Promise<{
-    ano?: string
-    mes?: string
-    status?: string
-    colaborador?: string
-    equipe?: string
-  }>
-}
+    ano?: string;
+    mes?: string;
+    status?: string;
+    colaborador?: string;
+    equipe?: string;
+  }>;
+};
 
-const statusValidos = ["todos", "pendente", "aprovada", "reprovada", "cancelada"]
+const statusValidos = [
+  "todos",
+  "pendente",
+  "aprovada",
+  "reprovada",
+  "cancelada",
+];
 
 export default async function FeriasPage({ searchParams }: PageProps) {
-  const permitido = await isRhFeriasAdmin()
+  const permitido = await isRhFeriasAdmin();
 
   if (!permitido) {
-    redirect("/controle-horarios/inicio")
+    redirect("/controle-horarios/inicio");
   }
 
-  const params = searchParams ? await searchParams : {}
+  const params = searchParams ? await searchParams : {};
 
-  const hoje = new Date()
-  const anoAtual = hoje.getFullYear()
-  const mesAtual = hoje.getMonth() + 1
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const mesAtual = hoje.getMonth() + 1;
 
-  const ano = params.ano ? Number(params.ano) : anoAtual
-  const mes = params.mes ? Number(params.mes) : mesAtual
+  const ano = params.ano ? Number(params.ano) : anoAtual;
+  const mes = params.mes ? Number(params.mes) : mesAtual;
 
   const status = statusValidos.includes(params.status ?? "")
     ? params.status
-    : "todos"
+    : "todos";
 
   const filtros = {
     ano: Number.isNaN(ano) ? anoAtual : ano,
     mes: Number.isNaN(mes) ? mesAtual : mes,
     status: status as
-      | "todos"
-      | "pendente"
-      | "aprovada"
-      | "reprovada"
-      | "cancelada",
+      "todos" | "pendente" | "aprovada" | "reprovada" | "cancelada",
     colaborador: params.colaborador ?? "",
     equipe: params.equipe ?? "",
-  }
+  };
 
-  const dashboard = await getFeriasDashboard(filtros)
+  const dashboard = await getFeriasDashboard(filtros);
 
   return (
     <div className="flex flex-col gap-4 p-4 pt-0">
@@ -84,8 +86,11 @@ export default async function FeriasPage({ searchParams }: PageProps) {
         pendencias={dashboard.pendencias}
         resumo={dashboard.resumo}
         conflitos={dashboard.conflitos}
+        programacao={dashboard.programacao}
+        alertasVencimento={dashboard.alertasVencimento}
+        podeEditarProgramacao={dashboard.podeEditarProgramacao}
         filtrosIniciais={filtros}
       />
     </div>
-  )
+  );
 }

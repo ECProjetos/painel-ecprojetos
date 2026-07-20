@@ -42,7 +42,10 @@ import {
   getColaboradoresDashboardOptions,
   getProjetosDashboardOptions,
 } from "@/app/actions/inicio/get-dashboard-filters"
-import { getDashboardDataFiltered } from "@/app/actions/inicio/get-dashboard-data"
+import {
+  getDashboardDataFiltered,
+  type DashboardColaboradorDiaProjetoFiltrado,
+} from "@/app/actions/inicio/get-dashboard-data"
 import type {
   DashboardHorasColaboradorProjeto,
   DashboardHorasProjeto,
@@ -134,6 +137,23 @@ function toSafeNumber(value: unknown) {
 
   const parsed = Number(value ?? 0)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function formatDatePtBr(value: string) {
+  const [year, month, day] = value.split("-")
+
+  if (!year || !month || !day) return value
+
+  return `${day}/${month}/${year}`
+}
+
+function formatWeekdayPtBr(value: string) {
+  const date = new Date(`${value}T12:00:00`)
+
+  if (Number.isNaN(date.getTime())) return ""
+
+  const weekday = date.toLocaleDateString("pt-BR", { weekday: "long" })
+  return weekday.charAt(0).toUpperCase() + weekday.slice(1)
 }
 
 function formatDecimalCsv(value: number) {
@@ -388,6 +408,9 @@ export default function RelatorioRh() {
   const [colaboradores, setColaboradores] = useState<
     DashboardHorasColaboradorProjeto[]
   >([])
+  const [diario, setDiario] = useState<
+    DashboardColaboradorDiaProjetoFiltrado[]
+  >([])
   const [projetoOptions, setProjetoOptions] = useState<ProjetoOption[]>([])
   const [colaboradorOptions, setColaboradorOptions] = useState<
     ColaboradorOption[]
@@ -453,6 +476,7 @@ export default function RelatorioRh() {
         setColaboradores(
           dashboardData.colaboradores as DashboardHorasColaboradorProjeto[],
         )
+        setDiario(dashboardData.diario ?? [])
 
         if (dashboardData.projetos.length > 0) {
           setSelectedProjectId((current) => {
@@ -878,6 +902,69 @@ export default function RelatorioRh() {
         selectedProjectId !== null
           ? formatDecimalCsv(item.percentual_participacao_projeto)
           : "",
+      ])
+    })
+
+    const resumoDiario = new Map<
+      string,
+      DashboardColaboradorDiaProjetoFiltrado
+    >()
+
+    diario.forEach((item) => {
+      const key = `${item.entry_date}|${item.user_id}`
+
+      if (!resumoDiario.has(key)) {
+        resumoDiario.set(key, item)
+      }
+    })
+
+    rows.push([])
+    rows.push(["Resumo diário por colaborador"])
+    rows.push([
+      "Data",
+      "Dia da semana",
+      "Colaborador",
+      "Total de horas no dia conforme filtros",
+      "Total de horas no dia conforme filtros numérico",
+    ])
+
+    const resumoDiarioOrdenado = [...resumoDiario.values()]
+
+    resumoDiarioOrdenado.forEach((item) => {
+      rows.push([
+        formatDatePtBr(item.entry_date),
+        formatWeekdayPtBr(item.entry_date),
+        item.user_name,
+        formatHours(item.total_horas_dia),
+        formatDecimalCsv(item.total_horas_dia),
+      ])
+    })
+
+    rows.push([])
+    rows.push(["Detalhamento diário por projeto"])
+    rows.push([
+      "Data",
+      "Dia da semana",
+      "Colaborador",
+      "Código do projeto",
+      "Nome do projeto",
+      "Horas no projeto",
+      "Horas no projeto numérico",
+      "Total do colaborador no dia conforme filtros",
+      "Total do colaborador no dia conforme filtros numérico",
+    ])
+
+    diario.forEach((item) => {
+      rows.push([
+        formatDatePtBr(item.entry_date),
+        formatWeekdayPtBr(item.entry_date),
+        item.user_name,
+        item.projeto_codigo,
+        item.projeto_nome,
+        formatHours(item.horas_feitas),
+        formatDecimalCsv(item.horas_feitas),
+        formatHours(item.total_horas_dia),
+        formatDecimalCsv(item.total_horas_dia),
       ])
     })
 

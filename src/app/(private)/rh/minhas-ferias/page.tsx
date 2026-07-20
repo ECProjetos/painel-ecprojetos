@@ -1,5 +1,5 @@
-import { getMinhasFeriasDashboard } from "@/app/actions/ferias"
-import MinhasFerias from "@/components/ferias/minhas-ferias"
+import { getMinhasFeriasDashboard } from "@/app/actions/ferias";
+import MinhasFerias from "@/components/ferias/minhas-ferias";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -7,13 +7,13 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+} from "@/components/ui/breadcrumb";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
 export default async function MinhasFeriasPage() {
-  const dashboard = await getMinhasFeriasDashboard()
+  const dashboard = await getMinhasFeriasDashboard();
 
   return (
     <div className="flex flex-col gap-4 p-4 pt-0">
@@ -37,7 +37,8 @@ export default async function MinhasFeriasPage() {
         colaborador={dashboard.colaborador}
         solicitacoes={dashboard.solicitacoes}
         resumo={dashboard.resumo}
+        periodosDisponiveis={dashboard.periodosDisponiveis}
       />
     </div>
-  )
+  );
 }
