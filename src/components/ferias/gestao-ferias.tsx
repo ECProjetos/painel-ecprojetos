@@ -1,8 +1,8 @@
-"use client";
+"use client"
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { useEffect, useMemo, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   AlertTriangle,
   Ban,
@@ -17,7 +17,7 @@ import {
   Trash2,
   Users,
   type LucideIcon,
-} from "lucide-react";
+} from "lucide-react"
 
 import {
   atualizarStatusFerias,
@@ -26,32 +26,32 @@ import {
   type FeriasPeriodoResumo,
   type FeriasStatus,
   type FeriasTipo,
-} from "@/app/actions/ferias";
+} from "@/app/actions/ferias"
 
-import ProgramacaoFerias from "@/components/ferias/programacao-ferias";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import ProgramacaoFerias from "@/components/ferias/programacao-ferias"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -59,80 +59,85 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+} from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
 
 type ColaboradorFerias = {
-  id: string;
-  nome: string;
-  email: string | null;
-  status: string;
-  cargo: string | null;
-  equipe: string | null;
-  data_admissao: string | null;
+  id: string
+  nome: string
+  email: string | null
+  status: string
+  cargo: string | null
+  equipe: string | null
+  data_admissao: string | null
   configuracao_ferias: {
-    id: string;
-    regime_contratacao: "clt" | "estagio" | "pj" | "outro";
-    ativo_gestao_ferias: boolean;
-    data_admissao_referencia: string | null;
-    dias_direito_padrao: number;
-    observacao: string | null;
-  } | null;
-};
+    id: string
+    regime_contratacao: "clt" | "estagio" | "pj" | "outro"
+    ativo_gestao_ferias: boolean
+    data_admissao_referencia: string | null
+    dias_direito_padrao: number
+    observacao: string | null
+  } | null
+}
 
 type FeriasSolicitacao = {
-  id: string;
-  colaborador_id: string;
-  colaborador_nome: string;
-  equipe: string | null;
-  cargo: string | null;
-  data_inicio: string;
-  data_fim: string;
-  dias_corridos: number;
-  tipo: FeriasTipo;
-  status: FeriasStatus;
-  observacao: string | null;
-  motivo_reprovacao: string | null;
-};
+  id: string
+  colaborador_id: string
+  colaborador_nome: string
+  equipe: string | null
+  cargo: string | null
+  data_inicio: string
+  data_fim: string
+  dias_corridos: number
+  tipo: FeriasTipo
+  status: FeriasStatus
+  observacao: string | null
+  motivo_reprovacao: string | null
+}
+
+type CorColaborador = {
+  solid: string
+  soft: string
+}
 
 type FeriasResumo = {
-  total: number;
-  pendentes: number;
-  aprovadas: number;
-  reprovadas: number;
-  canceladas: number;
-  emFeriasHoje: number;
-  conflitos: number;
-};
+  total: number
+  pendentes: number
+  aprovadas: number
+  reprovadas: number
+  canceladas: number
+  emFeriasHoje: number
+  conflitos: number
+}
 
 type FeriasConflito = {
-  equipe: string;
-  colaboradorA: string;
-  colaboradorB: string;
-  inicioA: string;
-  fimA: string;
-  inicioB: string;
-  fimB: string;
-};
+  equipe: string
+  colaboradorA: string
+  colaboradorB: string
+  inicioA: string
+  fimA: string
+  inicioB: string
+  fimB: string
+}
 
 type GestaoFeriasProps = {
-  colaboradores: ColaboradorFerias[];
-  solicitacoes: FeriasSolicitacao[];
-  pendencias: FeriasSolicitacao[];
-  resumo: FeriasResumo;
-  conflitos: FeriasConflito[];
-  programacao: FeriasPeriodoResumo[];
-  alertasVencimento: FeriasAlerta[];
-  podeEditarProgramacao: boolean;
+  colaboradores: ColaboradorFerias[]
+  solicitacoes: FeriasSolicitacao[]
+  pendencias: FeriasSolicitacao[]
+  resumo: FeriasResumo
+  conflitos: FeriasConflito[]
+  programacao: FeriasPeriodoResumo[]
+  alertasVencimento: FeriasAlerta[]
+  podeEditarProgramacao: boolean
   filtrosIniciais: {
-    ano: number;
-    mes: number;
-    status: FeriasStatus | "todos";
-    colaborador: string;
-    equipe: string;
-  };
-};
+    ano: number
+    mes: number
+    status: FeriasStatus | "todos"
+    colaborador: string
+    equipe: string
+  }
+}
 
 const meses = [
   { value: "1", label: "Janeiro" },
@@ -147,14 +152,14 @@ const meses = [
   { value: "10", label: "Outubro" },
   { value: "11", label: "Novembro" },
   { value: "12", label: "Dezembro" },
-];
+]
 
 const statusLabels: Record<FeriasStatus, string> = {
   pendente: "Pendente",
   aprovada: "Aprovada",
   reprovada: "Reprovada",
   cancelada: "Cancelada",
-};
+}
 
 const tipoLabels: Record<FeriasTipo, string> = {
   ferias: "Férias",
@@ -162,29 +167,16 @@ const tipoLabels: Record<FeriasTipo, string> = {
   atestado: "Atestado",
   day_off: "Day off",
   licenca: "Licença",
-};
+}
 
 const statusClasses: Record<FeriasStatus, string> = {
   pendente: "border-amber-200 bg-amber-50 text-amber-700",
   aprovada: "border-emerald-200 bg-emerald-50 text-emerald-700",
   reprovada: "border-rose-200 bg-rose-50 text-rose-700",
   cancelada: "border-slate-200 bg-slate-50 text-slate-600",
-};
+}
 
-const pastelBarColors = [
-  "#22C55E",
-  "#06B6D4",
-  "#A855F7",
-  "#F59E0B",
-  "#EC4899",
-  "#3B82F6",
-  "#14B8A6",
-  "#F97316",
-  "#8B5CF6",
-  "#10B981",
-];
-
-const WEEK_DAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
+const WEEK_DAYS = ["D", "S", "T", "Q", "Q", "S", "S"]
 
 export default function GestaoFerias({
   colaboradores,
@@ -197,34 +189,34 @@ export default function GestaoFerias({
   podeEditarProgramacao,
   filtrosIniciais,
 }: GestaoFeriasProps) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
 
-  const [ano, setAno] = useState(String(filtrosIniciais.ano));
-  const [mes, setMes] = useState(String(filtrosIniciais.mes));
+  const [ano, setAno] = useState(String(filtrosIniciais.ano))
+  const [mes, setMes] = useState(String(filtrosIniciais.mes))
   const [statusFiltro, setStatusFiltro] = useState<FeriasStatus | "todos">(
     filtrosIniciais.status,
-  );
+  )
   const [equipeFiltro, setEquipeFiltro] = useState(
     filtrosIniciais.equipe || "todos",
-  );
+  )
   const [colaboradorBusca, setColaboradorBusca] = useState(
     filtrosIniciais.colaborador || "",
-  );
+  )
 
   useEffect(() => {
-    setAno(String(filtrosIniciais.ano));
-    setMes(String(filtrosIniciais.mes));
-    setStatusFiltro(filtrosIniciais.status);
-    setEquipeFiltro(filtrosIniciais.equipe || "todos");
-    setColaboradorBusca(filtrosIniciais.colaborador || "");
+    setAno(String(filtrosIniciais.ano))
+    setMes(String(filtrosIniciais.mes))
+    setStatusFiltro(filtrosIniciais.status)
+    setEquipeFiltro(filtrosIniciais.equipe || "todos")
+    setColaboradorBusca(filtrosIniciais.colaborador || "")
   }, [
     filtrosIniciais.ano,
     filtrosIniciais.mes,
     filtrosIniciais.status,
     filtrosIniciais.equipe,
     filtrosIniciais.colaborador,
-  ]);
+  ])
 
   const equipes = useMemo(() => {
     return Array.from(
@@ -233,28 +225,28 @@ export default function GestaoFerias({
           .map((colaborador) => colaborador.equipe)
           .filter((equipe): equipe is string => Boolean(equipe)),
       ),
-    ).sort((a, b) => a.localeCompare(b));
-  }, [colaboradores]);
+    ).sort((a, b) => a.localeCompare(b))
+  }, [colaboradores])
 
   const anosDisponiveis = useMemo(() => {
-    const anoBase = filtrosIniciais.ano;
+    const anoBase = filtrosIniciais.ano
 
-    return [anoBase - 1, anoBase, anoBase + 1, anoBase + 2];
-  }, [filtrosIniciais.ano]);
+    return [anoBase - 1, anoBase, anoBase + 1, anoBase + 2]
+  }, [filtrosIniciais.ano])
 
   const diasDoMes = useMemo(() => {
-    const total = new Date(Number(ano), Number(mes), 0).getDate();
+    const total = new Date(Number(ano), Number(mes), 0).getDate()
 
-    return Array.from({ length: total }, (_, index) => index + 1);
-  }, [ano, mes]);
+    return Array.from({ length: total }, (_, index) => index + 1)
+  }, [ano, mes])
 
   const inicioMes = useMemo(() => {
-    return new Date(Number(ano), Number(mes) - 1, 1);
-  }, [ano, mes]);
+    return new Date(Number(ano), Number(mes) - 1, 1)
+  }, [ano, mes])
 
   const fimMes = useMemo(() => {
-    return new Date(Number(ano), Number(mes), 0);
-  }, [ano, mes]);
+    return new Date(Number(ano), Number(mes), 0)
+  }, [ano, mes])
 
   const solicitacoesDoMes = useMemo(() => {
     return solicitacoes
@@ -262,105 +254,128 @@ export default function GestaoFerias({
         (item) => item.status !== "reprovada" && item.status !== "cancelada",
       )
       .filter((item) => {
-        const inicio = parseDate(item.data_inicio);
-        const fim = parseDate(item.data_fim);
+        const inicio = parseDate(item.data_inicio)
+        const fim = parseDate(item.data_fim)
 
-        return inicio <= fimMes && fim >= inicioMes;
+        return inicio <= fimMes && fim >= inicioMes
       })
       .sort((a, b) => {
         const diferenca =
           parseDate(a.data_inicio).getTime() -
-          parseDate(b.data_inicio).getTime();
+          parseDate(b.data_inicio).getTime()
 
         if (diferenca !== 0) {
-          return diferenca;
+          return diferenca
         }
 
-        return a.colaborador_nome.localeCompare(b.colaborador_nome);
-      });
-  }, [solicitacoes, inicioMes, fimMes]);
+        return a.colaborador_nome.localeCompare(b.colaborador_nome)
+      })
+  }, [solicitacoes, inicioMes, fimMes])
+
+  const coresPorColaborador = useMemo(() => {
+    const nomesPorId = new Map<string, string>()
+
+    colaboradores.forEach((colaborador) => {
+      nomesPorId.set(colaborador.id, colaborador.nome)
+    })
+
+    solicitacoes.forEach((solicitacao) => {
+      nomesPorId.set(solicitacao.colaborador_id, solicitacao.colaborador_nome)
+    })
+
+    const colaboradoresOrdenados = Array.from(nomesPorId.entries()).sort(
+      ([, nomeA], [, nomeB]) => nomeA.localeCompare(nomeB, "pt-BR"),
+    )
+
+    return new Map(
+      colaboradoresOrdenados.map(([colaboradorId], index) => [
+        colaboradorId,
+        gerarCorColaborador(index),
+      ]),
+    )
+  }, [colaboradores, solicitacoes])
 
   function aplicarFiltros() {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams()
 
-    params.set("ano", ano);
-    params.set("mes", mes);
+    params.set("ano", ano)
+    params.set("mes", mes)
 
     if (statusFiltro !== "todos") {
-      params.set("status", statusFiltro);
+      params.set("status", statusFiltro)
     }
 
     if (equipeFiltro !== "todos") {
-      params.set("equipe", equipeFiltro);
+      params.set("equipe", equipeFiltro)
     }
 
     if (colaboradorBusca.trim()) {
-      params.set("colaborador", colaboradorBusca.trim());
+      params.set("colaborador", colaboradorBusca.trim())
     }
 
-    router.push(`/rh/ferias?${params.toString()}`);
+    router.push(`/rh/ferias?${params.toString()}`)
   }
 
   function limparFiltros() {
-    router.push("/rh/ferias");
+    router.push("/rh/ferias")
   }
 
   function alterarStatus(solicitacaoId: string, status: FeriasStatus) {
-    let observacao: string | undefined;
+    let observacao: string | undefined
 
     if (status === "reprovada" || status === "cancelada") {
-      const texto = window.prompt("Informe uma observação/motivo:");
+      const texto = window.prompt("Informe uma observação/motivo:")
 
       if (texto === null) {
-        return;
+        return
       }
 
-      observacao = texto;
+      observacao = texto
     }
 
     startTransition(() => {
       void (async () => {
         try {
-          await atualizarStatusFerias(solicitacaoId, status, observacao);
+          await atualizarStatusFerias(solicitacaoId, status, observacao)
 
-          toast.success(`Solicitação ${statusLabels[status].toLowerCase()}.`);
-          router.refresh();
+          toast.success(`Solicitação ${statusLabels[status].toLowerCase()}.`)
+          router.refresh()
         } catch (error) {
           toast.error(
             error instanceof Error
               ? error.message
               : "Erro ao atualizar solicitação.",
-          );
+          )
         }
-      })();
-    });
+      })()
+    })
   }
 
   function excluirSolicitacao(solicitacaoId: string) {
     const confirmado = window.confirm(
       "Tem certeza que deseja excluir esta solicitação?",
-    );
+    )
 
     if (!confirmado) {
-      return;
+      return
     }
 
     startTransition(() => {
       void (async () => {
         try {
-          await excluirFeriasSolicitacao(solicitacaoId);
+          await excluirFeriasSolicitacao(solicitacaoId)
 
-          toast.success("Solicitação excluída.");
-          router.refresh();
+          toast.success("Solicitação excluída.")
+          router.refresh()
         } catch (error) {
           toast.error(
             error instanceof Error
               ? error.message
               : "Erro ao excluir solicitação.",
-          );
+          )
         }
-      })();
-    });
+      })()
+    })
   }
 
   return (
@@ -699,9 +714,19 @@ export default function GestaoFerias({
                     Nenhum colaborador com férias ou ausência neste mês.
                   </div>
                 ) : (
-                  solicitacoesDoMes.map((item) => (
-                    <ResumoFeriasMesCard key={item.id} item={item} />
-                  ))
+                  solicitacoesDoMes.map((item) => {
+                    const cor =
+                      coresPorColaborador.get(item.colaborador_id) ??
+                      gerarCorColaborador(0)
+
+                    return (
+                      <ResumoFeriasMesCard
+                        key={item.id}
+                        item={item}
+                        cor={cor}
+                      />
+                    )
+                  })
                 )}
               </CardContent>
             </Card>
@@ -742,12 +767,11 @@ export default function GestaoFerias({
                               Number(ano),
                               Number(mes) - 1,
                               dia,
-                            );
+                            )
 
-                            const dayOfWeek = dataDia.getDay();
-                            const isWeekend =
-                              dayOfWeek === 0 || dayOfWeek === 6;
-                            const isToday = isSameDay(dataDia, new Date());
+                            const dayOfWeek = dataDia.getDay()
+                            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+                            const isToday = isSameDay(dataDia, new Date())
 
                             return (
                               <div
@@ -766,30 +790,36 @@ export default function GestaoFerias({
                                   {dia}
                                 </div>
                               </div>
-                            );
+                            )
                           })}
                         </div>
 
                         {solicitacoesDoMes.map((item) => {
-                          const inicioOriginal = parseDate(item.data_inicio);
-                          const fimOriginal = parseDate(item.data_fim);
+                          const corColaborador =
+                            coresPorColaborador.get(item.colaborador_id) ??
+                            gerarCorColaborador(0)
+
+                          const inicioOriginal = parseDate(item.data_inicio)
+                          const fimOriginal = parseDate(item.data_fim)
+
+                          // restante do código...
 
                           const inicioVisivel =
                             inicioOriginal < inicioMes
                               ? inicioMes
-                              : inicioOriginal;
+                              : inicioOriginal
 
                           const fimVisivel =
-                            fimOriginal > fimMes ? fimMes : fimOriginal;
+                            fimOriginal > fimMes ? fimMes : fimOriginal
 
-                          const startDay = inicioVisivel.getDate();
-                          const endDay = fimVisivel.getDate();
+                          const startDay = inicioVisivel.getDate()
+                          const endDay = fimVisivel.getDate()
 
                           const leftPercent =
-                            ((startDay - 1) / diasDoMes.length) * 100;
+                            ((startDay - 1) / diasDoMes.length) * 100
 
                           const widthPercent =
-                            ((endDay - startDay + 1) / diasDoMes.length) * 100;
+                            ((endDay - startDay + 1) / diasDoMes.length) * 100
 
                           return (
                             <div
@@ -835,15 +865,15 @@ export default function GestaoFerias({
                                       Number(ano),
                                       Number(mes) - 1,
                                       dia,
-                                    );
+                                    )
 
-                                    const dayOfWeek = dataDia.getDay();
+                                    const dayOfWeek = dataDia.getDay()
                                     const isWeekend =
-                                      dayOfWeek === 0 || dayOfWeek === 6;
+                                      dayOfWeek === 0 || dayOfWeek === 6
                                     const isToday = isSameDay(
                                       dataDia,
                                       new Date(),
-                                    );
+                                    )
 
                                     return (
                                       <div
@@ -854,7 +884,7 @@ export default function GestaoFerias({
                                           isToday && "bg-blue-50/70",
                                         )}
                                       />
-                                    );
+                                    )
                                   })}
                                 </div>
 
@@ -863,7 +893,10 @@ export default function GestaoFerias({
                                   style={{
                                     left: `calc(${leftPercent}% + 4px)`,
                                     width: `max(4px, calc(${widthPercent}% - 8px))`,
-                                    ...getCalendarBarStyle(item),
+                                    ...getCalendarBarStyle(
+                                      item,
+                                      corColaborador,
+                                    ),
                                   }}
                                   title={`${item.colaborador_nome} • ${formatarData(
                                     item.data_inicio,
@@ -875,21 +908,32 @@ export default function GestaoFerias({
                                 </div>
                               </div>
                             </div>
-                          );
+                          )
                         })}
                       </div>
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                      <LegendaItem color="#22C55E" label="Aprovada" />
+                      {Array.from(
+                        new Map(
+                          solicitacoesDoMes.map((item) => [
+                            item.colaborador_id,
+                            item,
+                          ]),
+                        ).values(),
+                      ).map((item) => {
+                        const cor =
+                          coresPorColaborador.get(item.colaborador_id) ??
+                          gerarCorColaborador(0)
 
-                      <LegendaItem color="#F59E0B" label="Pendente" />
-
-                      <LegendaItem
-                        color="#EF4444"
-                        label="Reprovada/Cancelada"
-                      />
-
+                        return (
+                          <LegendaItem
+                            key={item.colaborador_id}
+                            color={cor.solid}
+                            label={item.colaborador_nome}
+                          />
+                        )
+                      })}
                       <LegendaItem
                         color="#EFF6FF"
                         borderColor="#CBD5E1"
@@ -1095,7 +1139,7 @@ export default function GestaoFerias({
         </TabsContent>
       </Tabs>
     </div>
-  );
+  )
 }
 
 function ResumoCard({
@@ -1105,11 +1149,11 @@ function ResumoCard({
   icon: Icon,
   className,
 }: {
-  title: string;
-  value: number;
-  description: string;
-  icon: LucideIcon;
-  className?: string;
+  title: string
+  value: number
+  description: string
+  icon: LucideIcon
+  className?: string
 }) {
   return (
     <Card className={className}>
@@ -1125,23 +1169,29 @@ function ResumoCard({
         <p className="text-xs text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
-  );
+  )
 }
 
-function ResumoFeriasMesCard({ item }: { item: FeriasSolicitacao }) {
+function ResumoFeriasMesCard({
+  item,
+  cor,
+}: {
+  item: FeriasSolicitacao
+  cor: CorColaborador
+}) {
   return (
     <div className="rounded-xl border bg-white p-3 shadow-sm">
       <div
         className="mb-3 h-2.5 w-20 rounded-full"
         style={{
-          backgroundColor: getPastelBarColor(item.colaborador_id),
+          backgroundColor: cor.solid,
         }}
       />
 
       <div className="flex items-start gap-3">
         <div
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-          style={getAvatarStyle(item.colaborador_id)}
+          style={getAvatarStyle(cor)}
         >
           {getInitials(item.colaborador_nome)}
         </div>
@@ -1169,7 +1219,7 @@ function ResumoFeriasMesCard({ item }: { item: FeriasSolicitacao }) {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 function LegendaItem({
@@ -1177,9 +1227,9 @@ function LegendaItem({
   borderColor,
   label,
 }: {
-  color: string;
-  borderColor?: string;
-  label: string;
+  color: string
+  borderColor?: string
+  label: string
 }) {
   return (
     <div className="flex items-center gap-2">
@@ -1193,13 +1243,13 @@ function LegendaItem({
 
       <span>{label}</span>
     </div>
-  );
+  )
 }
 
 function parseDate(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
+  const [year, month, day] = value.split("-").map(Number)
 
-  return new Date(year, month - 1, day);
+  return new Date(year, month - 1, day)
 }
 
 function isSameDay(a: Date, b: Date) {
@@ -1207,73 +1257,61 @@ function isSameDay(a: Date, b: Date) {
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
-  );
+  )
 }
 
 function getInitials(nome: string) {
-  const partes = nome.trim().split(" ").filter(Boolean);
-  const primeira = partes[0]?.[0] ?? "";
-  const segunda = partes[1]?.[0] ?? "";
+  const partes = nome.trim().split(" ").filter(Boolean)
+  const primeira = partes[0]?.[0] ?? ""
+  const segunda = partes[1]?.[0] ?? ""
 
-  return `${primeira}${segunda}`.toUpperCase();
+  return `${primeira}${segunda}`.toUpperCase()
 }
 
 function formatarData(data: string) {
   if (!data) {
-    return "-";
+    return "-"
   }
 
-  const [ano, mes, dia] = data.split("-");
+  const [ano, mes, dia] = data.split("-")
 
-  return `${dia}/${mes}/${ano}`;
+  return `${dia}/${mes}/${ano}`
 }
 
-function getPastelBarColor(chave: string) {
-  let hash = 0;
 
-  for (let index = 0; index < chave.length; index++) {
-    hash = chave.charCodeAt(index) + ((hash << 5) - hash);
+function gerarCorColaborador(index: number): CorColaborador {
+  const hue = Math.round((190 + index * 137.508) % 360)
+
+  return {
+    solid: `hsl(${hue} 68% 50%)`,
+    soft: `hsl(${hue} 68% 50% / 0.16)`,
   }
-
-  const colorIndex = Math.abs(hash) % pastelBarColors.length;
-
-  return pastelBarColors[colorIndex];
 }
 
-function getCalendarBarStyle(item: FeriasSolicitacao) {
+function getCalendarBarStyle(
+  item: FeriasSolicitacao,
+  cor: CorColaborador,
+) {
   if (item.status === "reprovada" || item.status === "cancelada") {
     return {
       backgroundColor: "#E2E8F0",
       color: "#475569",
       opacity: 1,
-    };
+    }
   }
 
-  const cor = getPastelBarColor(item.colaborador_id);
-
   return {
-    backgroundColor: cor,
+    backgroundColor: cor.solid,
     color: "#FFFFFF",
-    opacity: item.status === "pendente" ? 0.95 : 1,
-  };
+    opacity: item.status === "pendente" ? 0.9 : 1,
+  }
 }
 
-function getAvatarStyle(chave: string) {
-  const cor = getPastelBarColor(chave);
-
+function getAvatarStyle(cor: CorColaborador) {
   return {
-    backgroundColor: hexToRgba(cor, 0.16),
-    color: cor,
-  };
+    backgroundColor: cor.soft,
+    color: cor.solid,
+  }
 }
 
-function hexToRgba(hex: string, alpha: number) {
-  const normalized = hex.replace("#", "");
-  const bigint = Number.parseInt(normalized, 16);
 
-  const red = (bigint >> 16) & 255;
-  const green = (bigint >> 8) & 255;
-  const blue = bigint & 255;
-
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}

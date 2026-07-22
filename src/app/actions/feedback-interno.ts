@@ -19,24 +19,6 @@ const equipesFeedback = [
   "Departamento de Meio Ambiente e Geoprocessamento",
 ]
 
-type DepartamentoRelacionado = {
-  name?: string | null
-}
-
-function obterNomeDepartamento(valor: unknown): string | null {
-  if (Array.isArray(valor)) {
-    const primeiro = valor[0] as DepartamentoRelacionado | undefined
-    return typeof primeiro?.name === "string" ? primeiro.name : null
-  }
-
-  if (valor && typeof valor === "object" && "name" in valor) {
-    const nome = (valor as DepartamentoRelacionado).name
-    return typeof nome === "string" ? nome : null
-  }
-
-  return null
-}
-
 const departamentosPorEquipe: Record<string, string[]> = {
   "Departamento Administrativo": [
     "Departamento Administrativo",
@@ -623,12 +605,13 @@ export async function getFeedbackFormularioParaResponder(formularioId: string) {
   }> = []
 
   if (permiteMultiplasRespostas) {
-    const { data: colaboradoresData, error: colaboradoresError } = await supabase
-      .from("users")
-      .select("id, nome")
-      .eq("status", "ativo")
-      .eq("role", "COLABORADOR")
-      .order("nome", { ascending: true })
+    const { data: colaboradoresData, error: colaboradoresError } =
+      await supabase
+        .from("users")
+        .select("id, nome")
+        .eq("status", "ativo")
+        .eq("role", "COLABORADOR")
+        .order("nome", { ascending: true })
 
     if (colaboradoresError) {
       console.error("Erro ao buscar colaboradores:", colaboradoresError)
@@ -653,7 +636,7 @@ export async function getFeedbackFormularioParaResponder(formularioId: string) {
     const departamentosPorUsuario = new Map<string, string>()
 
     for (const vinculo of departamentosData ?? []) {
-      const departamento = obterNomeDepartamento(vinculo.departments)
+      const departamento = vinculo.departments?.[0]?.name ?? null
 
       if (departamento) {
         departamentosPorUsuario.set(vinculo.user_id, departamento)
@@ -731,9 +714,7 @@ export async function responderFeedbackInterno(formData: FormData) {
   const departamentoInformado = String(
     formData.get("departamento") ?? "",
   ).trim()
-  const avaliadoUserId = String(
-    formData.get("avaliado_user_id") ?? "",
-  ).trim()
+  const avaliadoUserId = String(formData.get("avaliado_user_id") ?? "").trim()
 
   if (!formularioId) {
     throw new Error("Formulário inválido.")
@@ -812,9 +793,7 @@ export async function responderFeedbackInterno(formData: FormData) {
   const respondenteEmail = isAnonimo ? null : (user.email ?? null)
 
   let avaliadoNome: string | null =
-    formulario.categoria === "feedback_geral_empresa"
-      ? respondenteNome
-      : null
+    formulario.categoria === "feedback_geral_empresa" ? respondenteNome : null
   let avaliadoId: string | null = null
   let departamentoResposta = departamentoInformado || null
 
@@ -854,9 +833,8 @@ export async function responderFeedbackInterno(formData: FormData) {
       throw new Error("Não foi possível identificar o departamento.")
     }
 
-    const departamentoColaborador = obterNomeDepartamento(
-      vinculoDepartamento?.departments,
-    )
+    const departamentoColaborador =
+      vinculoDepartamento?.departments?.[0]?.name ?? null
 
     const { data: respostaDuplicada, error: respostaDuplicadaError } =
       await supabase
@@ -1000,7 +978,7 @@ export async function getFeedbackAnaliseResultados(
 
   const departamentosFiltro =
     equipeSelecionada !== "todos"
-      ? departamentosPorEquipe[equipeSelecionada] ?? [equipeSelecionada]
+      ? (departamentosPorEquipe[equipeSelecionada] ?? [equipeSelecionada])
       : []
 
   let query = supabase
@@ -1021,7 +999,6 @@ export async function getFeedbackAnaliseResultados(
   if (filtros?.categoria && filtros.categoria !== "todos") {
     query = query.eq("categoria", filtros.categoria)
   }
-
 
   if (filtros?.cicloId) {
     query = query.eq("ciclo_id", filtros.cicloId)
@@ -1049,7 +1026,6 @@ export async function getFeedbackAnaliseResultados(
   if (filtros?.categoria && filtros.categoria !== "todos") {
     ciclosQuery = ciclosQuery.eq("categoria", filtros.categoria)
   }
-
 
   const { data: ciclosData, error: ciclosError } = await ciclosQuery
 

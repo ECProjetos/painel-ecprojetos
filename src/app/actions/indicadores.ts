@@ -3,6 +3,10 @@
 import { randomUUID } from "crypto"
 
 import { createClient } from "@/utils/supabase/server"
+import {
+  getAliasesEquipeOperacional,
+  normalizarEquipeOperacional,
+} from "@/lib/equipes"
 
 type CreateIndicadorPayload = {
   colaborador_id?: string
@@ -39,7 +43,7 @@ export async function getSetoresIndicadores() {
   const setores = Array.from(
     new Set(
       (data ?? [])
-        .map((item) => item.departamento_nome)
+        .map((item) => normalizarEquipeOperacional(item.departamento_nome))
         .filter((value): value is string => {
           const nome = String(value ?? "").trim()
 
@@ -86,7 +90,10 @@ export async function getColaboradoresIndicadoresBySetor(setorNome?: string) {
     .order("nome", { ascending: true })
 
   if (setorNome && setorNome !== "todos" && setorNome !== "all") {
-    query = query.eq("departamento_nome", setorNome)
+    const aliases = getAliasesEquipeOperacional(setorNome)
+    query = aliases.length > 1
+      ? query.in("departamento_nome", aliases)
+      : query.eq("departamento_nome", aliases[0] ?? setorNome)
   }
 
   const { data, error } = await query
@@ -96,7 +103,10 @@ export async function getColaboradoresIndicadoresBySetor(setorNome?: string) {
     throw new Error("Não foi possível buscar os colaboradores.")
   }
 
-  return data ?? []
+  return (data ?? []).map((item) => ({
+    ...item,
+    departamento_nome: normalizarEquipeOperacional(item.departamento_nome),
+  }))
 }
 
 export async function createIndicadorDesempenho(
@@ -176,8 +186,9 @@ export async function createIndicadorDesempenho(
       avaliador_id: user.id,
       avaliador_nome: avaliadorNome,
       colaborador_id: colaboradorId,
-      equipe_colaborador:
+      equipe_colaborador: normalizarEquipeOperacional(
         colaborador?.departamento_nome ?? payload.equipe_colaborador ?? null,
+      ),
       codigo_projeto: payload.codigo_projeto,
       entrega_avaliada: payload.entrega_avaliada,
       data_entrega: dataEntrega,

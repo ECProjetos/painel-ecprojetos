@@ -4,6 +4,10 @@ import { supabaseAdmin } from "@/utils/supabase/admin"
 import { createClient } from "@/utils/supabase/server"
 import { ColaboradorUpdate } from "@/types/colaboradores"
 import { roles } from "@/constants/roles"
+import {
+  normalizarEquipeOperacional,
+  pertenceEquipeOperacional,
+} from "@/lib/equipes"
 
 async function ensureDiretorPermission() {
   const supabase = await createClient()
@@ -256,10 +260,13 @@ export async function getColaboradoresByDepartamento(
 ) {
   const supabase = await createClient()
 
+  // A equipe de Engenharia e Sustentabilidade ainda está dividida em dois
+  // departamentos históricos no banco. Buscamos a lista completa e aplicamos
+  // a regra operacional no servidor para não depender do nome exato da coluna
+  // ou do departamento gravado em cada view.
   const { data, error } = await supabase
     .from("vw_colaboradores_com_banco_excel")
     .select("*")
-    .eq("departamento_nome", nome_departamento)
     .order("nome", { ascending: true })
 
   if (error) {
@@ -267,24 +274,42 @@ export async function getColaboradoresByDepartamento(
     throw new Error(error.message)
   }
 
-  return data
+  return (data ?? []).filter((colaborador: Record<string, unknown>) => {
+    const departamento = String(
+      colaborador.nome_departamento ??
+        colaborador.departamento_nome ??
+        "",
+    )
+
+    return pertenceEquipeOperacional(departamento, nome_departamento)
+  })
 }
 
 export async function getDepartamentoByID(id: string) {
   const supabase = await createClient()
 
+  // O parâmetro recebido é o ID do usuário, e não o ID do departamento.
+  // A consulta anterior procurava esse UUID diretamente em `departments`, o
+  // que podia retornar o departamento errado ou falhar silenciosamente.
   const { data, error } = await supabase
-    .from("departments")
+    .from("vw_colaboradores")
     .select("*")
     .eq("id", id)
     .single()
 
   if (error) {
-    console.error("Erro ao buscar departamento por ID:", error)
+    console.error("Erro ao buscar departamento do usuário:", error)
     throw new Error(error.message)
   }
 
-  return data
+  const departamento = String(
+    data?.nome_departamento ?? data?.departamento_nome ?? "",
+  )
+
+  return {
+    ...data,
+    nome_departamento: normalizarEquipeOperacional(departamento),
+  }
 }
 
 export async function getColaboradorById(id: string) {
