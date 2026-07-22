@@ -802,8 +802,6 @@ export default function GestaoFerias({
                           const inicioOriginal = parseDate(item.data_inicio)
                           const fimOriginal = parseDate(item.data_fim)
 
-                          // restante do código...
-
                           const inicioVisivel =
                             inicioOriginal < inicioMes
                               ? inicioMes
@@ -913,27 +911,21 @@ export default function GestaoFerias({
                       </div>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                      {Array.from(
-                        new Map(
-                          solicitacoesDoMes.map((item) => [
-                            item.colaborador_id,
-                            item,
-                          ]),
-                        ).values(),
-                      ).map((item) => {
-                        const cor =
-                          coresPorColaborador.get(item.colaborador_id) ??
-                          gerarCorColaborador(0)
+                    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
+                      <Badge
+                        variant="outline"
+                        className={statusClasses.aprovada}
+                      >
+                        Aprovada
+                      </Badge>
 
-                        return (
-                          <LegendaItem
-                            key={item.colaborador_id}
-                            color={cor.solid}
-                            label={item.colaborador_nome}
-                          />
-                        )
-                      })}
+                      <Badge
+                        variant="outline"
+                        className={statusClasses.pendente}
+                      >
+                        Pendente
+                      </Badge>
+
                       <LegendaItem
                         color="#EFF6FF"
                         borderColor="#CBD5E1"
@@ -1313,5 +1305,3 @@ function getAvatarStyle(cor: CorColaborador) {
     color: cor.solid,
   }
 }
-
-
