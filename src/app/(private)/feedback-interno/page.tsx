@@ -1,3 +1,4 @@
+import { requireFeedbackManagementAccess } from "@/lib/feedback-permissions"
 import Link from "next/link"
 import { StatusCicloActions } from "@/components/feedback-interno/status-ciclo-actions"
 import {
@@ -108,7 +109,11 @@ function getOrigemLabel(origem: string | null) {
   return origem
 }
 
-export default async function FeedbackInternoPage({ searchParams }: PageProps) {
+export default async function FeedbackInternoPage({
+  searchParams,
+}: PageProps) {
+  await requireFeedbackManagementAccess()
+
   const params = await searchParams
 
   const filtros = {

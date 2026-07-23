@@ -14,24 +14,17 @@ export async function requireFeedbackManagementAccess() {
     redirect("/login")
   }
 
-  const { data: usuario, error } = await supabase
+  const { data: perfil, error: perfilError } = await supabase
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle()
 
-  if (error) {
-    console.error("Erro ao verificar permissão do feedback:", error)
+  if (
+    perfilError ||
+    !perfil ||
+    String(perfil.role).toUpperCase() !== "DIRETOR"
+  ) {
     redirect("/feedback-interno/responder")
   }
-
-  const role = String(usuario?.role ?? "").toUpperCase()
-
-  const permitido = role === "DIRETOR" || role === "ADMIN"
-
-  if (!permitido) {
-    redirect("/feedback-interno/responder")
-  }
-
-  return role
 }
