@@ -33,7 +33,12 @@ export default async function MinhasFeriasPage() {
         </Breadcrumb>
       </header>
 
-    
+      <MinhasFerias
+        colaborador={dashboard.colaborador}
+        solicitacoes={dashboard.solicitacoes}
+        resumo={dashboard.resumo}
+        periodosDisponiveis={dashboard.periodosDisponiveis}
+      />
     </div>
   );
 }

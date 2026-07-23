@@ -1,5 +1,4 @@
 import Link from "next/link"
-import { requireFeedbackManagementAccess } from "@/lib/feedback-permissions"
 import { StatusCicloActions } from "@/components/feedback-interno/status-ciclo-actions"
 import {
   Breadcrumb,
@@ -109,11 +108,7 @@ function getOrigemLabel(origem: string | null) {
   return origem
 }
 
-export default async function FeedbackInternoPage({
-  searchParams,
-}: PageProps) {
-  await requireFeedbackManagementAccess()
-
+export default async function FeedbackInternoPage({ searchParams }: PageProps) {
   const params = await searchParams
 
   const filtros = {
@@ -130,17 +125,13 @@ export default async function FeedbackInternoPage({
 
   const totalRespostas = historico.length
   const totalCiclos = new Set(historico.map((item) => item.ciclo_id)).size
-  const totalFormularios = new Set(
-    historico.map((item) => item.formulario_id),
-  ).size
+  const totalFormularios = new Set(historico.map((item) => item.formulario_id))
+    .size
 
   const totalAnonimos = historico.filter((item) => item.anonimo).length
-  const totalIdentificados = historico.filter(
-    (item) => !item.anonimo,
-  ).length
+  const totalIdentificados = historico.filter((item) => !item.anonimo).length
 
   return (
-    
     <div className="flex min-w-0 flex-col gap-4 p-4 pt-0">
       <header className="flex h-16 shrink-0 items-center gap-2">
         <SidebarTrigger className="-ml-1" />

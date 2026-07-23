@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 
 import { createClient } from "@/utils/supabase/server"
 
-export async function getFeedbackCurrentUserRole() {
+export async function requireFeedbackManagementAccess() {
   const supabase = await createClient()
 
   const {
@@ -11,30 +11,21 @@ export async function getFeedbackCurrentUserRole() {
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    redirect("/")
+    redirect("/login")
   }
 
-  const { data, error } = await supabase
+  const { data: usuario, error } = await supabase
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle()
 
-  if (error || !data?.role) {
-    console.error("Erro ao verificar permissão de feedback:", error)
-    redirect("/controle-horarios/inicio")
+  if (error) {
+    console.error("Erro ao verificar permissão do feedback:", error)
+    redirect("/feedback-interno/responder")
   }
 
-  return String(data.role).toUpperCase()
-}
-
-/**
- * Permite histórico, análise e gestão somente para DIRETOR ou ADMIN.
- *
- * Gestores e colaboradores são enviados para a área de respostas.
- */
-export async function requireFeedbackManagementAccess() {
-  const role = await getFeedbackCurrentUserRole()
+  const role = String(usuario?.role ?? "").toUpperCase()
 
   const permitido = role === "DIRETOR" || role === "ADMIN"
 

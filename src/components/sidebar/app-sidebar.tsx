@@ -112,11 +112,22 @@ const createData = (pathname: string, userId?: string) => ({
     },
     {
       title: "Feedback interno",
-      url: "/feedback-interno/responder",
+      url: "/feedback-interno",
       icon: ClipboardList,
-      isActive: pathname.startsWith("/feedback-interno/responder"),
+      isActive: pathname.startsWith("/feedback-interno"),
+      items: [
+        {
+          title: "Responder feedbacks",
+          url: "/feedback-interno/responder",
+          isActive: pathname.startsWith("/feedback-interno/responder"),
+        },
+        {
+          title: "Histórico e gestão",
+          url: "/feedback-interno",
+          isActive: pathname === "/feedback-interno",
+        },
+      ],
     },
-
     {
       title: "Satisfação do cliente",
       url: "/satisfacao",
