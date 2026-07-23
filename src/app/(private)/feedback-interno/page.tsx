@@ -140,9 +140,7 @@ export default async function FeedbackInternoPage({
   ).length
 
   return (
-    // restante da página
-  )
-}
+    
     <div className="flex min-w-0 flex-col gap-4 p-4 pt-0">
       <header className="flex h-16 shrink-0 items-center gap-2">
         <SidebarTrigger className="-ml-1" />
