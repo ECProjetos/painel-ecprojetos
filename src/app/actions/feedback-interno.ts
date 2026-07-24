@@ -45,7 +45,22 @@ const departamentosPorEquipe: Record<string, string[]> = {
     "Meio Ambiente e Geoprocessamento",
   ],
 }
+function podeResponderFormulario(
+  role: string,
+  categoriaFormulario: string,
+) {
+  const roleNormalizada = role.toUpperCase()
+  const categoriaNormalizada = categoriaFormulario.toLowerCase()
 
+  if (categoriaNormalizada === "feedback_gestor_colaborador") {
+    return roleNormalizada === "DIRETOR"
+  }
+
+  return (
+    roleNormalizada === "COLABORADOR" ||
+    roleNormalizada === "LIDER"
+  )
+}
 export async function getFeedbackEquipes() {
   return equipesFeedback
 }
@@ -411,10 +426,17 @@ export async function getFeedbackFormulariosAbertos() {
   }
 
   const role = String(perfil.role ?? "").toUpperCase()
-  const podeResponderComoGestor = ["GESTOR", "DIRETOR"].includes(role)
-  const publicosPermitidos = podeResponderComoGestor
-    ? ["colaborador", "gestor"]
-    : ["colaborador"]
+
+  const publicosPermitidos =
+    role === "DIRETOR"
+      ? ["gestor"]
+      : role === "COLABORADOR" || role === "LIDER"
+        ? ["colaborador"]
+        : []
+
+  if (publicosPermitidos.length === 0) {
+    return []
+  }
 
   const { data: formularios, error } = await supabase
     .from("feedback_formularios")
@@ -458,6 +480,13 @@ export async function getFeedbackFormulariosAbertos() {
   const agora = new Date()
 
   const formulariosDisponiveis = (formularios ?? []).filter((formulario) => {
+    const permitidoParaPerfil = podeResponderFormulario(
+      role,
+      String(formulario.categoria ?? ""),
+    )
+
+    if (!permitidoParaPerfil) return false
+
     const cicloRaw = formulario.feedback_ciclos
     const ciclo = Array.isArray(cicloRaw) ? cicloRaw[0] : cicloRaw
 
@@ -962,6 +991,178 @@ export async function getFeedbackAcompanhamentoAbertos() {
   return data ?? []
 }
 
+export type FeedbackParticipanteIdentificado = {
+  id: string
+  nome: string
+  email: string | null
+  role: string
+  departamento: string | null
+  respondeu: boolean
+  respondido_em: string | null
+}
+
+export type FeedbackDetalheIdentificado = {
+  formulario_id: string
+  formulario_titulo: string
+  categoria: string | null
+  permiteDetalhamentoAtual: boolean
+  participantes: FeedbackParticipanteIdentificado[]
+  respondidos: number
+  pendentes: number
+}
+
+export async function getFeedbackPendenciasIdentificadas(): Promise<
+  FeedbackDetalheIdentificado[]
+> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    throw new Error("Usuário não autenticado.")
+  }
+
+  const { data: perfil, error: perfilError } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  const role = String(perfil?.role ?? "").toUpperCase()
+
+  if (perfilError || role !== "DIRETOR") {
+    throw new Error("Apenas diretores podem consultar os pendentes.")
+  }
+
+  const { data: formularios, error: formulariosError } = await supabase
+    .from("feedback_formularios")
+    .select(
+      `
+        id,
+        titulo,
+        tipo,
+        categoria,
+        confidencialidade,
+        ordem,
+        feedback_ciclos!inner (
+          id,
+          status
+        )
+      `,
+    )
+    .eq("status", "aberto")
+    .eq("confidencialidade", "identificado")
+    .eq("feedback_ciclos.status", "aberto")
+    .order("ordem", { ascending: true })
+
+  if (formulariosError) {
+    console.error("Erro ao buscar formulários identificados:", formulariosError)
+    throw new Error("Não foi possível buscar os formulários identificados.")
+  }
+
+  const { data: participantes, error: participantesError } = await supabase
+    .from("vw_colaboradores")
+    .select("id, nome, email, role, departamento_nome")
+    .eq("status", "ativo")
+    .in("role", ["COLABORADOR", "LIDER"])
+    .neq("email", "lider@ecprojetos.com.br")
+    .order("departamento_nome", { ascending: true })
+    .order("nome", { ascending: true })
+
+  if (participantesError) {
+    console.error("Erro ao buscar participantes:", participantesError)
+    throw new Error("Não foi possível buscar os participantes do feedback.")
+  }
+
+  const formularioIds = (formularios ?? []).map((formulario) => formulario.id)
+
+  const { data: participacoes, error: participacoesError } =
+    formularioIds.length > 0
+      ? await supabase
+          .from("feedback_participacoes")
+          .select("formulario_id, user_id, respondido_em")
+          .in("formulario_id", formularioIds)
+      : { data: [], error: null }
+
+  if (participacoesError) {
+    console.error(
+      "Erro ao buscar participações identificadas:",
+      participacoesError,
+    )
+    throw new Error("Não foi possível buscar as participações identificadas.")
+  }
+
+  const participacoesPorFormulario = new Map<
+    string,
+    Map<string, string | null>
+  >()
+
+  for (const participacao of participacoes ?? []) {
+    const formularioId = String(participacao.formulario_id)
+    const userId = String(participacao.user_id)
+
+    if (!participacoesPorFormulario.has(formularioId)) {
+      participacoesPorFormulario.set(formularioId, new Map())
+    }
+
+    participacoesPorFormulario
+      .get(formularioId)
+      ?.set(userId, participacao.respondido_em ?? null)
+  }
+
+  return (formularios ?? []).map((formulario) => {
+    const categoria = formulario.categoria ?? formulario.tipo ?? null
+    const gestorParaColaborador =
+      categoria === "feedback_gestor_colaborador" ||
+      formulario.tipo === "feedback_gestor_colaborador"
+
+    // Esse formulário exige contagem por avaliação diretor → colaborador.
+    // Até essa regra estar pronta, não exibimos uma lista nominal incorreta.
+    if (gestorParaColaborador) {
+      return {
+        formulario_id: formulario.id,
+        formulario_titulo: formulario.titulo,
+        categoria,
+        permiteDetalhamentoAtual: false,
+        participantes: [],
+        respondidos: 0,
+        pendentes: 0,
+      }
+    }
+
+    const participacoesDoFormulario =
+      participacoesPorFormulario.get(formulario.id) ?? new Map()
+
+    const lista = (participantes ?? []).map((participante) => ({
+      id: participante.id,
+      nome: participante.nome,
+      email: participante.email ?? null,
+      role: participante.role,
+      departamento: participante.departamento_nome ?? null,
+      respondeu: participacoesDoFormulario.has(participante.id),
+      respondido_em: participacoesDoFormulario.get(participante.id) ?? null,
+    }))
+
+    const respondidos = lista.filter(
+      (participante) => participante.respondeu,
+    ).length
+    const pendentes = Math.max(lista.length - respondidos, 0)
+
+    return {
+      formulario_id: formulario.id,
+      formulario_titulo: formulario.titulo,
+      categoria,
+      permiteDetalhamentoAtual: true,
+      participantes: lista,
+      respondidos,
+      pendentes,
+    }
+  })
+}
+
 export type FeedbackAnaliseFiltros = {
   cicloId?: string
   tipoFormulario?: string
@@ -1106,7 +1307,7 @@ async function verificarPermissaoGerenciarFeedback() {
     }
   }
 
-  const rolesPermitidas = ["GESTOR", "DIRETOR"]
+  const rolesPermitidas = ["DIRETOR"]
 
   if (!rolesPermitidas.includes(perfil.role)) {
     return {
@@ -1201,7 +1402,7 @@ export async function verificarDisponibilidadeFormularioFeedback(
 
   const { data: formulario, error: formularioError } = await supabase
     .from("feedback_formularios")
-    .select("id, titulo, ciclo_id, status, publico_alvo")
+    .select("id, titulo, ciclo_id, status, publico_alvo, categoria")
     .eq("id", formularioId)
     .maybeSingle()
 
@@ -1222,12 +1423,12 @@ export async function verificarDisponibilidadeFormularioFeedback(
   }
 
   const role = String(perfil.role ?? "").toUpperCase()
-  const publicoAlvo = String(formulario.publico_alvo ?? "").toLowerCase()
-  const podeResponderComoGestor = ["GESTOR", "DIRETOR"].includes(role)
+  const categoria = String(formulario.categoria ?? "").toLowerCase()
 
-  const publicoPermitido =
-    publicoAlvo === "colaborador" ||
-    (publicoAlvo === "gestor" && podeResponderComoGestor)
+  const publicoPermitido = podeResponderFormulario(
+    role,
+    categoria,
+  )
 
   if (!publicoPermitido) {
     return {

@@ -60,8 +60,8 @@ export type MinhaFeriasSolicitacaoInput = Omit<
 >
 
 export type FeriasFiltros = {
-  ano?: number
-  mes?: number
+  dataInicio?: string
+  dataFim?: string
   status?: FeriasStatus | "todos"
   colaborador?: string
   equipe?: string
@@ -392,13 +392,12 @@ export async function getFeriasSolicitacoes(filtros?: FeriasFiltros) {
     .select("*")
     .order("data_inicio", { ascending: true })
 
-  if (filtros?.ano && filtros?.mes) {
-    const inicioMes = `${filtros.ano}-${String(filtros.mes).padStart(2, "0")}-01`
-    const fimMes = new Date(filtros.ano, filtros.mes, 0)
-      .toISOString()
-      .slice(0, 10)
+  if (filtros?.dataInicio) {
+    query = query.gte("data_fim", filtros.dataInicio)
+  }
 
-    query = query.lte("data_inicio", fimMes).gte("data_fim", inicioMes)
+  if (filtros?.dataFim) {
+    query = query.lte("data_inicio", filtros.dataFim)
   }
 
   if (filtros?.status && filtros.status !== "todos") {
@@ -760,8 +759,8 @@ export async function atualizarPeriodoAquisitivo(
 }
 
 export type FeriasEquipeFiltros = {
-  ano?: number
-  mes?: number
+  dataInicio?: string
+  dataFim?: string
 }
 
 type LiderFeriasContexto = {
@@ -973,13 +972,12 @@ export async function getFeriasEquipeDashboard(filtros?: FeriasEquipeFiltros) {
     .eq("tipo", "ferias")
     .order("data_inicio", { ascending: true })
 
-  if (filtros?.ano && filtros?.mes) {
-    const inicioMes = `${filtros.ano}-${String(filtros.mes).padStart(2, "0")}-01`
-    const fimMes = new Date(Date.UTC(filtros.ano, filtros.mes, 0))
-      .toISOString()
-      .slice(0, 10)
+  if (filtros?.dataInicio) {
+    query = query.gte("data_fim", filtros.dataInicio)
+  }
 
-    query = query.lte("data_inicio", fimMes).gte("data_fim", inicioMes)
+  if (filtros?.dataFim) {
+    query = query.lte("data_inicio", filtros.dataFim)
   }
 
   const { data: ferias, error: feriasError } = await query

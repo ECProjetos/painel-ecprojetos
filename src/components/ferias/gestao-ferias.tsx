@@ -131,28 +131,13 @@ type GestaoFeriasProps = {
   alertasVencimento: FeriasAlerta[]
   podeEditarProgramacao: boolean
   filtrosIniciais: {
-    ano: number
-    mes: number
+    dataInicio: string
+    dataFim: string
     status: FeriasStatus | "todos"
     colaborador: string
     equipe: string
   }
 }
-
-const meses = [
-  { value: "1", label: "Janeiro" },
-  { value: "2", label: "Fevereiro" },
-  { value: "3", label: "Março" },
-  { value: "4", label: "Abril" },
-  { value: "5", label: "Maio" },
-  { value: "6", label: "Junho" },
-  { value: "7", label: "Julho" },
-  { value: "8", label: "Agosto" },
-  { value: "9", label: "Setembro" },
-  { value: "10", label: "Outubro" },
-  { value: "11", label: "Novembro" },
-  { value: "12", label: "Dezembro" },
-]
 
 const statusLabels: Record<FeriasStatus, string> = {
   pendente: "Pendente",
@@ -178,6 +163,11 @@ const statusClasses: Record<FeriasStatus, string> = {
 
 const WEEK_DAYS = ["D", "S", "T", "Q", "Q", "S", "S"]
 
+const COR_PADRAO_FERIAS: CorColaborador = {
+  solid: "#2563EB",
+  soft: "#DBEAFE",
+}
+
 export default function GestaoFerias({
   colaboradores,
   solicitacoes,
@@ -192,8 +182,8 @@ export default function GestaoFerias({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  const [ano, setAno] = useState(String(filtrosIniciais.ano))
-  const [mes, setMes] = useState(String(filtrosIniciais.mes))
+  const [dataInicio, setDataInicio] = useState(filtrosIniciais.dataInicio)
+  const [dataFim, setDataFim] = useState(filtrosIniciais.dataFim)
   const [statusFiltro, setStatusFiltro] = useState<FeriasStatus | "todos">(
     filtrosIniciais.status,
   )
@@ -205,14 +195,14 @@ export default function GestaoFerias({
   )
 
   useEffect(() => {
-    setAno(String(filtrosIniciais.ano))
-    setMes(String(filtrosIniciais.mes))
+    setDataInicio(filtrosIniciais.dataInicio)
+    setDataFim(filtrosIniciais.dataFim)
     setStatusFiltro(filtrosIniciais.status)
     setEquipeFiltro(filtrosIniciais.equipe || "todos")
     setColaboradorBusca(filtrosIniciais.colaborador || "")
   }, [
-    filtrosIniciais.ano,
-    filtrosIniciais.mes,
+    filtrosIniciais.dataInicio,
+    filtrosIniciais.dataFim,
     filtrosIniciais.status,
     filtrosIniciais.equipe,
     filtrosIniciais.colaborador,
@@ -228,27 +218,22 @@ export default function GestaoFerias({
     ).sort((a, b) => a.localeCompare(b))
   }, [colaboradores])
 
-  const anosDisponiveis = useMemo(() => {
-    const anoBase = filtrosIniciais.ano
+  const datasPeriodo = useMemo(
+    () => gerarDatasPeriodo(filtrosIniciais.dataInicio, filtrosIniciais.dataFim),
+    [filtrosIniciais.dataInicio, filtrosIniciais.dataFim],
+  )
 
-    return [anoBase - 1, anoBase, anoBase + 1, anoBase + 2]
-  }, [filtrosIniciais.ano])
+  const inicioPeriodo = useMemo(
+    () => parseDate(filtrosIniciais.dataInicio),
+    [filtrosIniciais.dataInicio],
+  )
 
-  const diasDoMes = useMemo(() => {
-    const total = new Date(Number(ano), Number(mes), 0).getDate()
+  const fimPeriodo = useMemo(
+    () => parseDate(filtrosIniciais.dataFim),
+    [filtrosIniciais.dataFim],
+  )
 
-    return Array.from({ length: total }, (_, index) => index + 1)
-  }, [ano, mes])
-
-  const inicioMes = useMemo(() => {
-    return new Date(Number(ano), Number(mes) - 1, 1)
-  }, [ano, mes])
-
-  const fimMes = useMemo(() => {
-    return new Date(Number(ano), Number(mes), 0)
-  }, [ano, mes])
-
-  const solicitacoesDoMes = useMemo(() => {
+  const solicitacoesDoPeriodo = useMemo(() => {
     return solicitacoes
       .filter(
         (item) => item.status !== "reprovada" && item.status !== "cancelada",
@@ -257,7 +242,7 @@ export default function GestaoFerias({
         const inicio = parseDate(item.data_inicio)
         const fim = parseDate(item.data_fim)
 
-        return inicio <= fimMes && fim >= inicioMes
+        return inicio <= fimPeriodo && fim >= inicioPeriodo
       })
       .sort((a, b) => {
         const diferenca =
@@ -270,36 +255,22 @@ export default function GestaoFerias({
 
         return a.colaborador_nome.localeCompare(b.colaborador_nome)
       })
-  }, [solicitacoes, inicioMes, fimMes])
+  }, [solicitacoes, inicioPeriodo, fimPeriodo])
 
-  const coresPorColaborador = useMemo(() => {
-    const nomesPorId = new Map<string, string>()
-
-    colaboradores.forEach((colaborador) => {
-      nomesPorId.set(colaborador.id, colaborador.nome)
-    })
-
-    solicitacoes.forEach((solicitacao) => {
-      nomesPorId.set(solicitacao.colaborador_id, solicitacao.colaborador_nome)
-    })
-
-    const colaboradoresOrdenados = Array.from(nomesPorId.entries()).sort(
-      ([, nomeA], [, nomeB]) => nomeA.localeCompare(nomeB, "pt-BR"),
-    )
-
-    return new Map(
-      colaboradoresOrdenados.map(([colaboradorId], index) => [
-        colaboradorId,
-        gerarCorColaborador(index),
-      ]),
-    )
-  }, [colaboradores, solicitacoes])
-
+ 
   function aplicarFiltros() {
     const params = new URLSearchParams()
 
-    params.set("ano", ano)
-    params.set("mes", mes)
+    if (!dataInicio || !dataFim) {
+      toast.error("Informe a data inicial e a data final.")
+      return
+    }
+
+    const inicio = dataInicio <= dataFim ? dataInicio : dataFim
+    const fim = dataInicio <= dataFim ? dataFim : dataInicio
+
+    params.set("dataInicio", inicio)
+    params.set("dataFim", fim)
 
     if (statusFiltro !== "todos") {
       params.set("status", statusFiltro)
@@ -387,8 +358,8 @@ export default function GestaoFerias({
           </h1>
 
           <p className="text-sm text-muted-foreground">
-            Controle visual das férias e ausências por mês, com foco em quem
-            realmente estará fora no período selecionado.
+            Controle visual das férias e ausências por período, com foco em
+            quem realmente estará fora entre as datas selecionadas.
           </p>
         </div>
 
@@ -547,47 +518,35 @@ export default function GestaoFerias({
           <CardTitle>Filtros</CardTitle>
 
           <CardDescription>
-            Filtre o mês, ano, status, equipe e colaborador para analisar as
-            férias do período.
+            Selecione a data inicial e a data final, além de status, equipe e
+            colaborador, para analisar as férias do período.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <div className="space-y-2">
-              <Label>Mês</Label>
+              <Label htmlFor="ferias-data-inicio">Data inicial</Label>
 
-              <Select value={mes} onValueChange={setMes}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Mês" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {meses.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="ferias-data-inicio"
+                type="date"
+                value={dataInicio}
+                max={dataFim || undefined}
+                onChange={(event) => setDataInicio(event.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
-              <Label>Ano</Label>
+              <Label htmlFor="ferias-data-fim">Data final</Label>
 
-              <Select value={ano} onValueChange={setAno}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Ano" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {anosDisponiveis.map((item) => (
-                    <SelectItem key={item} value={String(item)}>
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="ferias-data-fim"
+                type="date"
+                value={dataFim}
+                min={dataInicio || undefined}
+                onChange={(event) => setDataFim(event.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
@@ -701,32 +660,27 @@ export default function GestaoFerias({
           <div className="grid items-start gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
             <Card className="h-fit">
               <CardHeader>
-                <CardTitle>Férias neste mês</CardTitle>
+                <CardTitle>Férias no período</CardTitle>
 
                 <CardDescription>
-                  Somente colaboradores com férias/ausências no mês selecionado.
+                  Somente colaboradores com férias ou ausências entre as datas
+                  selecionadas.
                 </CardDescription>
               </CardHeader>
 
               <CardContent className="space-y-3">
-                {solicitacoesDoMes.length === 0 ? (
+                {solicitacoesDoPeriodo.length === 0 ? (
                   <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                    Nenhum colaborador com férias ou ausência neste mês.
+                    Nenhum colaborador com férias ou ausência no período.
                   </div>
                 ) : (
-                  solicitacoesDoMes.map((item) => {
-                    const cor =
-                      coresPorColaborador.get(item.colaborador_id) ??
-                      gerarCorColaborador(0)
-
-                    return (
-                      <ResumoFeriasMesCard
-                        key={item.id}
-                        item={item}
-                        cor={cor}
-                      />
-                    )
-                  })
+                  solicitacoesDoPeriodo.map((item) => (
+                    <ResumoFeriasMesCard
+                      key={item.id}
+                      item={item}
+                      cor={COR_PADRAO_FERIAS}
+                    />
+                  ))
                 )}
               </CardContent>
             </Card>
@@ -734,101 +688,97 @@ export default function GestaoFerias({
             <Card className="h-fit self-start">
               <CardHeader>
                 <CardTitle>
-                  {meses.find((item) => item.value === mes)?.label} de {ano}
+                  {formatarData(filtrosIniciais.dataInicio)} a{" "}
+                  {formatarData(filtrosIniciais.dataFim)}
                 </CardTitle>
 
                 <CardDescription>
-                  Visualização mensal no estilo agenda, com barras por
+                  Visualização do período no estilo agenda, com barras por
                   colaborador.
                 </CardDescription>
               </CardHeader>
 
               <CardContent>
-                {solicitacoesDoMes.length === 0 ? (
+                {solicitacoesDoPeriodo.length === 0 ? (
                   <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-                    Nenhuma programação encontrada para este mês.
+                    Nenhuma programação encontrada para o período.
                   </div>
                 ) : (
                   <>
-                    <div className="overflow-hidden rounded-xl border">
-                      <div className="w-full bg-white">
+                    <div className="overflow-x-auto rounded-xl border">
+                      <div
+                        className="min-w-max bg-white"
+                        style={{
+                          width: `${Math.max(780, 250 + datasPeriodo.length * 30)}px`,
+                        }}
+                      >
                         <div
                           className="grid border-b bg-slate-50"
                           style={{
-                            gridTemplateColumns: `minmax(190px, 250px) repeat(${diasDoMes.length}, minmax(0, 1fr))`,
+                            gridTemplateColumns: `250px repeat(${datasPeriodo.length}, 30px)`,
                           }}
                         >
-                          <div className="border-r p-3 font-medium">
+                          <div className="sticky left-0 z-20 border-r bg-slate-50 p-3 font-medium">
                             Colaborador
                           </div>
 
-                          {diasDoMes.map((dia) => {
-                            const dataDia = new Date(
-                              Number(ano),
-                              Number(mes) - 1,
-                              dia,
-                            )
-
+                          {datasPeriodo.map((data) => {
+                            const dataDia = parseDate(data)
                             const dayOfWeek = dataDia.getDay()
                             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
                             const isToday = isSameDay(dataDia, new Date())
 
                             return (
                               <div
-                                key={dia}
+                                key={data}
                                 className={cn(
-                                  "min-w-0 border-r px-0.5 py-2 text-center",
+                                  "border-r px-0.5 py-2 text-center",
                                   isWeekend && "bg-slate-100",
                                   isToday && "bg-blue-50",
                                 )}
+                                title={formatarData(data)}
                               >
                                 <div className="text-[9px] text-muted-foreground">
                                   {WEEK_DAYS[dayOfWeek]}
                                 </div>
 
                                 <div className="text-xs font-semibold">
-                                  {dia}
+                                  {String(dataDia.getDate()).padStart(2, "0")}
                                 </div>
                               </div>
                             )
                           })}
                         </div>
-
-                        {solicitacoesDoMes.map((item) => {
-                          const corColaborador =
-                            coresPorColaborador.get(item.colaborador_id) ??
-                            gerarCorColaborador(0)
-
+                        {solicitacoesDoPeriodo.map((item) => {
                           const inicioOriginal = parseDate(item.data_inicio)
                           const fimOriginal = parseDate(item.data_fim)
 
                           const inicioVisivel =
-                            inicioOriginal < inicioMes
-                              ? inicioMes
+                            inicioOriginal < inicioPeriodo
+                              ? inicioPeriodo
                               : inicioOriginal
 
                           const fimVisivel =
-                            fimOriginal > fimMes ? fimMes : fimOriginal
+                            fimOriginal > fimPeriodo ? fimPeriodo : fimOriginal
 
-                          const startDay = inicioVisivel.getDate()
-                          const endDay = fimVisivel.getDate()
-
-                          const leftPercent =
-                            ((startDay - 1) / diasDoMes.length) * 100
-
-                          const widthPercent =
-                            ((endDay - startDay + 1) / diasDoMes.length) * 100
+                          const startIndex = diferencaDias(
+                            inicioPeriodo,
+                            inicioVisivel,
+                          )
+                          const endIndex = diferencaDias(
+                            inicioPeriodo,
+                            fimVisivel,
+                          )
 
                           return (
                             <div
                               key={item.id}
                               className="grid border-b last:border-b-0"
                               style={{
-                                gridTemplateColumns:
-                                  "minmax(190px, 250px) minmax(0, 1fr)",
+                                gridTemplateColumns: `250px ${datasPeriodo.length * 30}px`,
                               }}
                             >
-                              <div className="border-r p-3">
+                              <div className="sticky left-0 z-10 border-r bg-white p-3">
                                 <div className="font-medium leading-tight">
                                   {item.colaborador_nome}
                                 </div>
@@ -851,20 +801,15 @@ export default function GestaoFerias({
                                 </div>
                               </div>
 
-                              <div className="relative h-[68px] min-w-0">
+                              <div className="relative h-[68px]">
                                 <div
                                   className="absolute inset-0 grid"
                                   style={{
-                                    gridTemplateColumns: `repeat(${diasDoMes.length}, minmax(0, 1fr))`,
+                                    gridTemplateColumns: `repeat(${datasPeriodo.length}, 30px)`,
                                   }}
                                 >
-                                  {diasDoMes.map((dia) => {
-                                    const dataDia = new Date(
-                                      Number(ano),
-                                      Number(mes) - 1,
-                                      dia,
-                                    )
-
+                                  {datasPeriodo.map((data) => {
+                                    const dataDia = parseDate(data)
                                     const dayOfWeek = dataDia.getDay()
                                     const isWeekend =
                                       dayOfWeek === 0 || dayOfWeek === 6
@@ -875,9 +820,9 @@ export default function GestaoFerias({
 
                                     return (
                                       <div
-                                        key={`${item.id}-${dia}`}
+                                        key={`${item.id}-${data}`}
                                         className={cn(
-                                          "min-w-0 border-r",
+                                          "border-r",
                                           isWeekend && "bg-slate-50",
                                           isToday && "bg-blue-50/70",
                                         )}
@@ -889,11 +834,11 @@ export default function GestaoFerias({
                                 <div
                                   className="absolute top-1/2 flex h-9 -translate-y-1/2 items-center overflow-hidden rounded-full px-3 text-[10px] font-semibold shadow-sm xl:text-xs"
                                   style={{
-                                    left: `calc(${leftPercent}% + 4px)`,
-                                    width: `max(4px, calc(${widthPercent}% - 8px))`,
+                                    left: `${startIndex * 30 + 4}px`,
+                                    width: `${Math.max(4, (endIndex - startIndex + 1) * 30 - 8)}px`,
                                     ...getCalendarBarStyle(
                                       item,
-                                      corColaborador,
+                                      COR_PADRAO_FERIAS,
                                     ),
                                   }}
                                   title={`${item.colaborador_nome} • ${formatarData(
@@ -908,6 +853,7 @@ export default function GestaoFerias({
                             </div>
                           )
                         })}
+                        
                       </div>
                     </div>
 
@@ -931,6 +877,11 @@ export default function GestaoFerias({
                         borderColor="#CBD5E1"
                         label="Hoje"
                       />
+
+                      <span className="text-muted-foreground">
+                        As cores das barras identificam os colaboradores; o
+                        status é indicado pelo selo.
+                      </span>
                     </div>
                   </>
                 )}
@@ -1238,6 +1189,40 @@ function LegendaItem({
   )
 }
 
+function gerarDatasPeriodo(dataInicio: string, dataFim: string) {
+  const inicio = parseDate(dataInicio)
+  const fim = parseDate(dataFim)
+
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) {
+    return []
+  }
+
+  const datas: string[] = []
+  const atual = new Date(inicio)
+
+  while (atual <= fim) {
+    datas.push(formatarDataISO(atual))
+    atual.setDate(atual.getDate() + 1)
+  }
+
+  return datas
+}
+
+function formatarDataISO(data: Date) {
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`
+}
+
+function diferencaDias(inicio: Date, fim: Date) {
+  const inicioUtc = Date.UTC(
+    inicio.getFullYear(),
+    inicio.getMonth(),
+    inicio.getDate(),
+  )
+  const fimUtc = Date.UTC(fim.getFullYear(), fim.getMonth(), fim.getDate())
+
+  return Math.round((fimUtc - inicioUtc) / 86_400_000)
+}
+
 function parseDate(value: string) {
   const [year, month, day] = value.split("-").map(Number)
 
@@ -1271,14 +1256,7 @@ function formatarData(data: string) {
 }
 
 
-function gerarCorColaborador(index: number): CorColaborador {
-  const hue = Math.round((190 + index * 137.508) % 360)
 
-  return {
-    solid: `hsl(${hue} 68% 50%)`,
-    soft: `hsl(${hue} 68% 50% / 0.16)`,
-  }
-}
 
 function getCalendarBarStyle(
   item: FeriasSolicitacao,

@@ -19,9 +19,42 @@ export const dynamic = "force-dynamic"
 
 type PageProps = {
   searchParams?: Promise<{
-    ano?: string
-    mes?: string
+    dataInicio?: string
+    dataFim?: string
   }>
+}
+
+function dataHojeBrasilia() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date())
+}
+
+function periodoPadrao() {
+  const hoje = dataHojeBrasilia()
+  const [ano, mes] = hoje.split("-").map(Number)
+  const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate()
+
+  return {
+    dataInicio: `${ano}-${String(mes).padStart(2, "0")}-01`,
+    dataFim: `${ano}-${String(mes).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`,
+  }
+}
+
+function dataIsoValida(value: string | undefined) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+
+  const [ano, mes, dia] = value.split("-").map(Number)
+  const data = new Date(Date.UTC(ano, mes - 1, dia))
+
+  return (
+    data.getUTCFullYear() === ano &&
+    data.getUTCMonth() === mes - 1 &&
+    data.getUTCDate() === dia
+  )
 }
 
 export default async function FeriasEquipePage({ searchParams }: PageProps) {
@@ -32,26 +65,20 @@ export default async function FeriasEquipePage({ searchParams }: PageProps) {
   }
 
   const params = searchParams ? await searchParams : {}
-  const agora = new Date()
-  const anoAtual = agora.getFullYear()
-  const mesAtual = agora.getMonth() + 1
+  const padrao = periodoPadrao()
 
-  const anoInformado = Number(params.ano)
-  const mesInformado = Number(params.mes)
+  let dataInicio = dataIsoValida(params.dataInicio)
+    ? params.dataInicio!
+    : padrao.dataInicio
+  let dataFim = dataIsoValida(params.dataFim)
+    ? params.dataFim!
+    : padrao.dataFim
 
-  const ano =
-    Number.isInteger(anoInformado) && anoInformado >= 2020
-      ? anoInformado
-      : anoAtual
+  if (dataFim < dataInicio) {
+    ;[dataInicio, dataFim] = [dataFim, dataInicio]
+  }
 
-  const mes =
-    Number.isInteger(mesInformado) &&
-    mesInformado >= 1 &&
-    mesInformado <= 12
-      ? mesInformado
-      : mesAtual
-
-  const dashboard = await getFeriasEquipeDashboard({ ano, mes })
+  const dashboard = await getFeriasEquipeDashboard({ dataInicio, dataFim })
 
   return (
     <div className="flex flex-col gap-4 p-4 pt-0">
@@ -77,7 +104,7 @@ export default async function FeriasEquipePage({ searchParams }: PageProps) {
         colaboradores={dashboard.colaboradores}
         solicitacoes={dashboard.solicitacoes}
         resumo={dashboard.resumo}
-        filtros={{ ano, mes }}
+        filtros={{ dataInicio, dataFim }}
       />
     </div>
   )

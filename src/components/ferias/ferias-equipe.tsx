@@ -1,15 +1,18 @@
 "use client"
 
-import { useMemo, useTransition } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   CalendarCheck2,
   CalendarDays,
   Clock3,
+  RefreshCcw,
+  Search,
   Users,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -17,13 +20,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Table,
   TableBody,
@@ -52,6 +50,11 @@ type FeriasEquipeSolicitacao = {
   dias_corridos: number
 }
 
+type CorColaborador = {
+  solid: string
+  soft: string
+}
+
 type FeriasEquipeProps = {
   lider: {
     id: string
@@ -67,25 +70,10 @@ type FeriasEquipeProps = {
     colaboradoresComFerias: number
   }
   filtros: {
-    ano: number
-    mes: number
+    dataInicio: string
+    dataFim: string
   }
 }
-
-const meses = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-]
 
 export default function FeriasEquipe({
   lider,
@@ -97,20 +85,18 @@ export default function FeriasEquipe({
 }: FeriasEquipeProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [dataInicio, setDataInicio] = useState(filtros.dataInicio)
+  const [dataFim, setDataFim] = useState(filtros.dataFim)
 
-  const diasDoMes = useMemo(() => {
-    const total = new Date(filtros.ano, filtros.mes, 0).getDate()
-    return Array.from({ length: total }, (_, index) => index + 1)
-  }, [filtros.ano, filtros.mes])
+  useEffect(() => {
+    setDataInicio(filtros.dataInicio)
+    setDataFim(filtros.dataFim)
+  }, [filtros.dataInicio, filtros.dataFim])
 
-  const anosDisponiveis = useMemo(() => {
-    return [
-      filtros.ano - 1,
-      filtros.ano,
-      filtros.ano + 1,
-      filtros.ano + 2,
-    ]
-  }, [filtros.ano])
+  const datasPeriodo = useMemo(
+    () => gerarDatasPeriodo(filtros.dataInicio, filtros.dataFim),
+    [filtros.dataInicio, filtros.dataFim],
+  )
 
   const solicitacoesPorColaborador = useMemo(() => {
     const mapa = new Map<string, FeriasEquipeSolicitacao[]>()
@@ -126,17 +112,41 @@ export default function FeriasEquipe({
 
   const colaboradoresComSolicitacao = useMemo(() => {
     return colaboradores
-      .filter((colaborador) =>
-        solicitacoesPorColaborador.has(colaborador.id),
-      )
+      .filter((colaborador) => solicitacoesPorColaborador.has(colaborador.id))
       .sort((a, b) => a.nome.localeCompare(b.nome))
   }, [colaboradores, solicitacoesPorColaborador])
 
-  function atualizarPeriodo(ano: number, mes: number) {
+  const coresPorColaborador = useMemo(() => {
+    return new Map(
+      colaboradores.map((colaborador) => [
+        colaborador.id,
+        gerarCorColaborador(colaborador.id),
+      ]),
+    )
+  }, [colaboradores])
+
+  function aplicarPeriodo() {
+    if (!dataInicio || !dataFim) return
+
+    const inicio = dataInicio <= dataFim ? dataInicio : dataFim
+    const fim = dataInicio <= dataFim ? dataFim : dataInicio
+
     startTransition(() => {
-      router.push(`/rh/ferias-equipe?ano=${ano}&mes=${mes}`)
+      router.push(
+        `/rh/ferias-equipe?dataInicio=${encodeURIComponent(inicio)}&dataFim=${encodeURIComponent(fim)}`,
+      )
     })
   }
+
+  function limparPeriodo() {
+    startTransition(() => {
+      router.push("/rh/ferias-equipe")
+    })
+  }
+
+  const descricaoPeriodo = `${formatarData(filtros.dataInicio)} a ${formatarData(
+    filtros.dataFim,
+  )}`
 
   return (
     <div className="space-y-6">
@@ -158,54 +168,58 @@ export default function FeriasEquipe({
           </div>
         </div>
 
-        <Card className="w-full lg:w-auto lg:min-w-[340px]">
-          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row">
-            <div className="min-w-[150px]">
-              <p className="mb-1 text-xs font-medium text-muted-foreground">
-                Mês
-              </p>
-              <Select
-                value={String(filtros.mes)}
-                onValueChange={(value) =>
-                  atualizarPeriodo(filtros.ano, Number(value))
-                }
-                disabled={isPending}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {meses.map((mes, index) => (
-                    <SelectItem key={mes} value={String(index + 1)}>
-                      {mes}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <Card className="w-full lg:w-auto lg:min-w-[520px]">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Período</CardTitle>
+            <CardDescription>
+              Selecione a data inicial e a data final da consulta.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="lider-data-inicio">Data inicial</Label>
+                <Input
+                  id="lider-data-inicio"
+                  type="date"
+                  value={dataInicio}
+                  max={dataFim || undefined}
+                  onChange={(event) => setDataInicio(event.target.value)}
+                  disabled={isPending}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lider-data-fim">Data final</Label>
+                <Input
+                  id="lider-data-fim"
+                  type="date"
+                  value={dataFim}
+                  min={dataInicio || undefined}
+                  onChange={(event) => setDataFim(event.target.value)}
+                  disabled={isPending}
+                />
+              </div>
             </div>
 
-            <div className="min-w-[120px]">
-              <p className="mb-1 text-xs font-medium text-muted-foreground">
-                Ano
-              </p>
-              <Select
-                value={String(filtros.ano)}
-                onValueChange={(value) =>
-                  atualizarPeriodo(Number(value), filtros.mes)
-                }
+            <div className="mt-3 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={limparPeriodo}
                 disabled={isPending}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {anosDisponiveis.map((ano) => (
-                    <SelectItem key={ano} value={String(ano)}>
-                      {ano}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Limpar
+              </Button>
+              <Button
+                type="button"
+                onClick={aplicarPeriodo}
+                disabled={isPending || !dataInicio || !dataFim}
+              >
+                <Search className="mr-2 h-4 w-4" />
+                Aplicar
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -221,7 +235,7 @@ export default function FeriasEquipe({
         <ResumoCard
           titulo="Férias aprovadas"
           valor={resumo.total}
-          descricao={`em ${meses[filtros.mes - 1].toLowerCase()}`}
+          descricao="no período selecionado"
           icon={CalendarCheck2}
         />
         <ResumoCard
@@ -231,7 +245,7 @@ export default function FeriasEquipe({
           icon={Clock3}
         />
         <ResumoCard
-          titulo="Com férias no mês"
+          titulo="Com férias no período"
           valor={resumo.colaboradoresComFerias}
           descricao={`${resumo.proximas} período(s) futuro(s)`}
           icon={CalendarDays}
@@ -242,7 +256,7 @@ export default function FeriasEquipe({
         <CardHeader>
           <CardTitle>Calendário da equipe</CardTitle>
           <CardDescription>
-            Períodos aprovados em {meses[filtros.mes - 1]} de {filtros.ano}.
+            Períodos aprovados entre {descricaoPeriodo}.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -251,29 +265,41 @@ export default function FeriasEquipe({
           ) : (
             <div className="overflow-x-auto rounded-lg border">
               <div
-                className="min-w-[980px]"
+                className="min-w-max"
                 style={{
                   display: "grid",
-                  gridTemplateColumns: `240px repeat(${diasDoMes.length}, minmax(24px, 1fr))`,
+                  gridTemplateColumns: `240px repeat(${datasPeriodo.length}, minmax(30px, 30px))`,
                 }}
               >
                 <div className="sticky left-0 z-20 border-b border-r bg-muted/90 px-3 py-2 text-sm font-semibold backdrop-blur">
                   Colaborador
                 </div>
 
-                {diasDoMes.map((dia) => (
-                  <div
-                    key={`cabecalho-${dia}`}
-                    className={cn(
-                      "border-b border-r px-1 py-2 text-center text-xs font-semibold",
-                      isFimDeSemana(filtros.ano, filtros.mes, dia)
-                        ? "bg-muted/80 text-muted-foreground"
-                        : "bg-muted/40",
-                    )}
-                  >
-                    {dia}
-                  </div>
-                ))}
+                {datasPeriodo.map((data) => {
+                  const dataLocal = parseDate(data)
+                  const diaSemana = dataLocal.getDay()
+
+                  return (
+                    <div
+                      key={`cabecalho-${data}`}
+                      className={cn(
+                        "border-b border-r px-0.5 py-2 text-center",
+                        isFimDeSemana(data)
+                          ? "bg-muted/80 text-muted-foreground"
+                          : "bg-muted/40",
+                        isSameDay(dataLocal, new Date()) && "bg-blue-50",
+                      )}
+                      title={formatarData(data)}
+                    >
+                      <div className="text-[9px] text-muted-foreground">
+                        {diasSemana[diaSemana]}
+                      </div>
+                      <div className="text-xs font-semibold">
+                        {String(dataLocal.getDate()).padStart(2, "0")}
+                      </div>
+                    </div>
+                  )
+                })}
 
                 {colaboradoresComSolicitacao.map((colaborador) => {
                   const periodos =
@@ -284,14 +310,24 @@ export default function FeriasEquipe({
                       key={colaborador.id}
                       colaborador={colaborador}
                       periodos={periodos}
-                      diasDoMes={diasDoMes}
-                      ano={filtros.ano}
-                      mes={filtros.mes}
+                      datasPeriodo={datasPeriodo}
+                      cor={
+                        coresPorColaborador.get(colaborador.id) ??
+                        gerarCorColaborador(colaborador.id)
+                      }
                     />
                   )
                 })}
               </div>
             </div>
+          )}
+
+          {colaboradoresComSolicitacao.length > 0 && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              As cores servem apenas para diferenciar os colaboradores no
+              calendário. Todas as férias exibidas nesta tela já estão
+              aprovadas.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -300,7 +336,7 @@ export default function FeriasEquipe({
         <CardHeader>
           <CardTitle>Períodos aprovados</CardTitle>
           <CardDescription>
-            Relação completa das férias aprovadas que alcançam o mês
+            Relação completa das férias aprovadas que alcançam o período
             selecionado.
           </CardDescription>
         </CardHeader>
@@ -390,52 +426,57 @@ function ResumoCard({
 function CalendarRow({
   colaborador,
   periodos,
-  diasDoMes,
-  ano,
-  mes,
+  datasPeriodo,
+  cor,
 }: {
   colaborador: ColaboradorEquipe
   periodos: FeriasEquipeSolicitacao[]
-  diasDoMes: number[]
-  ano: number
-  mes: number
+  datasPeriodo: string[]
+  cor: CorColaborador
 }) {
   return (
     <>
       <div className="sticky left-0 z-10 border-b border-r bg-background px-3 py-3">
-        <div className="truncate text-sm font-medium">{colaborador.nome}</div>
+        <div className="flex items-center gap-2">
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: cor.solid }}
+            aria-hidden="true"
+          />
+          <div className="truncate text-sm font-medium">{colaborador.nome}</div>
+        </div>
         <div className="truncate text-xs text-muted-foreground">
           {colaborador.cargo ?? colaborador.equipe ?? "Colaborador"}
         </div>
       </div>
 
-      {diasDoMes.map((dia) => {
-        const data = montarDataISO(ano, mes, dia)
+      {datasPeriodo.map((data) => {
         const periodo = periodos.find(
           (item) => item.data_inicio <= data && item.data_fim >= data,
         )
-        const fimDeSemana = isFimDeSemana(ano, mes, dia)
 
         return (
           <div
-            key={`${colaborador.id}-${dia}`}
+            key={`${colaborador.id}-${data}`}
             className={cn(
               "flex min-h-14 items-center justify-center border-b border-r p-0.5",
-              fimDeSemana && "bg-muted/40",
+              isFimDeSemana(data) && "bg-muted/40",
+              isSameDay(parseDate(data), new Date()) && "bg-blue-50/70",
             )}
             title={
               periodo
                 ? `${colaborador.nome}: ${formatarData(periodo.data_inicio)} a ${formatarData(periodo.data_fim)}`
-                : undefined
+                : formatarData(data)
             }
           >
             {periodo && (
               <div
                 className={cn(
-                  "h-8 w-full bg-blue-500/85",
+                  "h-8 w-full",
                   data === periodo.data_inicio && "rounded-l-md",
                   data === periodo.data_fim && "rounded-r-md",
                 )}
+                style={{ backgroundColor: cor.solid }}
                 aria-label={`Férias de ${colaborador.nome}`}
               />
             )}
@@ -450,7 +491,7 @@ function EmptyState() {
   return (
     <div className="flex min-h-48 flex-col items-center justify-center rounded-lg border border-dashed p-6 text-center">
       <CalendarDays className="mb-3 h-8 w-8 text-muted-foreground" />
-      <p className="font-medium">Nenhuma férias aprovada neste mês</p>
+      <p className="font-medium">Nenhuma férias aprovada no período</p>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">
         A página será atualizada quando o RH aprovar uma solicitação de alguém
         pertencente à equipe do líder.
@@ -459,13 +500,89 @@ function EmptyState() {
   )
 }
 
-function montarDataISO(ano: number, mes: number, dia: number) {
-  return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`
+function gerarCorColaborador(chave: string): CorColaborador {
+  const hash = hashTexto(chave)
+
+  // Faixas azul, índigo, violeta, roxo e rosa.
+  // Verde, amarelo, laranja e vermelho ficam reservados aos status.
+  const faixas = [
+    { inicio: 195, tamanho: 51 },
+    { inicio: 250, tamanho: 46 },
+    { inicio: 300, tamanho: 31 },
+  ]
+
+  const totalTons = faixas.reduce((total, faixa) => total + faixa.tamanho, 0)
+  let posicao = hash % totalTons
+  let hue = faixas[0].inicio
+
+  for (const faixa of faixas) {
+    if (posicao < faixa.tamanho) {
+      hue = faixa.inicio + posicao
+      break
+    }
+
+    posicao -= faixa.tamanho
+  }
+
+  const saturacao = 66 + ((hash >>> 8) % 12)
+  const luminosidade = 45 + ((hash >>> 16) % 8)
+
+  return {
+    solid: `hsl(${hue} ${saturacao}% ${luminosidade}%)`,
+    soft: `hsl(${hue} ${saturacao}% ${luminosidade}% / 0.16)`,
+  }
 }
 
-function isFimDeSemana(ano: number, mes: number, dia: number) {
-  const semana = new Date(ano, mes - 1, dia, 12).getDay()
+function hashTexto(valor: string) {
+  let hash = 2166136261
+
+  for (let index = 0; index < valor.length; index += 1) {
+    hash ^= valor.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return hash >>> 0
+}
+
+const diasSemana = ["D", "S", "T", "Q", "Q", "S", "S"]
+
+function gerarDatasPeriodo(dataInicio: string, dataFim: string) {
+  const inicio = parseDate(dataInicio)
+  const fim = parseDate(dataFim)
+
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) return []
+
+  const datas: string[] = []
+  const atual = new Date(inicio)
+
+  while (atual <= fim) {
+    datas.push(formatarDataISO(atual))
+    atual.setDate(atual.getDate() + 1)
+  }
+
+  return datas
+}
+
+function parseDate(value: string) {
+  const [ano, mes, dia] = value.split("-").map(Number)
+  return new Date(ano, mes - 1, dia, 12)
+}
+
+function formatarDataISO(data: Date) {
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`
+}
+
+function isFimDeSemana(data: string) {
+  const semana = parseDate(data).getDay()
   return semana === 0 || semana === 6
+}
+
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
 }
 
 function formatarData(data: string) {
