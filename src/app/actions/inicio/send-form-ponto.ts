@@ -1,29 +1,54 @@
-"use server";
+"use server"
 
-import { createClient } from "@/utils/supabase/server";
-import { pontoSchema } from "@/types/inicio/ponto";
+import { createClient } from "@/utils/supabase/server"
+import { pontoSchema } from "@/types/inicio/ponto"
 
-// Tipagem de retorno (opcional, mas recomendada)
-type ActionResponse = { success: true; error: null } | { success: false; error: string };
+type ActionResponse =
+  | { success: true; error: null }
+  | { success: false; error: string }
 
-export async function savePonto(formData: FormData): Promise<ActionResponse> {
+export async function savePonto(
+  formData: FormData,
+): Promise<ActionResponse> {
+  const data = Object.fromEntries(formData.entries())
 
-  const data = Object.fromEntries(formData.entries());
+  const result = pontoSchema.safeParse(data)
 
-  const result = pontoSchema.safeParse(data);
   if (!result.success) {
-    return { success: false, error: "Dados do formulário inválidos." };
+    console.error(result.error.flatten())
+
+    return {
+      success: false,
+      error: "Dados do formulário inválidos.",
+    }
   }
-  const values = result.data;
 
-  const supabase = await createClient();
+  const values = {
+    ...result.data,
+    projeto: result.data.projeto ? Number(result.data.projeto) : null,
+    product_id: result.data.product_id
+      ? Number(result.data.product_id)
+      : null,
+    atividade: result.data.atividade
+      ? Number(result.data.atividade)
+      : null,
+  }
 
-  const { error } = await supabase
-    .from("ponto")
-    .insert([values]);
+  const supabase = await createClient()
+
+  const { error } = await supabase.from("ponto").insert([values])
 
   if (error) {
-    return { success: false, error: error.message };
+    console.error("Erro ao salvar ponto:", error)
+
+    return {
+      success: false,
+      error: error.message,
+    }
   }
-  return { success: true, error: null };
+
+  return {
+    success: true,
+    error: null,
+  }
 }

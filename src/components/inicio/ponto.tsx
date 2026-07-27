@@ -18,6 +18,8 @@ import Loading from "@/app/loading"
 import { nestedPontoType } from "@/types/inicio/ponto"
 import { deletePonto } from "@/app/actions/inicio/get-ponto"
 import { ComboboxSelect } from "../ui/combobox-select"
+import { getProdutosByProjectId } from "@/app/actions/inicio/get-produtos"
+import { productsArraySchema, type ProductsType } from "@/types/inicio/produtos"
 
 const initialState = { success: false, error: null as string | null }
 
@@ -40,6 +42,8 @@ export default function PontoForm() {
   const [selectedAtividade, setSelectedAtividade] = useState<string>("")
   const [periodos, setPeriodos] = useState<nestedPontoType[]>([])
   const today = new Date().toISOString().slice(0, 10)
+  const [produtos, setProdutos] = useState<ProductsType>([])
+  const [selectedProdutoId, setSelectedProdutoId] = useState<string>("")
 
   const [date, setDate] = useState<string>(today)
 
@@ -112,26 +116,55 @@ export default function PontoForm() {
 
   useEffect(() => {
     if (state.success) {
-      setSelectedProjetoId("")
-      setSelectedAtividade("")
-      setAtividades([])
-      
-      const dateInput = formRef.current?.elements.namedItem(
-        "entry_date"
-      ) as HTMLInputElement | null
-
-      const currentDate = dateInput?.value || date
-      
       formRef.current?.reset()
 
-      setDate(currentDate)
+      setSelectedProjetoId("")
+      setSelectedProdutoId("")
+      setSelectedAtividade("")
 
+      setProdutos([])
+      setAtividades([])
+
+      setDate(today)
       router.refresh()
     }
-  }, [state.success, router, date])
+   }, [state.success, router, today])
+  useEffect(() => {
+    const fetchProdutos = async () => {
+      if (!selectedProjetoId) {
+        setProdutos([])
+        return
+      }
+
+      try {
+        const produtosDoProjeto = await getProdutosByProjectId({
+          project_id: selectedProjetoId,
+        })
+
+        const parsed = productsArraySchema.safeParse(produtosDoProjeto)
+
+        if (!parsed.success) {
+          console.error(
+            "Produtos retornados em formato inválido:",
+            parsed.error.flatten(),
+          )
+
+          setProdutos([])
+          return
+        }
+
+        setProdutos(parsed.data)
+      } catch (error) {
+        console.error("Erro ao buscar produtos do projeto:", error)
+        setProdutos([])
+      }
+    }
+
+    setSelectedProdutoId("")
+    fetchProdutos()
+  }, [selectedProjetoId])
 
   if (!userId) return <Loading />
-
   return (
     <Card className="h-[70vh] mx-6 overflow-y-auto ">
       <div className="grid grid-cols-2">
@@ -189,6 +222,31 @@ export default function PontoForm() {
                 }))}
               />
 
+              <label className="block mb-5 mt-5 font-medium">Produto</label>
+              <ComboboxSelect
+                name="product_id"
+                className="w-full"
+                value={selectedProdutoId}
+                onValueChange={setSelectedProdutoId}
+                placeholder={
+                  selectedProjetoId
+                    ? "Selecione um produto"
+                    : "Selecione um projeto primeiro"
+                }
+                emptyText={
+                  selectedProjetoId
+                    ? "Nenhum produto cadastrado para este projeto"
+                    : "Selecione um projeto"
+                }
+                items={(produtos ?? []).map((produto) => ({
+                  value: produto.id.toString(),
+                  label: produto.code
+                    ? `${produto.code} - ${produto.name}`
+                    : produto.name,
+                }))}
+                disabled={!selectedProjetoId}
+              />
+
               <label className="block mb-5 mt-5 font-medium">Atividade</label>
               <ComboboxSelect
                 name="atividade"
@@ -218,7 +276,7 @@ export default function PontoForm() {
             <Button
               type="submit"
               className="w-full mt-10 py-1"
-              disabled={isPending || !selectedProjetoId || !selectedAtividade}
+              disabled={isPending || !selectedProjetoId || !selectedProdutoId || !selectedAtividade}
             >
               {isPending ? "Salvando..." : "Registrar Ponto"}
             </Button>
@@ -312,6 +370,7 @@ export function PeriodosDoDia({ periodos, setPeriodos }: Props) {
               </p>
               <p className="text-sm text-gray-500">
                 {p.projeto?.name || "Sem projeto"} •{" "}
+                {p.produto?.name|| "Sem produto"} •{" "}
                 {p.atividade?.name || "Sem atividade"}
               </p>
             </div>

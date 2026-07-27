@@ -7,20 +7,25 @@ export async function POST(req: Request) {
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from("ponto")
-    .select(`
-      *,
-      projeto:projects (
-        id,
-        name
-      ),
-      atividade:activities (
-        id,
-        name
-      )
-    `)
-    .eq("user_id", user_id)
-    .eq("entry_date", entry_date);
+  .from("ponto")
+  .select(`
+    *,
+    projeto:projects (
+      id,
+      name
+    ),
+    produto:project_products!ponto_product_id_fkey (
+      id,
+      name
+    ),
+    atividade:activities (
+      id,
+      name
+    )
+  `)
+  .eq("user_id", user_id)
+  .eq("entry_date", entry_date)
+  .order("entry_time", { ascending: true })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
