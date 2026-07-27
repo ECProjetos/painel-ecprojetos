@@ -879,8 +879,7 @@ export default function GestaoFerias({
                       />
 
                       <span className="text-muted-foreground">
-                        As cores das barras identificam os colaboradores; o
-                        status é indicado pelo selo.
+                        O status da solicitação é indicado pelo selo.
                       </span>
                     </div>
                   </>
