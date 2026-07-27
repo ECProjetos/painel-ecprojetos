@@ -129,6 +129,9 @@ export default function PontoForm() {
       router.refresh()
     }
    }, [state.success, router, today])
+
+ 
+
   useEffect(() => {
     const fetchProdutos = async () => {
       if (!selectedProjetoId) {
@@ -163,8 +166,6 @@ export default function PontoForm() {
     setSelectedProdutoId("")
     fetchProdutos()
   }, [selectedProjetoId])
-
-  if (!userId) return <Loading />
   return (
     <Card className="h-[70vh] mx-6 overflow-y-auto ">
       <div className="grid grid-cols-2">
@@ -276,7 +277,7 @@ export default function PontoForm() {
             <Button
               type="submit"
               className="w-full mt-10 py-1"
-              disabled={isPending || !selectedProjetoId || !selectedProdutoId || !selectedAtividade}
+              disabled={isPending || !selectedProjetoId || !selectedAtividade || (produtos.length > 0 && !selectedProdutoId)}
             >
               {isPending ? "Salvando..." : "Registrar Ponto"}
             </Button>
