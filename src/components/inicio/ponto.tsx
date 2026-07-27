@@ -128,9 +128,7 @@ export default function PontoForm() {
       setDate(today)
       router.refresh()
     }
-   }, [state.success, router, today])
-
- 
+  }, [state.success, router, today])
 
   useEffect(() => {
     const fetchProdutos = async () => {
@@ -166,6 +164,9 @@ export default function PontoForm() {
     setSelectedProdutoId("")
     fetchProdutos()
   }, [selectedProjetoId])
+  if (!userId) {
+    return <Loading />
+  }
   return (
     <Card className="h-[70vh] mx-6 overflow-y-auto ">
       <div className="grid grid-cols-2">
@@ -247,6 +248,14 @@ export default function PontoForm() {
                 }))}
                 disabled={!selectedProjetoId}
               />
+              {selectedProjetoId && produtos.length === 0 && (
+                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm text-amber-800">
+                    Este projeto ainda não possui produtos cadastrados. O
+                    registro será salvo temporariamente sem produto.
+                  </p>
+                </div>
+              )}
 
               <label className="block mb-5 mt-5 font-medium">Atividade</label>
               <ComboboxSelect
@@ -277,7 +286,12 @@ export default function PontoForm() {
             <Button
               type="submit"
               className="w-full mt-10 py-1"
-              disabled={isPending || !selectedProjetoId || !selectedAtividade || (produtos.length > 0 && !selectedProdutoId)}
+              disabled={
+                isPending ||
+                !selectedProjetoId ||
+                !selectedAtividade ||
+                (produtos.length > 0 && !selectedProdutoId)
+              }
             >
               {isPending ? "Salvando..." : "Registrar Ponto"}
             </Button>
@@ -371,7 +385,7 @@ export function PeriodosDoDia({ periodos, setPeriodos }: Props) {
               </p>
               <p className="text-sm text-gray-500">
                 {p.projeto?.name || "Sem projeto"} •{" "}
-                {p.produto?.name|| "Sem produto"} •{" "}
+                {p.produto?.name || "Sem produto"} •{" "}
                 {p.atividade?.name || "Sem atividade"}
               </p>
             </div>
