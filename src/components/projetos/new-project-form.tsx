@@ -1,42 +1,59 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
+import { PlusCircle, Trash2 } from "lucide-react";
+import Link from "next/link";
+import {
+  useFieldArray,
+  useForm,
+  useWatch,
+} from "react-hook-form";
 
-import { NewProject, newProjectSchema } from "@/types/projects";
-
+import { getAtividades } from "@/app/actions/inicio/get-atividades";
 import {
   Form,
+  FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { STATUS_OPTIONS, type StatusValue } from "@/constants/status";
 import { cn } from "@/lib/utils";
-import { STATUS_OPTIONS, StatusValue } from "@/constants/status";
-import Link from "next/link";
+import type { Atividade } from "@/types/atidades";
+import { newProjectSchema, type NewProject } from "@/types/projects";
+
 import MultiSelect from "../ui/multi-select";
-import { useQuery } from "@tanstack/react-query";
-import { getAtividades } from "@/app/actions/inicio/get-atividades";
-import { Atividade } from "@/types/atidades";
 
 interface NewProjectFormProps {
   departments: { id: number; name: string }[];
-  onSubmit: (data: NewProject) => void;
+  onSubmit: (data: NewProject) => Promise<void> | void;
   projeto?: NewProject | null;
 }
+
+const EMPTY_PRODUCT: NewProject["products"][number] = {
+  name: "",
+  estimated_hours: 0,
+  status: "ativo",
+};
+
+const PRODUCT_STATUS_OPTIONS = [
+  { value: "ativo", label: "Ativo" },
+  { value: "concluido", label: "Concluído" },
+  { value: "inativo", label: "Inativo" },
+] as const;
 
 export function NewProjectForm({
   departments,
@@ -54,23 +71,69 @@ export function NewProjectForm({
       department_ids: [],
       activities: [],
       encharged: "",
+      products: [{ ...EMPTY_PRODUCT }],
     },
   });
 
-  // 🔑 Resetar valores quando receber "projeto" (edição)
-  useEffect(() => {
-    if (projeto) {
-      form.reset({
-        name: projeto.name ?? "",
-        code: projeto.code ?? "",
-        description: projeto.description ?? "",
-        status: projeto.status ?? "ativo",
-        estimated_hours: projeto.estimated_hours ?? 0,
-        department_ids: projeto.department_ids ?? [],
-        activities: projeto.activities ?? [],
-        encharged: projeto.encharged ?? "",
-      });
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "products",
+    keyName: "fieldKey",
+  });
+
+  const estimatedProjectHours = Number(
+    useWatch({
+      control: form.control,
+      name: "estimated_hours",
+    }) ?? 0,
+  );
+
+  const watchedProducts =
+    useWatch({
+      control: form.control,
+      name: "products",
+    }) ?? [];
+
+  const totalProductHours = watchedProducts.reduce((total, product) => {
+    if (!product || product.status === "inativo") {
+      return total;
     }
+
+    return total + Number(product.estimated_hours || 0);
+  }, 0);
+
+  const remainingHours = estimatedProjectHours - totalProductHours;
+  const exceedsProjectHours = remainingHours < 0;
+
+  const productsErrorMessage =
+    typeof form.formState.errors.products?.message === "string"
+      ? form.formState.errors.products.message
+      : null;
+
+  useEffect(() => {
+    if (!projeto) {
+      return;
+    }
+
+    form.reset({
+      name: projeto.name ?? "",
+      code: projeto.code ?? "",
+      description: projeto.description ?? "",
+      status: projeto.status ?? "ativo",
+      estimated_hours: projeto.estimated_hours ?? 0,
+      department_ids: projeto.department_ids ?? [],
+      activities: projeto.activities ?? [],
+      encharged: projeto.encharged ?? "",
+      products:
+        projeto.products && projeto.products.length > 0
+          ? projeto.products.map((product) => ({
+              id: product.id,
+              name: product.name ?? "",
+              estimated_hours: Number(product.estimated_hours ?? 0),
+              status: product.status ?? "ativo",
+            }))
+          : [{ ...EMPTY_PRODUCT }],
+    });
   }, [projeto, form]);
 
   const { data: activities } = useQuery<Atividade[]>({
@@ -78,26 +141,25 @@ export function NewProjectForm({
     queryFn: getAtividades,
   });
 
+  const handleSubmit = async (data: NewProject) => {
+    await onSubmit(data);
+  };
+
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={form.handleSubmit(handleSubmit)}
         className="space-y-8"
         noValidate
       >
-        {/* Cabeçalho */}
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">
-              Preencha os campos abaixo para{" "}
-              {projeto ? "atualizar" : "criar"} o projeto.
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Preencha os campos abaixo para {projeto ? "atualizar" : "criar"} o
+            projeto.
+          </p>
         </div>
 
-        {/* Grid principal */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Nome */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
             name="name"
@@ -116,7 +178,6 @@ export function NewProjectForm({
             )}
           />
 
-          {/* Código */}
           <FormField
             control={form.control}
             name="code"
@@ -135,7 +196,6 @@ export function NewProjectForm({
             )}
           />
 
-          {/* Status */}
           <FormField
             control={form.control}
             name="status"
@@ -152,11 +212,11 @@ export function NewProjectForm({
                     </SelectTrigger>
                     <SelectContent>
                       {STATUS_OPTIONS.map(
-                        (s: { value: StatusValue; label: string }) => (
-                          <SelectItem key={s.value} value={s.value}>
-                            {s.label}
+                        (status: { value: StatusValue; label: string }) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.label}
                           </SelectItem>
-                        )
+                        ),
                       )}
                     </SelectContent>
                   </Select>
@@ -166,21 +226,22 @@ export function NewProjectForm({
             )}
           />
 
-          {/* Horas estimadas */}
           <FormField
             control={form.control}
             name="estimated_hours"
             render={({ field }) => (
               <FormItem className="space-y-2">
-                <FormLabel>Horas Estimadas</FormLabel>
+                <FormLabel>Horas Estimadas do Projeto</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
-                    placeholder="Ex: 404"
-                    value={field.value ?? ""}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      field.onChange(val === "" ? null : Number(val));
+                    min={1}
+                    step={1}
+                    placeholder="Ex.: 1000"
+                    value={field.value || ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      field.onChange(value === "" ? 0 : Number(value));
                     }}
                   />
                 </FormControl>
@@ -189,7 +250,6 @@ export function NewProjectForm({
             )}
           />
 
-          {/* Descrição */}
           <FormField
             control={form.control}
             name="description"
@@ -198,7 +258,7 @@ export function NewProjectForm({
                 <FormLabel>Descrição do Projeto</FormLabel>
                 <FormControl>
                   <Textarea
-                    placeholder="Descrição do projeto. Ex: Projeto para facilitar gestão interna de horários trabalhados por projeto."
+                    placeholder="Descrição do projeto"
                     className="min-h-[120px]"
                     {...field}
                     value={field.value ?? ""}
@@ -209,7 +269,6 @@ export function NewProjectForm({
             )}
           />
 
-          {/* Gestor */}
           <FormField
             control={form.control}
             name="encharged"
@@ -220,7 +279,7 @@ export function NewProjectForm({
                   <Input
                     placeholder="Gestor do projeto"
                     {...field}
-                    className="w-1/2"
+                    className="w-full md:w-1/2"
                     value={field.value ?? ""}
                   />
                 </FormControl>
@@ -230,7 +289,6 @@ export function NewProjectForm({
           />
         </div>
 
-        {/* Departamentos */}
         <div className="space-y-3">
           <FormField
             control={form.control}
@@ -239,34 +297,36 @@ export function NewProjectForm({
               <FormItem className="space-y-3">
                 <FormLabel>Departamentos</FormLabel>
                 <FormControl>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-1">
-                    {departments.map((dep) => {
-                      const checked = field.value?.includes(dep.id);
+                  <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {departments.map((department) => {
+                      const checked = field.value?.includes(department.id);
+
                       return (
                         <label
-                          key={dep.id}
-                          className="flex items-center gap-3 rounded-md border p-3 bg-background"
+                          key={department.id}
+                          className="flex items-center gap-3 rounded-md border bg-background p-3"
                         >
                           <input
                             type="checkbox"
-                            className="w-4 h-4 text-primary"
+                            className="h-4 w-4 text-primary"
                             checked={checked}
-                            onChange={(e) => {
-                              if (e.target.checked) {
+                            onChange={(event) => {
+                              if (event.target.checked) {
                                 field.onChange([
                                   ...(field.value ?? []),
-                                  dep.id,
+                                  department.id,
                                 ]);
                               } else {
                                 field.onChange(
                                   (field.value ?? []).filter(
-                                    (id) => id !== dep.id
-                                  )
+                                    (departmentId) =>
+                                      departmentId !== department.id,
+                                  ),
                                 );
                               }
                             }}
                           />
-                          <span className="text-sm">{dep.name}</span>
+                          <span className="text-sm">{department.name}</span>
                         </label>
                       );
                     })}
@@ -278,7 +338,170 @@ export function NewProjectForm({
           />
         </div>
 
-        {/* Atividades */}
+        <section className="space-y-4 rounded-lg border p-4 md:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Produtos do projeto</h2>
+              <p className="text-sm text-muted-foreground">
+                Cadastre os relatórios, estudos ou outros entregáveis previstos
+                e informe as horas estimadas de cada produto.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => append({ ...EMPTY_PRODUCT })}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Adicionar produto
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            {fields.map((productField, index) => (
+              <div
+                key={productField.fieldKey}
+                className="grid grid-cols-1 gap-4 rounded-md border bg-muted/20 p-4 md:grid-cols-[minmax(0,1fr)_180px_170px_auto] md:items-start"
+              >
+                <FormField
+                  control={form.control}
+                  name={`products.${index}.name`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Produto {index + 1}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ex.: Estudo de mercado"
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name={`products.${index}.estimated_hours`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Horas estimadas</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          step={1}
+                          placeholder="Ex.: 500"
+                          value={field.value || ""}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            field.onChange(value === "" ? 0 : Number(value));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name={`products.${index}.status`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {PRODUCT_STATUS_OPTIONS.map((status) => (
+                            <SelectItem key={status.value} value={status.value}>
+                              {status.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="md:pt-8">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive"
+                    disabled={fields.length === 1}
+                    title={productField.id ? "Inativar ao salvar" : "Remover"}
+                    onClick={() => remove(index)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">
+                      {productField.id ? "Inativar produto" : "Remover produto"}
+                    </span>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className={cn(
+              "grid gap-3 rounded-md border p-4 text-sm sm:grid-cols-3",
+              exceedsProjectHours && "border-destructive bg-destructive/5",
+            )}
+          >
+            <div>
+              <span className="block text-muted-foreground">
+                Horas do projeto
+              </span>
+              <strong>{estimatedProjectHours} h</strong>
+            </div>
+            <div>
+              <span className="block text-muted-foreground">
+                Horas distribuídas
+              </span>
+              <strong>{totalProductHours} h</strong>
+            </div>
+            <div>
+              <span className="block text-muted-foreground">
+                {exceedsProjectHours ? "Horas excedentes" : "Horas disponíveis"}
+              </span>
+              <strong className={cn(exceedsProjectHours && "text-destructive")}>
+                {Math.abs(remainingHours)} h
+              </strong>
+            </div>
+          </div>
+
+          {exceedsProjectHours && (
+            <p className="text-sm font-medium text-destructive">
+              A soma das horas dos produtos não pode ultrapassar as horas
+              estimadas do projeto.
+            </p>
+          )}
+
+          {productsErrorMessage && (
+            <p className="text-sm font-medium text-destructive">
+              {productsErrorMessage}
+            </p>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            Ao remover um produto já cadastrado e salvar o projeto, ele será
+            inativado — não apagado — para preservar os registros de ponto e o
+            histórico dos relatórios.
+          </p>
+        </section>
+
         <FormField
           control={form.control}
           name="activities"
@@ -293,7 +516,7 @@ export function NewProjectForm({
                     value: activity.id.toString(),
                   }))}
                   value={field.value ?? []}
-                  onChange={(vals: string[]) => field.onChange(vals)}
+                  onChange={(values: string[]) => field.onChange(values)}
                   placeholder="Selecione atividades..."
                 />
               </FormControl>
@@ -302,19 +525,27 @@ export function NewProjectForm({
           )}
         />
 
-        {/* Ações */}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Link
-            href="/controle-horarios/direcao/projetos"
+            href="/projetos"
             className={cn(
               buttonVariants({ variant: "outline" }),
-              "w-full sm:w-auto"
+              "w-full sm:w-auto",
             )}
           >
             Voltar
           </Link>
-          <Button type="submit" className="w-full sm:w-auto">
-            {projeto ? "Atualizar Projeto" : "Criar Projeto"}
+
+          <Button
+            type="submit"
+            className="w-full sm:w-auto"
+            disabled={form.formState.isSubmitting || exceedsProjectHours}
+          >
+            {form.formState.isSubmitting
+              ? "Salvando..."
+              : projeto
+                ? "Atualizar Projeto"
+                : "Criar Projeto"}
           </Button>
         </div>
       </form>
