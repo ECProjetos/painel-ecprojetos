@@ -972,6 +972,176 @@ export async function getFeedbackAcompanhamentoAbertos() {
   return data ?? []
 }
 
+export type FeedbackParticipanteIdentificado = {
+  id: string
+  nome: string
+  email: string | null
+  role: string
+  departamento: string | null
+  respondeu: boolean
+  respondido_em: string | null
+}
+
+export type FeedbackDetalheIdentificado = {
+  formulario_id: string
+  formulario_titulo: string
+  categoria: string | null
+  permiteDetalhamentoAtual: boolean
+  participantes: FeedbackParticipanteIdentificado[]
+  respondidos: number
+  pendentes: number
+}
+
+export async function getFeedbackPendenciasIdentificadas(): Promise<
+  FeedbackDetalheIdentificado[]
+> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    throw new Error("Usuário não autenticado.")
+  }
+
+  const { data: perfil, error: perfilError } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  const role = String(perfil?.role ?? "").toUpperCase()
+
+  if (perfilError || role !== "DIRETOR") {
+    throw new Error("Apenas diretores podem consultar os pendentes.")
+  }
+
+  const { data: formularios, error: formulariosError } = await supabase
+    .from("feedback_formularios")
+    .select(
+      `
+        id,
+        titulo,
+        tipo,
+        categoria,
+        confidencialidade,
+        ordem,
+        feedback_ciclos!inner (
+          id,
+          status
+        )
+      `,
+    )
+    .eq("status", "aberto")
+    .eq("confidencialidade", "identificado")
+    .eq("feedback_ciclos.status", "aberto")
+    .order("ordem", { ascending: true })
+
+  if (formulariosError) {
+    console.error("Erro ao buscar formulários identificados:", formulariosError)
+    throw new Error("Não foi possível buscar os formulários identificados.")
+  }
+
+  const { data: participantes, error: participantesError } = await supabase
+    .from("vw_colaboradores")
+    .select("id, nome, email, role, departamento_nome")
+    .eq("status", "ativo")
+    .in("role", ["COLABORADOR", "LIDER"])
+    .neq("email", "lider@ecprojetos.com.br")
+    .order("departamento_nome", { ascending: true })
+    .order("nome", { ascending: true })
+
+  if (participantesError) {
+    console.error("Erro ao buscar participantes:", participantesError)
+    throw new Error("Não foi possível buscar os participantes do feedback.")
+  }
+
+  const formularioIds = (formularios ?? []).map((formulario) => formulario.id)
+
+  const { data: participacoes, error: participacoesError } =
+    formularioIds.length > 0
+      ? await supabase
+          .from("feedback_participacoes")
+          .select("formulario_id, user_id, respondido_em")
+          .in("formulario_id", formularioIds)
+      : { data: [], error: null }
+
+  if (participacoesError) {
+    console.error(
+      "Erro ao buscar participações identificadas:",
+      participacoesError,
+    )
+    throw new Error("Não foi possível buscar as participações identificadas.")
+  }
+
+  const participacoesPorFormulario = new Map<
+    string,
+    Map<string, string | null>
+  >()
+
+  for (const participacao of participacoes ?? []) {
+    const formularioId = String(participacao.formulario_id)
+    const userId = String(participacao.user_id)
+
+    if (!participacoesPorFormulario.has(formularioId)) {
+      participacoesPorFormulario.set(formularioId, new Map())
+    }
+
+    participacoesPorFormulario
+      .get(formularioId)
+      ?.set(userId, participacao.respondido_em ?? null)
+  }
+
+  return (formularios ?? []).map((formulario) => {
+    const categoria = formulario.categoria ?? formulario.tipo ?? null
+    const gestorParaColaborador =
+      categoria === "feedback_gestor_colaborador" ||
+      formulario.tipo === "feedback_gestor_colaborador"
+
+    if (gestorParaColaborador) {
+      return {
+        formulario_id: formulario.id,
+        formulario_titulo: formulario.titulo,
+        categoria,
+        permiteDetalhamentoAtual: false,
+        participantes: [],
+        respondidos: 0,
+        pendentes: 0,
+      }
+    }
+
+    const participacoesDoFormulario =
+      participacoesPorFormulario.get(formulario.id) ?? new Map()
+
+    const lista = (participantes ?? []).map((participante) => ({
+      id: participante.id,
+      nome: participante.nome,
+      email: participante.email ?? null,
+      role: participante.role,
+      departamento: participante.departamento_nome ?? null,
+      respondeu: participacoesDoFormulario.has(participante.id),
+      respondido_em: participacoesDoFormulario.get(participante.id) ?? null,
+    }))
+
+    const respondidos = lista.filter(
+      (participante) => participante.respondeu,
+    ).length
+    const pendentes = Math.max(lista.length - respondidos, 0)
+
+    return {
+      formulario_id: formulario.id,
+      formulario_titulo: formulario.titulo,
+      categoria,
+      permiteDetalhamentoAtual: true,
+      participantes: lista,
+      respondidos,
+      pendentes,
+    }
+  })
+}
+
 export type FeedbackAnaliseFiltros = {
   cicloId?: string
   tipoFormulario?: string
@@ -1085,7 +1255,6 @@ type AcessoRespostasFeedback = "todos" | "diretores"
 type FeedbackCicloDisponibilidade = {
   id: string
   nome: string | null
-  status: string | null
   status_respostas: StatusRespostasFeedback
   acesso_respostas: AcessoRespostasFeedback
   data_inicio_respostas: string | null
@@ -1148,13 +1317,6 @@ function avaliarDisponibilidadeCiclo(
   const fim = ciclo.data_fim_respostas
     ? new Date(ciclo.data_fim_respostas)
     : null
-
-  if (ciclo.status !== "aberto") {
-    return {
-      aberto: false,
-      motivo: "Este ciclo de feedback está fechado.",
-    }
-  }
 
   if (ciclo.status_respostas !== "aberto") {
     if (ciclo.status_respostas === "encerrado") {
@@ -1274,7 +1436,7 @@ export async function verificarDisponibilidadeFormularioFeedback(
   const { data: ciclo, error: cicloError } = await supabase
     .from("feedback_ciclos")
     .select(
-      "id, nome, status, status_respostas, acesso_respostas, data_inicio_respostas, data_fim_respostas",
+      "id, nome, status_respostas, acesso_respostas, data_inicio_respostas, data_fim_respostas",
     )
     .eq("id", formulario.ciclo_id)
     .maybeSingle()
@@ -1324,7 +1486,6 @@ export async function alterarStatusRespostasCicloFeedback(
 
   const payload: {
     status_respostas: StatusRespostasFeedback
-    status?: string
     acesso_respostas?: AcessoRespostasFeedback
     data_inicio_respostas?: string | null
     data_fim_respostas?: string | null
@@ -1337,7 +1498,6 @@ export async function alterarStatusRespostasCicloFeedback(
   if (statusRespostas === "aberto") {
     const agora = new Date().toISOString()
 
-    payload.status = "aberto"
     payload.acesso_respostas = acessoRespostas
     payload.data_inicio_respostas = agora
     payload.data_fim_respostas = null
@@ -1383,4 +1543,3 @@ export async function alterarStatusRespostasCicloFeedback(
           : "Ciclo fechado para respostas.",
   }
 }
-
