@@ -15,6 +15,10 @@ import {
   getSetoresIndicadores,
 } from "@/app/actions/indicadores"
 import { cn } from "@/lib/utils"
+import {
+  opcoesNotaIes,
+  usaNovaEscalaIesPorData,
+} from "@/lib/indicadores-ies"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -63,6 +67,7 @@ type IndicadoresFormValues = {
   entrega_avaliada: string
   data_entrega: string
   data_revisao: string
+  ies_nota: string
   ies_aprovado_primeira: string
   ip_no_prazo: string
   clareza_estrutura: string
@@ -104,6 +109,11 @@ type CampoNotaProps = {
   onChange: (value: string) => void
   error?: string
   name: string
+  opcoes?: ReadonlyArray<{
+    value: string
+    titulo: string
+    descricao: string
+  }>
 }
 
 function CampoNota({
@@ -113,6 +123,7 @@ function CampoNota({
   onChange,
   error,
   name,
+  opcoes = opcoesNotas,
 }: CampoNotaProps) {
   return (
     <div className="rounded-2xl border bg-background p-5 shadow-sm">
@@ -126,7 +137,7 @@ function CampoNota({
         onValueChange={onChange}
         className="grid grid-cols-1 gap-3 md:grid-cols-5"
       >
-        {opcoesNotas.map((opcao) => {
+        {opcoes.map((opcao) => {
           const id = `${name}-${opcao.value}`
 
           return (
@@ -221,6 +232,7 @@ export default function IndicadoresForm() {
     entrega_avaliada: "",
     data_entrega: "",
     data_revisao: "",
+    ies_nota: "",
     ies_aprovado_primeira: "",
     ip_no_prazo: "",
     clareza_estrutura: "",
@@ -235,6 +247,9 @@ export default function IndicadoresForm() {
   const [errors, setErrors] = useState<
     Partial<Record<keyof IndicadoresFormValues, string>>
   >({})
+
+  const usaNovaEscalaIes =
+    !formData.data_entrega || usaNovaEscalaIesPorData(formData.data_entrega)
 
   useEffect(() => {
     async function loadInitialData() {
@@ -384,6 +399,22 @@ export default function IndicadoresForm() {
     }))
   }
 
+  function handleDataEntregaChange(value: string) {
+    setFormData((prev) => ({
+      ...prev,
+      data_entrega: value,
+      ies_nota: "",
+      ies_aprovado_primeira: "",
+    }))
+
+    setErrors((prev) => ({
+      ...prev,
+      data_entrega: "",
+      ies_nota: "",
+      ies_aprovado_primeira: "",
+    }))
+  }
+
   function validateForm() {
     const newErrors: Partial<Record<keyof IndicadoresFormValues, string>> = {}
 
@@ -415,7 +446,11 @@ export default function IndicadoresForm() {
       newErrors.data_revisao = "Informe a data de revisão."
     }
 
-    if (!formData.ies_aprovado_primeira) {
+    if (usaNovaEscalaIes) {
+      if (!formData.ies_nota) {
+        newErrors.ies_nota = "Selecione uma nota."
+      }
+    } else if (!formData.ies_aprovado_primeira) {
       newErrors.ies_aprovado_primeira = "Selecione Sim ou Não."
     }
 
@@ -460,7 +495,10 @@ export default function IndicadoresForm() {
           entrega_avaliada: formData.entrega_avaliada,
           data_entrega: formData.data_entrega,
           data_revisao: formData.data_revisao,
-          ies_aprovado_primeira: formData.ies_aprovado_primeira === "true",
+          ies_nota: usaNovaEscalaIes ? Number(formData.ies_nota) : null,
+          ies_aprovado_primeira: usaNovaEscalaIes
+            ? undefined
+            : formData.ies_aprovado_primeira === "true",
           ip_no_prazo: formData.ip_no_prazo === "true",
           clareza_estrutura: Number(formData.clareza_estrutura),
           profundidade_rigor: Number(formData.profundidade_rigor),
@@ -485,6 +523,7 @@ export default function IndicadoresForm() {
           entrega_avaliada: "",
           data_entrega: "",
           data_revisao: "",
+          ies_nota: "",
           ies_aprovado_primeira: "",
           ip_no_prazo: "",
           clareza_estrutura: "",
@@ -788,7 +827,7 @@ export default function IndicadoresForm() {
                     type="date"
                     value={formData.data_entrega}
                     onChange={(e) =>
-                      updateField("data_entrega", e.target.value)
+                      handleDataEntregaChange(e.target.value)
                     }
                     className="h-11 rounded-xl"
                   />
@@ -822,20 +861,34 @@ export default function IndicadoresForm() {
 
           <section className="space-y-5">
             <div>
-              <h2 className="text-xl font-semibold">Indicadores binários</h2>
+              <h2 className="text-xl font-semibold">Indicadores da entrega</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Marque Sim ou Não para esforço e prazo.
+                Avalie o esforço de 1 a 5 e informe se o prazo foi cumprido.
               </p>
             </div>
 
-            <CampoBinario
-              name="ies_aprovado_primeira"
-              titulo="IES • A entrega foi aprovada na primeira submissão?"
-              descricao="Considere se a entrega foi aprovada sem retrabalho significativo."
-              value={formData.ies_aprovado_primeira}
-              onChange={(value) => updateField("ies_aprovado_primeira", value)}
-              error={errors.ies_aprovado_primeira}
-            />
+            {usaNovaEscalaIes ? (
+              <CampoNota
+                name="ies_nota"
+                titulo="IES • Qual foi o nível de aprovação da entrega?"
+                descricao="Considere a intensidade dos ajustes e do retrabalho exigidos após a submissão."
+                value={formData.ies_nota}
+                onChange={(value) => updateField("ies_nota", value)}
+                error={errors.ies_nota}
+                opcoes={opcoesNotaIes}
+              />
+            ) : (
+              <CampoBinario
+                name="ies_aprovado_primeira"
+                titulo="IES • A entrega foi aprovada na primeira submissão?"
+                descricao="Para avaliações anteriores ao 3º trimestre de 2026, o IES permanece no formato binário original."
+                value={formData.ies_aprovado_primeira}
+                onChange={(value) =>
+                  updateField("ies_aprovado_primeira", value)
+                }
+                error={errors.ies_aprovado_primeira}
+              />
+            )}
 
             <CampoBinario
               name="ip_no_prazo"

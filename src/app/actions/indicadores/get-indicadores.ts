@@ -6,7 +6,7 @@ export async function getIndicadoresDashboard() {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from("vw_indicadores_colaborador_trimestre")
+    .from("vw_indicadores_colaborador_trimestre_v3")
     .select("*")
     .order("idi", { ascending: false })
 

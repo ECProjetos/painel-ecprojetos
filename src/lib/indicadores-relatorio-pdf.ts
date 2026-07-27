@@ -1,5 +1,7 @@
 import jsPDF from "jspdf"
 
+import { getDescricaoIesRelatorio } from "@/lib/indicadores-ies"
+
 export type StatusRelatorioIndicador = "OK" | "Atenção" | "Crítico"
 
 export type RelatorioIndicadorPdfItem = {
@@ -29,6 +31,7 @@ export type RelatorioIndicadorPdfItem = {
   data_entrega?: string | null
   created_at?: string | null
 
+  ies_nota?: number | string | null
   ies_aprovado_primeira?: boolean | null
   ip_no_prazo?: boolean | null
 
@@ -269,11 +272,12 @@ export function getCodigoRelatorioIndicador(
 }
 
 function getDescricaoIES(item: RelatorioIndicadorPdfItem) {
-  if (item.ies_aprovado_primeira) {
-    return "Aprovado na primeira revisão, pois não houve necessidade de ajustes significativos."
-  }
+  const iesNota = getNumberFromUnknown(item.ies_nota)
 
-  return "Não aprovado na primeira revisão, pois haverá necessidade de ajustes significativos."
+  return getDescricaoIesRelatorio({
+    iesNota,
+    aprovadoPrimeira: item.ies_aprovado_primeira,
+  })
 }
 
 function getDescricaoIP(item: RelatorioIndicadorPdfItem) {

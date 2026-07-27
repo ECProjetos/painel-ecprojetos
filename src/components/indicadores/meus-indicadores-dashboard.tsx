@@ -26,6 +26,7 @@ import {
   YAxis,
 } from "recharts"
 import { toast } from "sonner"
+import { formatarRespostaIes } from "@/lib/indicadores-ies"
 
 import {
   gerarPdfRelatorioIndicador,
@@ -498,6 +499,7 @@ export default function MeusIndicadoresDashboard() {
       data_revisao: item.data_revisao,
       ano: item.ano,
       trimestre: item.trimestre,
+      ies_nota: item.ies_nota,
       ies_aprovado_primeira: item.ies_aprovado_primeira,
       ip_no_prazo: item.ip_no_prazo,
       clareza_estrutura: item.clareza_estrutura,
@@ -820,7 +822,10 @@ export default function MeusIndicadoresDashboard() {
                       {item.avaliador_nome || "Não informado"}
                     </td>
                     <td className="px-4 py-3">
-                      {item.ies_aprovado_primeira ? "Sim" : "Não"}
+                      {formatarRespostaIes({
+                        iesNota: item.ies_nota,
+                        aprovadoPrimeira: item.ies_aprovado_primeira,
+                      })}
                     </td>
                     <td className="px-4 py-3">
                       {item.ip_no_prazo ? "Sim" : "Não"}

@@ -3,15 +3,18 @@
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+
 import { alterarStatusRespostasCicloFeedback } from "@/app/actions/feedback-interno"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 type StatusRespostasFeedback = "fechado" | "aberto" | "encerrado"
+type AcessoRespostasFeedback = "todos" | "diretores"
 
 type StatusCicloActionsProps = {
   cicloId: string
   statusRespostas?: string | null
+  acessoRespostas?: string | null
 }
 
 function normalizarStatus(status?: string | null): StatusRespostasFeedback {
@@ -20,32 +23,48 @@ function normalizarStatus(status?: string | null): StatusRespostasFeedback {
   return "fechado"
 }
 
-function getBadgeLabel(status: StatusRespostasFeedback) {
+function normalizarAcesso(
+  acesso?: string | null,
+): AcessoRespostasFeedback {
+  return acesso === "diretores" ? "diretores" : "todos"
+}
+
+function getStatusLabel(status: StatusRespostasFeedback) {
   if (status === "aberto") return "Aberto"
   if (status === "encerrado") return "Encerrado"
   return "Fechado"
 }
 
-function getBadgeVariant(status: StatusRespostasFeedback) {
+function getStatusVariant(status: StatusRespostasFeedback) {
   if (status === "aberto") return "default"
   if (status === "encerrado") return "secondary"
   return "outline"
 }
 
+function getAcessoLabel(acesso: AcessoRespostasFeedback) {
+  return acesso === "diretores" ? "Somente diretores" : "Todos"
+}
+
 export function StatusCicloActions({
   cicloId,
   statusRespostas,
+  acessoRespostas,
 }: StatusCicloActionsProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
   const statusAtual = normalizarStatus(statusRespostas)
+  const acessoAtual = normalizarAcesso(acessoRespostas)
 
-  function alterarStatus(status: StatusRespostasFeedback) {
+  function alterarStatus(
+    status: StatusRespostasFeedback,
+    acesso: AcessoRespostasFeedback = acessoAtual,
+  ) {
     startTransition(async () => {
       const resultado = await alterarStatusRespostasCicloFeedback(
         cicloId,
         status,
+        acesso,
       )
 
       if (!resultado.success) {
@@ -58,20 +77,60 @@ export function StatusCicloActions({
     })
   }
 
+  const textoAbrir = statusAtual === "encerrado" ? "Reabrir" : "Abrir"
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      <Badge variant={getBadgeVariant(statusAtual)}>
-        {getBadgeLabel(statusAtual)}
+      <Badge variant={getStatusVariant(statusAtual)}>
+        {getStatusLabel(statusAtual)}
       </Badge>
 
+      <Badge variant="outline">{getAcessoLabel(acessoAtual)}</Badge>
+
       {statusAtual !== "aberto" && (
+        <>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => alterarStatus("aberto", "diretores")}
+            disabled={isPending}
+          >
+            {textoAbrir} só para diretores
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => alterarStatus("aberto", "todos")}
+            disabled={isPending}
+          >
+            {textoAbrir} para todos
+          </Button>
+        </>
+      )}
+
+      {statusAtual === "aberto" && acessoAtual === "todos" && (
         <Button
           type="button"
           size="sm"
-          onClick={() => alterarStatus("aberto")}
+          variant="outline"
+          onClick={() => alterarStatus("aberto", "diretores")}
           disabled={isPending}
         >
-          Abrir respostas
+          Restringir aos diretores
+        </Button>
+      )}
+
+      {statusAtual === "aberto" && acessoAtual === "diretores" && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => alterarStatus("aberto", "todos")}
+          disabled={isPending}
+        >
+          Liberar para todos
         </Button>
       )}
 
@@ -84,18 +143,6 @@ export function StatusCicloActions({
           disabled={isPending}
         >
           Encerrar
-        </Button>
-      )}
-
-      {statusAtual === "encerrado" && (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => alterarStatus("aberto")}
-          disabled={isPending}
-        >
-          Reabrir
         </Button>
       )}
 

@@ -28,6 +28,7 @@ export type MinhaEntregaIndicador = {
   data_revisao: string | null
   ano: number | null
   trimestre: number | null
+  ies_nota: number | null
   ies_aprovado_primeira: boolean
   ip_no_prazo: boolean
   clareza_estrutura: number
@@ -94,15 +95,21 @@ function getReferenciaDate(item: {
   data_revisao?: string | null
   data_entrega?: string | null
 }) {
-  return item.data_revisao ?? item.data_entrega ?? null
+  return item.data_entrega ?? item.data_revisao ?? null
 }
 
 function getStatusEntrega(item: {
+  ies_nota: number | null
   ies_aprovado_primeira: boolean
   ip_no_prazo: boolean
   iq: number
 }) {
-  if (item.ies_aprovado_primeira && item.ip_no_prazo && item.iq >= 4) {
+  const iesAprovado =
+    item.ies_nota !== null
+      ? item.ies_nota === 5
+      : item.ies_aprovado_primeira
+
+  if (iesAprovado && item.ip_no_prazo && item.iq >= 4) {
     return "OK"
   }
 
@@ -198,6 +205,7 @@ async function getMinhasEntregas(
       entrega_avaliada,
       data_entrega,
       data_revisao,
+      ies_nota,
       ies_aprovado_primeira,
       ip_no_prazo,
       clareza_estrutura,
@@ -244,6 +252,10 @@ async function getMinhasEntregas(
       data_revisao: item.data_revisao ? String(item.data_revisao) : null,
       ano: getAnoFromDate(dataReferencia),
       trimestre: getTrimestreFromDate(dataReferencia),
+      ies_nota:
+        item.ies_nota === null || item.ies_nota === undefined
+          ? null
+          : parseNumber(item.ies_nota),
       ies_aprovado_primeira: Boolean(item.ies_aprovado_primeira),
       ip_no_prazo: Boolean(item.ip_no_prazo),
       clareza_estrutura: clareza,

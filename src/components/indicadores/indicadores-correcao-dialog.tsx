@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { Calculator, Loader2, Save } from "lucide-react"
 import { toast } from "sonner"
+import {
+  opcoesNotaIes,
+  usaNovaEscalaIesPorPeriodo,
+} from "@/lib/indicadores-ies"
 
 import {
   getIndicadoresCorrecaoDetalhes,
@@ -57,6 +61,7 @@ function formatarNumero(value: number, digits = 1) {
 function calcularResumo(
   entregas: IndicadoresCorrecaoEntrega[],
   notaEvolucao: number | null,
+  usaNovaEscalaIes: boolean,
 ) {
   if (!entregas.length) {
     const iev = notaEvolucao ? notaEvolucao * 20 : 0
@@ -70,10 +75,25 @@ function calcularResumo(
     }
   }
 
-  const ies =
-    (entregas.filter((item) => item.ies_aprovado_primeira).length /
-      entregas.length) *
-    100
+  const notasIesValidas = entregas
+    .map((item) => item.ies_nota)
+    .filter(
+      (nota): nota is number =>
+        typeof nota === "number" &&
+        Number.isInteger(nota) &&
+        nota >= 1 &&
+        nota <= 5,
+    )
+
+  const ies = usaNovaEscalaIes
+    ? notasIesValidas.length === entregas.length
+      ? (notasIesValidas.reduce((acc, nota) => acc + nota, 0) /
+          notasIesValidas.length) *
+        20
+      : 0
+    : (entregas.filter((item) => item.ies_aprovado_primeira).length /
+        entregas.length) *
+      100
   const ip =
     (entregas.filter((item) => item.ip_no_prazo).length / entregas.length) * 100
 
@@ -156,16 +176,26 @@ export default function IndicadoresCorrecaoDialog({
     }
   }, [open, colaboradorId, ano, trimestre, onOpenChange])
 
+  const usaNovaEscalaIes = usaNovaEscalaIesPorPeriodo(ano, trimestre)
+
   const resumo = useMemo(
     () =>
-      calcularResumo(detalhes?.entregas ?? [], detalhes?.nota_evolucao ?? null),
-    [detalhes],
+      calcularResumo(
+        detalhes?.entregas ?? [],
+        detalhes?.nota_evolucao ?? null,
+        usaNovaEscalaIes,
+      ),
+    [detalhes, usaNovaEscalaIes],
   )
 
   function atualizarEntrega(
     entregaId: string,
-    campo: CampoNota | "ies_aprovado_primeira" | "ip_no_prazo",
-    valor: number | boolean,
+    campo:
+      | CampoNota
+      | "ies_nota"
+      | "ies_aprovado_primeira"
+      | "ip_no_prazo",
+    valor: number | boolean | null,
   ) {
     setDetalhes((prev) => {
       if (!prev) return prev
@@ -203,6 +233,19 @@ export default function IndicadoresCorrecaoDialog({
       return
     }
 
+    if (
+      usaNovaEscalaIes &&
+      detalhes.entregas.some(
+        (item) =>
+          !Number.isInteger(item.ies_nota) ||
+          Number(item.ies_nota) < 1 ||
+          Number(item.ies_nota) > 5,
+      )
+    ) {
+      toast.error("Selecione uma nota de IES entre 1 e 5 para todas as entregas.")
+      return
+    }
+
     try {
       setSaving(true)
 
@@ -214,6 +257,7 @@ export default function IndicadoresCorrecaoDialog({
         nota_evolucao: detalhes.nota_evolucao,
         entregas: detalhes.entregas.map((item) => ({
           id: item.id,
+          ies_nota: item.ies_nota,
           ies_aprovado_primeira: item.ies_aprovado_primeira,
           ip_no_prazo: item.ip_no_prazo,
           clareza_estrutura: item.clareza_estrutura,
@@ -248,7 +292,7 @@ export default function IndicadoresCorrecaoDialog({
             {ano && trimestre ? ` · ${trimestre}º trimestre de ${ano}` : ""}.
             IES, IP e IQ são corrigidos nas avaliações das entregas; o IEV é
             corrigido no registro trimestral. O IDI é recalculado
-            automaticamente.
+            automaticamente conforme a regra do período.
           </DialogDescription>
         </DialogHeader>
 
@@ -283,8 +327,9 @@ export default function IndicadoresCorrecaoDialog({
               <div className="border-b bg-muted/30 px-4 py-3">
                 <h4 className="font-semibold">Avaliações das entregas</h4>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Marque a situação correta de aprovação e prazo e ajuste as
-                  quatro notas técnicas entre 1 e 5.
+                  {usaNovaEscalaIes
+                    ? "Ajuste a nota do IES, o prazo e as quatro notas técnicas entre 1 e 5."
+                    : "Marque a situação correta de aprovação e prazo e ajuste as quatro notas técnicas entre 1 e 5."}
                 </p>
               </div>
 
@@ -344,23 +389,47 @@ export default function IndicadoresCorrecaoDialog({
                             {formatarData(entrega.data_entrega)}
                           </td>
                           <td className="px-3 py-3 text-center">
-                            <label className="inline-flex cursor-pointer items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={entrega.ies_aprovado_primeira}
+                            {usaNovaEscalaIes ? (
+                              <select
+                                value={entrega.ies_nota ?? ""}
                                 onChange={(event) =>
                                   atualizarEntrega(
                                     entrega.id,
-                                    "ies_aprovado_primeira",
-                                    event.target.checked,
+                                    "ies_nota",
+                                    event.target.value
+                                      ? Number(event.target.value)
+                                      : null,
                                   )
                                 }
-                                className="h-4 w-4 rounded border"
-                              />
-                              <span className="text-xs">
-                                {entrega.ies_aprovado_primeira ? "Sim" : "Não"}
-                              </span>
-                            </label>
+                                className="h-9 min-w-20 rounded-md border bg-background px-2 text-center outline-none focus:ring-2 focus:ring-ring"
+                                aria-label={`IES da entrega ${entrega.entrega_avaliada}`}
+                              >
+                                <option value="">—</option>
+                                {opcoesNotaIes.map((opcao) => (
+                                  <option key={opcao.value} value={opcao.value}>
+                                    {opcao.value}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <label className="inline-flex cursor-pointer items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={entrega.ies_aprovado_primeira}
+                                  onChange={(event) =>
+                                    atualizarEntrega(
+                                      entrega.id,
+                                      "ies_aprovado_primeira",
+                                      event.target.checked,
+                                    )
+                                  }
+                                  className="h-4 w-4 rounded border"
+                                />
+                                <span className="text-xs">
+                                  {entrega.ies_aprovado_primeira ? "Sim" : "Não"}
+                                </span>
+                              </label>
+                            )}
                           </td>
                           <td className="px-3 py-3 text-center">
                             <label className="inline-flex cursor-pointer items-center gap-2">
@@ -462,7 +531,8 @@ export default function IndicadoresCorrecaoDialog({
               <p>
                 O sistema não permite editar o IDI diretamente. Ele é
                 recalculado com os pesos atuais: IES 20%, IP 20%, IQ 40% e IEV
-                20%.
+                20%. A partir do 3º trimestre de 2026, o IES corresponde à média
+                das notas de 1 a 5 multiplicada por 20.
               </p>
             </div>
           </div>

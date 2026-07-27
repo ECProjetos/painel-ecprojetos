@@ -7,6 +7,7 @@ import {
   getAliasesEquipeOperacional,
   normalizarEquipeOperacional,
 } from "@/lib/equipes"
+import { usaNovaEscalaIesPorData } from "@/lib/indicadores-ies"
 
 type CreateIndicadorPayload = {
   colaborador_id?: string
@@ -16,7 +17,8 @@ type CreateIndicadorPayload = {
   entrega_avaliada: string
   data_entrega: string
   data_revisao: string
-  ies_aprovado_primeira: boolean
+  ies_nota?: number | null
+  ies_aprovado_primeira?: boolean
   ip_no_prazo: boolean
   clareza_estrutura: number
   profundidade_rigor: number
@@ -174,6 +176,27 @@ export async function createIndicadorDesempenho(
     throw new Error("A data de revisão é obrigatória.")
   }
 
+  const usaNovaEscalaIes = usaNovaEscalaIesPorData(dataEntrega)
+  const iesNota =
+    payload.ies_nota === null || payload.ies_nota === undefined
+      ? null
+      : Number(payload.ies_nota)
+
+  if (
+    usaNovaEscalaIes &&
+    (!Number.isInteger(iesNota) || Number(iesNota) < 1 || Number(iesNota) > 5)
+  ) {
+    throw new Error("A nota do IES deve ser um número inteiro entre 1 e 5.")
+  }
+
+  if (!usaNovaEscalaIes && typeof payload.ies_aprovado_primeira !== "boolean") {
+    throw new Error("Informe se a entrega foi aprovada na primeira submissão.")
+  }
+
+  const iesAprovadoPrimeira = usaNovaEscalaIes
+    ? Number(iesNota) === 5
+    : Boolean(payload.ies_aprovado_primeira)
+
   const avaliacaoGrupoId = randomUUID()
 
   const registros = colaboradorIds.map((colaboradorId) => {
@@ -193,7 +216,8 @@ export async function createIndicadorDesempenho(
       entrega_avaliada: payload.entrega_avaliada,
       data_entrega: dataEntrega,
       data_revisao: dataRevisao,
-      ies_aprovado_primeira: payload.ies_aprovado_primeira,
+      ies_nota: usaNovaEscalaIes ? iesNota : null,
+      ies_aprovado_primeira: iesAprovadoPrimeira,
       ip_no_prazo: payload.ip_no_prazo,
       clareza_estrutura: payload.clareza_estrutura,
       profundidade_rigor: payload.profundidade_rigor,
@@ -249,6 +273,7 @@ export async function getRelatoriosPorEntrega() {
       entrega_avaliada,
       data_entrega,
       data_revisao,
+      ies_nota,
       ies_aprovado_primeira,
       ip_no_prazo,
       clareza_estrutura,
@@ -274,7 +299,7 @@ export async function getIndicadoresDashboard() {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from("vw_indicadores_dashboard")
+    .from("vw_indicadores_dashboard_v3")
     .select(
       `
       ano,
@@ -326,6 +351,7 @@ export async function getRelatoriosEntregasIndicadores() {
       entrega_avaliada,
       data_entrega,
       data_revisao,
+      ies_nota,
       ies_aprovado_primeira,
       ip_no_prazo,
       clareza_estrutura,
@@ -508,8 +534,12 @@ export async function getRelatoriosEntregasIndicadores() {
       data_revisao: item.data_revisao,
       ano: Number(anoReferencia),
       trimestre:
-        getTrimestreFromDate(item.data_revisao) ??
-        getTrimestreFromDate(item.data_entrega),
+        getTrimestreFromDate(item.data_entrega) ??
+        getTrimestreFromDate(item.data_revisao),
+      ies_nota:
+        item.ies_nota === null || item.ies_nota === undefined
+          ? null
+          : Number(item.ies_nota),
       ies_aprovado_primeira: Boolean(item.ies_aprovado_primeira),
       ip_no_prazo: Boolean(item.ip_no_prazo),
       clareza_estrutura: Number(item.clareza_estrutura ?? 0),

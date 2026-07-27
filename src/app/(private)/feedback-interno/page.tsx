@@ -266,8 +266,8 @@ export default async function FeedbackInternoPage({
           <CardHeader>
             <CardTitle>Disponibilidade dos ciclos</CardTitle>
             <CardDescription>
-              Abra ou encerre os ciclos para controlar quando os colaboradores
-              podem responder aos formulários.
+              Abra ou encerre os ciclos e escolha se as respostas ficam
+              disponíveis para todos ou somente para a Diretoria.
             </CardDescription>
           </CardHeader>
 
@@ -285,6 +285,7 @@ export default async function FeedbackInternoPage({
                     <TableRow>
                       <TableHead>Ciclo</TableHead>
                       <TableHead>Status das respostas</TableHead>
+                      <TableHead>Público liberado</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -304,10 +305,17 @@ export default async function FeedbackInternoPage({
                               : "Fechado"}
                         </TableCell>
 
+                        <TableCell>
+                          {ciclo.acesso_respostas === "diretores"
+                            ? "Somente diretores"
+                            : "Todos os perfis permitidos"}
+                        </TableCell>
+
                         <TableCell className="flex justify-end">
                           <StatusCicloActions
                             cicloId={ciclo.id}
                             statusRespostas={ciclo.status_respostas}
+                            acessoRespostas={ciclo.acesso_respostas}
                           />
                         </TableCell>
                       </TableRow>

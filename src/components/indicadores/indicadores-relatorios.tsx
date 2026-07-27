@@ -11,6 +11,10 @@ import {
   Search,
 } from "lucide-react"
 import { toast } from "sonner"
+import {
+  formatarRespostaIes,
+  getDescricaoIesRelatorio,
+} from "@/lib/indicadores-ies"
 
 import { getRelatoriosEntregasIndicadores } from "@/app/actions/indicadores"
 import { Button } from "@/components/ui/button"
@@ -253,7 +257,9 @@ function getCodigoRelatorio(
 }
 
 function getStatusRelatorio(item: RelatorioEntrega): StatusRelatorio {
-  const aprovado = item.ies_aprovado_primeira
+  const iesNota = getNumberFromUnknown(item.ies_nota)
+  const aprovado =
+    iesNota !== null ? iesNota === 5 : item.ies_aprovado_primeira
   const noPrazo = item.ip_no_prazo
   const iq = Number(item.iq ?? 0)
 
@@ -287,11 +293,10 @@ function getStatusDotClass(status: StatusRelatorio) {
 }
 
 function getDescricaoIES(item: RelatorioEntrega) {
-  if (item.ies_aprovado_primeira) {
-    return "Aprovado na primeira revisão, pois não houve necessidade de ajustes significativos."
-  }
-
-  return "Não aprovado na primeira revisão, pois haverá necessidade de ajustes significativos."
+  return getDescricaoIesRelatorio({
+    iesNota: getNumberFromUnknown(item.ies_nota),
+    aprovadoPrimeira: item.ies_aprovado_primeira,
+  })
 }
 
 function getDescricaoIP(item: RelatorioEntrega) {

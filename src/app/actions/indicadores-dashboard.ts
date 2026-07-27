@@ -3,6 +3,7 @@
 import { roles } from "@/constants/roles"
 import { supabaseAdmin } from "@/utils/supabase/admin"
 import { createClient } from "@/utils/supabase/server"
+import { usaNovaEscalaIesPorPeriodo } from "@/lib/indicadores-ies"
 
 export type IndicadorDashboardItem = {
   colaborador_id: string
@@ -210,7 +211,7 @@ export async function getIndicadoresDashboard(
   params: GetIndicadoresDashboardParams = {},
 ): Promise<IndicadorDashboardItem[]> {
   const principal = await fetchIndicadoresFromView(
-    "vw_indicadores_colaborador_trimestre",
+    "vw_indicadores_colaborador_trimestre_v3",
     params,
   )
 
@@ -223,12 +224,12 @@ export async function getIndicadoresDashboard(
   }
 
   console.warn(
-    "vw_indicadores_colaborador_trimestre não pôde ser consultada. Usando vw_indicadores_dashboard como fallback.",
+    "vw_indicadores_colaborador_trimestre_v3 não pôde ser consultada. Usando vw_indicadores_dashboard_v3 como fallback.",
     principal.error,
   )
 
   const fallback = await fetchIndicadoresFromView(
-    "vw_indicadores_dashboard",
+    "vw_indicadores_dashboard_v3",
     params,
   )
 
@@ -248,7 +249,7 @@ export async function getIndicadoresDashboardFiltros() {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from("vw_indicadores_colaborador_trimestre")
+    .from("vw_indicadores_colaborador_trimestre_v3")
     .select("ano, trimestre, equipe, colaborador_id, colaborador_nome")
 
   if (error) {
@@ -316,6 +317,7 @@ export type IndicadoresCorrecaoEntrega = {
   codigo_projeto: string | null
   entrega_avaliada: string
   data_entrega: string
+  ies_nota: number | null
   ies_aprovado_primeira: boolean
   ip_no_prazo: boolean
   clareza_estrutura: number
@@ -342,6 +344,7 @@ export type SalvarCorrecaoIndicadoresPayload = {
   nota_evolucao: number | null
   entregas: Array<{
     id: string
+    ies_nota: number | null
     ies_aprovado_primeira: boolean
     ip_no_prazo: boolean
     clareza_estrutura: number
@@ -497,6 +500,7 @@ export async function getIndicadoresCorrecaoDetalhes(params: {
         codigo_projeto,
         entrega_avaliada,
         data_entrega,
+        ies_nota,
         ies_aprovado_primeira,
         ip_no_prazo,
         clareza_estrutura,
@@ -557,6 +561,7 @@ export async function getIndicadoresCorrecaoDetalhes(params: {
       codigo_projeto: toStringOrNull(item.codigo_projeto),
       entrega_avaliada: String(item.entrega_avaliada ?? "Entrega sem nome"),
       data_entrega: String(item.data_entrega ?? ""),
+      ies_nota: parseNullableNumber(item.ies_nota),
       ies_aprovado_primeira: Boolean(item.ies_aprovado_primeira),
       ip_no_prazo: Boolean(item.ip_no_prazo),
       clareza_estrutura: parseNumber(item.clareza_estrutura),
@@ -598,9 +603,18 @@ export async function salvarCorrecaoIndicadores(
     throw new Error("Existem entregas duplicadas na correção.")
   }
 
+  const usaNovaEscalaIes = usaNovaEscalaIesPorPeriodo(
+    payload.ano,
+    payload.trimestre,
+  )
+
   for (const entrega of payload.entregas) {
     if (!entrega.id) {
       throw new Error("Uma das entregas não possui identificação válida.")
+    }
+
+    if (usaNovaEscalaIes) {
+      validarNotaEntrega(Number(entrega.ies_nota), "IES")
     }
 
     validarNotaEntrega(entrega.clareza_estrutura, "Clareza e estrutura")
@@ -627,6 +641,7 @@ export async function salvarCorrecaoIndicadores(
         id,
         colaborador_id,
         data_entrega,
+        ies_nota,
         ies_aprovado_primeira,
         ip_no_prazo,
         clareza_estrutura,
@@ -672,7 +687,10 @@ export async function salvarCorrecaoIndicadores(
     const { error } = await supabaseAdmin
       .from("indicadores_desempenho")
       .update({
-        ies_aprovado_primeira: entrega.ies_aprovado_primeira,
+        ies_nota: usaNovaEscalaIes ? entrega.ies_nota : null,
+        ies_aprovado_primeira: usaNovaEscalaIes
+          ? Number(entrega.ies_nota) === 5
+          : entrega.ies_aprovado_primeira,
         ip_no_prazo: entrega.ip_no_prazo,
         clareza_estrutura: entrega.clareza_estrutura,
         profundidade_rigor: entrega.profundidade_rigor,
