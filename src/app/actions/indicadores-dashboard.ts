@@ -436,7 +436,7 @@ export async function getColaboradoresAtivosIndicadoresPainel(): Promise<
     .from("vw_colaboradores")
     .select("id, nome, departamento_nome, status, role")
     .eq("status", "ativo")
-    .eq("role", roles.colaborador)
+    .in("role", [roles.colaborador, roles.lider])
     .order("nome", { ascending: true })
 
   if (error) {

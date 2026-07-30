@@ -87,7 +87,7 @@ export async function getColaboradoresIndicadoresBySetor(setorNome?: string) {
     .from("vw_colaboradores")
     .select("id, nome, departamento_nome, status, role, cargo_nome")
     .eq("status", "ativo")
-    .eq("role", "COLABORADOR")
+    .in("role", ["COLABORADOR", "LIDER"])
     .neq("cargo_nome", "Diretor")
     .order("nome", { ascending: true })
 

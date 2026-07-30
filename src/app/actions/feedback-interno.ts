@@ -620,7 +620,8 @@ export async function getFeedbackFormularioParaResponder(formularioId: string) {
         .from("users")
         .select("id, nome")
         .eq("status", "ativo")
-        .eq("role", "COLABORADOR")
+        .in("role", ["COLABORADOR", "LIDER"])
+        .neq("email", "lider@ecprojetos.com.br")
         .order("nome", { ascending: true })
 
     if (colaboradoresError) {
@@ -821,9 +822,10 @@ export async function responderFeedbackInterno(formData: FormData) {
     if (
       colaboradorError ||
       !colaborador ||
-      String(colaborador.role ?? "").toUpperCase() !== "COLABORADOR" ||
-      colaborador.status !== "ativo"
-    ) {
+      !["COLABORADOR", "LIDER"].includes(
+        String(colaborador.role ?? "").toUpperCase(),
+      ) ||
+      String(colaborador.status ?? "").toLowerCase() !== "ativo" ) {
       console.error("Erro ao validar colaborador avaliado:", colaboradorError)
       throw new Error("O colaborador selecionado não está disponível.")
     }
