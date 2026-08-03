@@ -492,7 +492,7 @@ export default function MeuPainelHoras() {
         </h1>
 
         <p className="text-sm text-gray-500">
-          Acompanhe suas horas lançadas, seus projetos e seu banco de horas.
+          Acompanhe suas horas lançadas, seus projetos e seu saldo de horas.
         </p>
       </div>
 
@@ -571,7 +571,7 @@ export default function MeuPainelHoras() {
         />
 
         <KpiCard
-          title="Banco de horas atual"
+          title="Saldo de horas atual"
           value={formatHours(saldoBanco)}
           subtitle={
             saldoBanco < 0
