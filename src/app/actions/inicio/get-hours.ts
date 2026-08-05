@@ -28,6 +28,8 @@ export async function getHours(): Promise<BancoHorasType | null> {
     .select("*")
     .eq("mes_referencia", mesReferencia)
     .eq("status", "ativo")
+    .neq("user_name", "teste-lider")
+    .neq("user_name", "Equipe de Desenvolvimento de Software")
     .order("user_name", { ascending: true })
 
   if (error || !data) return null
