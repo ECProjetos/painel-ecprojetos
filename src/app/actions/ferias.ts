@@ -11,7 +11,10 @@ export type FeriasTipo =
   | "ausencia"
   | "atestado"
   | "day_off"
+  | "folga_banco_horas"
   | "licenca"
+
+export type AusenciaPeriodoDia = "integral" | "manha" | "tarde"
 
 export type FeriasOrigem = "individual" | "coletiva" | "ajuste_historico"
 export type FeriasSituacao =
@@ -45,6 +48,7 @@ export type FeriasSolicitacaoInput = {
   dataInicio: string
   dataFim: string
   tipo: FeriasTipo
+  periodoDia?: AusenciaPeriodoDia
   observacao?: string
   periodoAquisitivoId?: string
   periodoAquisitivoInicio?: string
@@ -59,10 +63,25 @@ export type MinhaFeriasSolicitacaoInput = Omit<
   "colaboradorId" | "tipo" | "origem"
 >
 
+export type MinhaAusenciaSolicitacaoInput = Omit<
+  FeriasSolicitacaoInput,
+  "colaboradorId" | "origem"
+> & {
+  tipo: "ferias" | "day_off" | "folga_banco_horas"
+}
+
+export type BancoHorasAusenciasResumo = {
+  saldoAtual: number
+  horasReservadas: number
+  saldoDisponivel: number
+  jornadaDiaria: number
+}
+
 export type FeriasFiltros = {
-  dataInicio?: string
-  dataFim?: string
+  ano?: number
+  mes?: number
   status?: FeriasStatus | "todos"
+  tipo?: FeriasTipo | "todos"
   colaborador?: string
   equipe?: string
 }
@@ -289,6 +308,13 @@ function normalizarSolicitacoes(solicitacoes: any[]) {
   return solicitacoes.map((item) => ({
     ...item,
     equipe: normalizarEquipe(item.equipe ?? null),
+    periodo_dia: (item.periodo_dia ?? "integral") as AusenciaPeriodoDia,
+    horas_solicitadas:
+      item.horas_solicitadas == null ? null : Number(item.horas_solicitadas),
+    saldo_banco_horas_snapshot:
+      item.saldo_banco_horas_snapshot == null
+        ? null
+        : Number(item.saldo_banco_horas_snapshot),
   }))
 }
 
@@ -392,16 +418,21 @@ export async function getFeriasSolicitacoes(filtros?: FeriasFiltros) {
     .select("*")
     .order("data_inicio", { ascending: true })
 
-  if (filtros?.dataInicio) {
-    query = query.gte("data_fim", filtros.dataInicio)
-  }
+  if (filtros?.ano && filtros?.mes) {
+    const inicioMes = `${filtros.ano}-${String(filtros.mes).padStart(2, "0")}-01`
+    const fimMes = new Date(filtros.ano, filtros.mes, 0)
+      .toISOString()
+      .slice(0, 10)
 
-  if (filtros?.dataFim) {
-    query = query.lte("data_inicio", filtros.dataFim)
+    query = query.lte("data_inicio", fimMes).gte("data_fim", inicioMes)
   }
 
   if (filtros?.status && filtros.status !== "todos") {
     query = query.eq("status", filtros.status)
+  }
+
+  if (filtros?.tipo && filtros.tipo !== "todos") {
+    query = query.eq("tipo", filtros.tipo)
   }
 
   if (filtros?.colaborador) {
@@ -422,8 +453,8 @@ export async function getFeriasSolicitacoes(filtros?: FeriasFiltros) {
   const { data, error } = await query
 
   if (error) {
-    console.error("Erro ao buscar férias:", error)
-    throw new Error("Erro ao buscar solicitações de férias.")
+    console.error("Erro ao buscar ausências:", error)
+    throw new Error("Erro ao buscar solicitações de ausência.")
   }
 
   return normalizarSolicitacoes(data ?? [])
@@ -548,6 +579,162 @@ async function getPeriodosDisponiveisColaborador(colaboradorId: string) {
   }
 
   return (data ?? []) as FeriasPeriodoResumo[]
+}
+
+async function getJornadaDiariaColaborador(colaboradorId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("users")
+    .select("working_hours_per_day")
+    .eq("id", colaboradorId)
+    .maybeSingle()
+
+  if (error) {
+    console.error("Erro ao buscar jornada diária para ausência:", error)
+    throw new Error("Não foi possível identificar sua jornada diária.")
+  }
+
+  const jornada = Number(data?.working_hours_per_day ?? 0)
+
+  if (!Number.isFinite(jornada) || jornada <= 0) {
+    throw new Error(
+      "Sua jornada diária não está configurada. Procure o RH antes de solicitar folga de banco de horas.",
+    )
+  }
+
+  return jornada
+}
+
+async function getFeriadosPeriodo(dataInicio: string, dataFim: string) {
+  const { data, error } = await supabaseAdmin
+    .from("calendar_events")
+    .select("event_date")
+    .gte("event_date", dataInicio)
+    .lte("event_date", dataFim)
+
+  if (error) {
+    console.error("Erro ao buscar feriados para ausência:", error)
+    return new Set<string>()
+  }
+
+  return new Set((data ?? []).map((item) => String(item.event_date)))
+}
+
+function contarDiasUteisPeriodo(
+  dataInicio: string,
+  dataFim: string,
+  feriados: Set<string>,
+) {
+  let total = 0
+  const atual = criarDataLocal(dataInicio)
+  const fim = criarDataLocal(dataFim)
+
+  while (atual <= fim) {
+    const dataIso = `${atual.getFullYear()}-${String(
+      atual.getMonth() + 1,
+    ).padStart(2, "0")}-${String(atual.getDate()).padStart(2, "0")}`
+    const diaSemana = atual.getDay()
+
+    if (diaSemana !== 0 && diaSemana !== 6 && !feriados.has(dataIso)) {
+      total += 1
+    }
+
+    atual.setDate(atual.getDate() + 1)
+  }
+
+  return total
+}
+
+async function calcularHorasAusenciaPorJornada(input: {
+  colaboradorId: string
+  dataInicio: string
+  dataFim: string
+  periodoDia: AusenciaPeriodoDia
+}) {
+  const jornadaDiaria = await getJornadaDiariaColaborador(input.colaboradorId)
+  const feriados = await getFeriadosPeriodo(input.dataInicio, input.dataFim)
+  const diasUteis = contarDiasUteisPeriodo(
+    input.dataInicio,
+    input.dataFim,
+    feriados,
+  )
+
+  if (diasUteis <= 0) {
+    throw new Error(
+      "A ausência deve contemplar pelo menos um dia útil.",
+    )
+  }
+
+  if (input.periodoDia !== "integral") {
+    if (input.dataInicio !== input.dataFim) {
+      throw new Error(
+        "Para meio período, informe apenas uma única data na solicitação.",
+      )
+    }
+
+    return arredondarHoras(jornadaDiaria / 2)
+  }
+
+  return arredondarHoras(jornadaDiaria * diasUteis)
+}
+
+async function getBancoHorasAusenciasResumo(
+  colaboradorId: string,
+  ignorarSolicitacaoId?: string,
+): Promise<BancoHorasAusenciasResumo> {
+  const hoje = dataHojeLocal()
+  const mesReferencia = hoje.slice(0, 7)
+  const jornadaDiaria = await getJornadaDiariaColaborador(colaboradorId)
+
+  const { data: saldoRow, error: saldoError } = await supabaseAdmin
+    .from("vw_banco_horas_tela")
+    .select("banco_horas_atual")
+    .eq("user_id", colaboradorId)
+    .eq("mes_referencia", mesReferencia)
+    .maybeSingle()
+
+  if (saldoError) {
+    console.error("Erro ao consultar saldo do banco de horas:", saldoError)
+    throw new Error("Não foi possível consultar o saldo do banco de horas.")
+  }
+
+  let reservasQuery = supabaseAdmin
+    .from("ferias_solicitacoes")
+    .select("id, horas_solicitadas")
+    .eq("colaborador_id", colaboradorId)
+    .eq("tipo", "folga_banco_horas")
+    .in("status", ["pendente", "aprovada"])
+    .gte("data_fim", hoje)
+
+  if (ignorarSolicitacaoId) {
+    reservasQuery = reservasQuery.neq("id", ignorarSolicitacaoId)
+  }
+
+  const { data: reservas, error: reservasError } = await reservasQuery
+
+  if (reservasError) {
+    console.error("Erro ao consultar reservas do banco de horas:", reservasError)
+    throw new Error("Não foi possível validar as folgas já solicitadas.")
+  }
+
+  const saldoAtual = Number(saldoRow?.banco_horas_atual ?? 0)
+  const horasReservadas = arredondarHoras(
+    (reservas ?? []).reduce(
+      (total, item) => total + Number(item.horas_solicitadas ?? 0),
+      0,
+    ),
+  )
+
+  return {
+    saldoAtual: arredondarHoras(saldoAtual),
+    horasReservadas,
+    saldoDisponivel: arredondarHoras(saldoAtual - horasReservadas),
+    jornadaDiaria,
+  }
+}
+
+export async function getMeuSaldoBancoHorasParaAusencias() {
+  const usuario = await getUsuarioLogado()
+  return getBancoHorasAusenciasResumo(usuario.publicUserId)
 }
 
 export async function getFeriasResumo(filtros?: FeriasFiltros) {
@@ -759,8 +946,8 @@ export async function atualizarPeriodoAquisitivo(
 }
 
 export type FeriasEquipeFiltros = {
-  dataInicio?: string
-  dataFim?: string
+  ano?: number
+  mes?: number
 }
 
 type LiderFeriasContexto = {
@@ -883,6 +1070,8 @@ export async function getFeriasEquipeDashboard(filtros?: FeriasEquipeFiltros) {
       solicitacoes: [],
       resumo: {
         total: 0,
+        aprovadas: 0,
+        pendentes: 0,
         emFeriasHoje: 0,
         proximas: 0,
         colaboradoresComFerias: 0,
@@ -946,6 +1135,8 @@ export async function getFeriasEquipeDashboard(filtros?: FeriasEquipeFiltros) {
       solicitacoes: [],
       resumo: {
         total: 0,
+        aprovadas: 0,
+        pendentes: 0,
         emFeriasHoje: 0,
         proximas: 0,
         colaboradoresComFerias: 0,
@@ -964,20 +1155,24 @@ export async function getFeriasEquipeDashboard(filtros?: FeriasEquipeFiltros) {
       cargo,
       data_inicio,
       data_fim,
-      dias_corridos
+      dias_corridos,
+      tipo,
+      status,
+      periodo_dia,
+      horas_solicitadas
     `,
     )
     .in("colaborador_id", usuarioIdsAtivos)
-    .eq("status", "aprovada")
-    .eq("tipo", "ferias")
+    .in("status", ["pendente", "aprovada"])
     .order("data_inicio", { ascending: true })
 
-  if (filtros?.dataInicio) {
-    query = query.gte("data_fim", filtros.dataInicio)
-  }
+  if (filtros?.ano && filtros?.mes) {
+    const inicioMes = `${filtros.ano}-${String(filtros.mes).padStart(2, "0")}-01`
+    const fimMes = new Date(Date.UTC(filtros.ano, filtros.mes, 0))
+      .toISOString()
+      .slice(0, 10)
 
-  if (filtros?.dataFim) {
-    query = query.lte("data_inicio", filtros.dataFim)
+    query = query.lte("data_inicio", fimMes).gte("data_fim", inicioMes)
   }
 
   const { data: ferias, error: feriasError } = await query
@@ -1004,6 +1199,13 @@ export async function getFeriasEquipeDashboard(filtros?: FeriasEquipeFiltros) {
       data_inicio: solicitacao.data_inicio,
       data_fim: solicitacao.data_fim,
       dias_corridos: Number(solicitacao.dias_corridos ?? 0),
+      tipo: solicitacao.tipo as FeriasTipo,
+      status: solicitacao.status as FeriasStatus,
+      periodo_dia: (solicitacao.periodo_dia ?? "integral") as AusenciaPeriodoDia,
+      horas_solicitadas:
+        solicitacao.horas_solicitadas == null
+          ? null
+          : Number(solicitacao.horas_solicitadas),
     }
   })
 
@@ -1021,12 +1223,21 @@ export async function getFeriasEquipeDashboard(filtros?: FeriasEquipeFiltros) {
     solicitacoes,
     resumo: {
       total: solicitacoes.length,
+      aprovadas: solicitacoes.filter(
+        (solicitacao) => solicitacao.status === "aprovada",
+      ).length,
+      pendentes: solicitacoes.filter(
+        (solicitacao) => solicitacao.status === "pendente",
+      ).length,
       emFeriasHoje: solicitacoes.filter(
         (solicitacao) =>
-          solicitacao.data_inicio <= hoje && solicitacao.data_fim >= hoje,
+          solicitacao.status === "aprovada" &&
+          solicitacao.data_inicio <= hoje &&
+          solicitacao.data_fim >= hoje,
       ).length,
       proximas: solicitacoes.filter(
-        (solicitacao) => solicitacao.data_inicio > hoje,
+        (solicitacao) =>
+          solicitacao.status === "aprovada" && solicitacao.data_inicio > hoje,
       ).length,
       colaboradoresComFerias: new Set(
         solicitacoes.map((solicitacao) => solicitacao.colaborador_id),
@@ -1047,7 +1258,63 @@ export async function criarFeriasSolicitacao(input: FeriasSolicitacaoInput) {
   const colaborador = await buscarPerfilCompleto(input.colaboradorId)
 
   if (colaborador.status !== "ativo") {
-    throw new Error("Não é possível lançar férias para colaborador inativo.")
+    throw new Error("Não é possível lançar ausência para colaborador inativo.")
+  }
+
+  const periodoDia = input.periodoDia ?? "integral"
+
+  if (input.tipo === "ferias" && periodoDia !== "integral") {
+    throw new Error("Férias devem ser registradas em dias inteiros.")
+  }
+
+  if (input.tipo === "day_off" && input.dataInicio !== input.dataFim) {
+    throw new Error("Day-off deve ser solicitado para uma única data.")
+  }
+
+  if (
+    input.tipo !== "ferias" &&
+    periodoDia !== "integral" &&
+    input.dataInicio !== input.dataFim
+  ) {
+    throw new Error(
+      "Solicitações de meio período devem utilizar uma única data.",
+    )
+  }
+
+  let horasSolicitadas: number | undefined
+  let saldoBancoHorasSnapshot: number | undefined
+
+  if (["day_off", "folga_banco_horas"].includes(input.tipo)) {
+    horasSolicitadas = await calcularHorasAusenciaPorJornada({
+      colaboradorId: colaborador.id,
+      dataInicio: input.dataInicio,
+      dataFim: input.dataFim,
+      periodoDia,
+    })
+  }
+
+  if (input.tipo === "folga_banco_horas") {
+    const horasBanco =
+      horasSolicitadas ??
+      (await calcularHorasAusenciaPorJornada({
+        colaboradorId: colaborador.id,
+        dataInicio: input.dataInicio,
+        dataFim: input.dataFim,
+        periodoDia,
+      }))
+    horasSolicitadas = horasBanco
+
+    const banco = await getBancoHorasAusenciasResumo(colaborador.id)
+
+    if (horasBanco > banco.saldoDisponivel + 0.001) {
+      throw new Error(
+        `Saldo insuficiente para esta solicitação. Disponível: ${formatarHorasMensagem(
+          banco.saldoDisponivel,
+        )}; solicitado: ${formatarHorasMensagem(horasBanco)}.`,
+      )
+    }
+
+    saldoBancoHorasSnapshot = banco.saldoAtual
   }
 
   const equipe = colaborador.user_departments?.[0]?.departments?.name ?? null
@@ -1061,6 +1328,9 @@ export async function criarFeriasSolicitacao(input: FeriasSolicitacaoInput) {
     dataInicio: input.dataInicio,
     dataFim: input.dataFim,
     tipo: input.tipo,
+    periodoDia,
+    horasSolicitadas,
+    saldoBancoHorasSnapshot,
     observacao: input.observacao,
     periodoAquisitivoId: input.periodoAquisitivoId,
     periodoAquisitivoInicio: input.periodoAquisitivoInicio,
@@ -1079,18 +1349,20 @@ export async function getMinhasFeriasDashboard() {
   const usuario = await getUsuarioLogado()
   const perfil = await buscarPerfilCompleto(usuario.publicUserId)
 
-  const [{ data, error }, periodosDisponiveis] = await Promise.all([
-    supabaseAdmin
-      .from("ferias_solicitacoes")
-      .select("*")
-      .eq("colaborador_id", usuario.publicUserId)
-      .order("data_inicio", { ascending: false }),
-    getPeriodosDisponiveisColaborador(usuario.publicUserId),
-  ])
+  const [{ data, error }, periodosDisponiveis, saldoBancoHoras] =
+    await Promise.all([
+      supabaseAdmin
+        .from("ferias_solicitacoes")
+        .select("*")
+        .eq("colaborador_id", usuario.publicUserId)
+        .order("data_inicio", { ascending: false }),
+      getPeriodosDisponiveisColaborador(usuario.publicUserId),
+      getBancoHorasAusenciasResumo(usuario.publicUserId),
+    ])
 
   if (error) {
     console.error("Erro ao buscar solicitações do colaborador:", error)
-    throw new Error("Erro ao buscar suas solicitações de férias.")
+    throw new Error("Erro ao buscar suas solicitações de ausência.")
   }
 
   const solicitacoes = normalizarSolicitacoes(data ?? [])
@@ -1109,6 +1381,7 @@ export async function getMinhasFeriasDashboard() {
     },
     solicitacoes,
     periodosDisponiveis,
+    saldoBancoHoras,
     resumo: {
       total: solicitacoes.length,
       pendentes: solicitacoes.filter((item) => item.status === "pendente")
@@ -1123,8 +1396,8 @@ export async function getMinhasFeriasDashboard() {
   }
 }
 
-export async function criarMinhaSolicitacaoFerias(
-  input: MinhaFeriasSolicitacaoInput,
+export async function criarMinhaSolicitacaoAusencia(
+  input: MinhaAusenciaSolicitacaoInput,
 ) {
   const usuario = await getUsuarioLogado()
   const colaborador = await buscarPerfilCompleto(usuario.publicUserId)
@@ -1135,12 +1408,82 @@ export async function criarMinhaSolicitacaoFerias(
     throw new Error("Seu usuário está inativo e não pode criar solicitações.")
   }
 
-  const periodosDisponiveis = await getPeriodosDisponiveisColaborador(
-    usuario.publicUserId,
-  )
+  const periodoDia = input.periodoDia ?? "integral"
 
-  if (periodosDisponiveis.length > 0 && !input.periodoAquisitivoId) {
-    throw new Error("Selecione o período aquisitivo que será utilizado.")
+  if (input.tipo === "ferias" && periodoDia !== "integral") {
+    throw new Error("Férias devem ser solicitadas em dias inteiros.")
+  }
+
+  if (input.tipo === "day_off" && input.dataInicio !== input.dataFim) {
+    throw new Error("Day-off deve ser solicitado para uma única data.")
+  }
+
+  if (
+    input.tipo !== "ferias" &&
+    periodoDia !== "integral" &&
+    input.dataInicio !== input.dataFim
+  ) {
+    throw new Error(
+      "Solicitações de meio período devem utilizar uma única data.",
+    )
+  }
+
+  let periodoAquisitivoId: string | undefined
+  let periodoAquisitivoInicio: string | undefined
+  let periodoAquisitivoFim: string | undefined
+  let diasVendidos: number | undefined
+  let adiantamento13: boolean | undefined
+
+  if (input.tipo === "ferias") {
+    const periodosDisponiveis = await getPeriodosDisponiveisColaborador(
+      usuario.publicUserId,
+    )
+
+    if (periodosDisponiveis.length > 0 && !input.periodoAquisitivoId) {
+      throw new Error("Selecione o período aquisitivo que será utilizado.")
+    }
+
+    periodoAquisitivoId = input.periodoAquisitivoId
+    periodoAquisitivoInicio = input.periodoAquisitivoInicio
+    periodoAquisitivoFim = input.periodoAquisitivoFim
+    diasVendidos = input.diasVendidos
+    adiantamento13 = input.adiantamento13
+  }
+
+  let horasSolicitadas: number | undefined
+  let saldoBancoHorasSnapshot: number | undefined
+
+  if (["day_off", "folga_banco_horas"].includes(input.tipo)) {
+    horasSolicitadas = await calcularHorasAusenciaPorJornada({
+      colaboradorId: usuario.publicUserId,
+      dataInicio: input.dataInicio,
+      dataFim: input.dataFim,
+      periodoDia,
+    })
+  }
+
+  if (input.tipo === "folga_banco_horas") {
+    const horasBanco =
+      horasSolicitadas ??
+      (await calcularHorasAusenciaPorJornada({
+        colaboradorId: usuario.publicUserId,
+        dataInicio: input.dataInicio,
+        dataFim: input.dataFim,
+        periodoDia,
+      }))
+    horasSolicitadas = horasBanco
+
+    const banco = await getBancoHorasAusenciasResumo(usuario.publicUserId)
+
+    if (horasBanco > banco.saldoDisponivel + 0.001) {
+      throw new Error(
+        `Saldo insuficiente para esta solicitação. Disponível: ${formatarHorasMensagem(
+          banco.saldoDisponivel,
+        )}; solicitado: ${formatarHorasMensagem(horasBanco)}.`,
+      )
+    }
+
+    saldoBancoHorasSnapshot = banco.saldoAtual
   }
 
   const equipe = colaborador.user_departments?.[0]?.departments?.name ?? null
@@ -1153,19 +1496,32 @@ export async function criarMinhaSolicitacaoFerias(
     cargo,
     dataInicio: input.dataInicio,
     dataFim: input.dataFim,
-    tipo: "ferias",
+    tipo: input.tipo,
+    periodoDia,
+    horasSolicitadas,
+    saldoBancoHorasSnapshot,
     observacao: input.observacao,
-    periodoAquisitivoId: input.periodoAquisitivoId,
-    periodoAquisitivoInicio: input.periodoAquisitivoInicio,
-    periodoAquisitivoFim: input.periodoAquisitivoFim,
-    diasVendidos: input.diasVendidos,
-    adiantamento13: input.adiantamento13,
+    periodoAquisitivoId,
+    periodoAquisitivoInicio,
+    periodoAquisitivoFim,
+    diasVendidos,
+    adiantamento13,
     origem: "individual",
     criadoPor: usuario.publicUserId,
   })
 
   revalidarFerias()
   return { success: true }
+}
+
+export async function criarMinhaSolicitacaoFerias(
+  input: MinhaFeriasSolicitacaoInput,
+) {
+  return criarMinhaSolicitacaoAusencia({
+    ...input,
+    tipo: "ferias",
+    periodoDia: "integral",
+  })
 }
 
 export async function cancelarMinhaSolicitacaoFerias(
@@ -1247,7 +1603,41 @@ export async function atualizarStatusFerias(
     })
   }
 
+  let horasBancoAprovadas: number | undefined
+
+  if (status === "aprovada" && atual.tipo === "folga_banco_horas") {
+    horasBancoAprovadas = Number(atual.horas_solicitadas ?? 0)
+
+    if (horasBancoAprovadas <= 0) {
+      horasBancoAprovadas = await calcularHorasAusenciaPorJornada({
+        colaboradorId: atual.colaborador_id,
+        dataInicio: atual.data_inicio,
+        dataFim: atual.data_fim,
+        periodoDia: (atual.periodo_dia ?? "integral") as AusenciaPeriodoDia,
+      })
+    }
+
+    const banco = await getBancoHorasAusenciasResumo(
+      atual.colaborador_id,
+      atual.id,
+    )
+
+    if (horasBancoAprovadas > banco.saldoDisponivel + 0.001) {
+      throw new Error(
+        `Não é possível aprovar: o saldo disponível é ${formatarHorasMensagem(
+          banco.saldoDisponivel,
+        )} e a solicitação consome ${formatarHorasMensagem(
+          horasBancoAprovadas,
+        )}.`,
+      )
+    }
+  }
+
   const payload: Record<string, unknown> = { status }
+
+  if (horasBancoAprovadas) {
+    payload.horas_solicitadas = horasBancoAprovadas
+  }
 
   if (status === "aprovada") {
     payload.aprovado_por = usuario.publicUserId
@@ -1265,8 +1655,8 @@ export async function atualizarStatusFerias(
     .eq("id", solicitacaoId)
 
   if (error) {
-    console.error("Erro ao atualizar status das férias:", error)
-    throw new Error("Erro ao atualizar status das férias.")
+    console.error("Erro ao atualizar status da ausência:", error)
+    throw new Error("Erro ao atualizar status da ausência.")
   }
 
   await supabaseAdmin.from("ferias_historico").insert({
@@ -1307,6 +1697,9 @@ type InserirSolicitacaoInput = {
   dataInicio: string
   dataFim: string
   tipo: FeriasTipo
+  periodoDia: AusenciaPeriodoDia
+  horasSolicitadas?: number
+  saldoBancoHorasSnapshot?: number
   observacao?: string
   periodoAquisitivoId?: string
   periodoAquisitivoInicio?: string
@@ -1349,6 +1742,9 @@ async function inserirSolicitacao(input: InserirSolicitacaoInput) {
       dias_corridos: diasCorridos,
       tipo: input.tipo,
       status: "pendente",
+      periodo_dia: input.periodoDia,
+      horas_solicitadas: input.horasSolicitadas ?? null,
+      saldo_banco_horas_snapshot: input.saldoBancoHorasSnapshot ?? null,
       periodo_aquisitivo_id: input.periodoAquisitivoId || null,
       periodo_aquisitivo_inicio: periodoAquisitivoInicio,
       periodo_aquisitivo_fim: periodoAquisitivoFim,
@@ -1363,7 +1759,7 @@ async function inserirSolicitacao(input: InserirSolicitacaoInput) {
     .single()
 
   if (error) {
-    console.error("Erro ao criar solicitação de férias:", {
+    console.error("Erro ao criar solicitação de ausência:", {
       message: error.message,
       details: error.details,
       hint: error.hint,
@@ -1371,7 +1767,7 @@ async function inserirSolicitacao(input: InserirSolicitacaoInput) {
     })
 
     throw new Error(
-      `Erro ao criar solicitação de férias: ${error.message}${
+      `Erro ao criar solicitação de ausência: ${error.message}${
         error.details ? ` - ${error.details}` : ""
       }`,
     )
@@ -1563,10 +1959,17 @@ function calcularConflitos(solicitacoes: any[]) {
           equipe: equipeA,
           colaboradorA: a.colaborador_nome,
           colaboradorB: b.colaborador_nome,
+          tipoA: a.tipo as FeriasTipo,
+          tipoB: b.tipo as FeriasTipo,
+          statusA: a.status as FeriasStatus,
+          statusB: b.status as FeriasStatus,
           inicioA: a.data_inicio,
           fimA: a.data_fim,
           inicioB: b.data_inicio,
           fimB: b.data_fim,
+          inicioConflito:
+            a.data_inicio >= b.data_inicio ? a.data_inicio : b.data_inicio,
+          fimConflito: a.data_fim <= b.data_fim ? a.data_fim : b.data_fim,
         })
       }
     }
@@ -1588,12 +1991,24 @@ function criarDataLocal(data: string) {
   return new Date(ano, mes - 1, dia)
 }
 
+function arredondarHoras(valor: number) {
+  return Math.round((valor + Number.EPSILON) * 100) / 100
+}
+
+function formatarHorasMensagem(valor: number) {
+  return `${arredondarHoras(valor).toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}h`
+}
+
 function dataHojeLocal() {
-  const hoje = new Date()
-  const ano = hoje.getFullYear()
-  const mes = String(hoje.getMonth() + 1).padStart(2, "0")
-  const dia = String(hoje.getDate()).padStart(2, "0")
-  return `${ano}-${mes}-${dia}`
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date())
 }
 
 function revalidarFerias() {

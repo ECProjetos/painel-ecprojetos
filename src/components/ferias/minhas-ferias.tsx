@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useState, useTransition } from "react"
+import { FormEvent, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
@@ -9,15 +9,19 @@ import {
   CheckCircle2,
   Clock3,
   Plus,
+  TimerReset,
   XCircle,
   type LucideIcon,
 } from "lucide-react"
 
 import {
   cancelarMinhaSolicitacaoFerias,
-  criarMinhaSolicitacaoFerias,
+  criarMinhaSolicitacaoAusencia,
+  type AusenciaPeriodoDia,
+  type BancoHorasAusenciasResumo,
   type FeriasPeriodoResumo,
   type FeriasStatus,
+  type FeriasTipo,
 } from "@/app/actions/ferias"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,6 +42,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -66,7 +77,9 @@ type Solicitacao = {
   data_inicio: string
   data_fim: string
   dias_corridos: number
-  tipo: string
+  tipo: FeriasTipo
+  periodo_dia: AusenciaPeriodoDia
+  horas_solicitadas: number | null
   status: FeriasStatus
   observacao: string | null
   motivo_reprovacao: string | null
@@ -85,17 +98,26 @@ type MinhasFeriasProps = {
   solicitacoes: Solicitacao[]
   resumo: Resumo
   periodosDisponiveis: FeriasPeriodoResumo[]
+  saldoBancoHoras: BancoHorasAusenciasResumo
 }
 
+type TipoSolicitavel = "ferias" | "day_off" | "folga_banco_horas"
+
 type Formulario = {
+  tipo: TipoSolicitavel
+  periodoDia: AusenciaPeriodoDia
   dataInicio: string
   dataFim: string
+  periodoAquisitivoId: string
   observacao: string
 }
 
 const formularioInicial: Formulario = {
+  tipo: "ferias",
+  periodoDia: "integral",
   dataInicio: "",
   dataFim: "",
+  periodoAquisitivoId: "",
   observacao: "",
 }
 
@@ -113,23 +135,67 @@ const statusClasses: Record<FeriasStatus, string> = {
   cancelada: "border-slate-200 bg-slate-50 text-slate-600",
 }
 
+const tipoLabels: Record<TipoSolicitavel, string> = {
+  ferias: "Férias",
+  day_off: "Day off",
+  folga_banco_horas: "Folga banco de horas",
+}
+
 export default function MinhasFerias({
   colaborador,
   solicitacoes,
   resumo,
+  periodosDisponiveis,
+  saldoBancoHoras,
 }: MinhasFeriasProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [dialogAberto, setDialogAberto] = useState(false)
   const [form, setForm] = useState<Formulario>(formularioInicial)
 
+  const periodoSelecionado = useMemo(
+    () =>
+      periodosDisponiveis.find(
+        (periodo) => periodo.periodo_id === form.periodoAquisitivoId,
+      ) ?? null,
+    [form.periodoAquisitivoId, periodosDisponiveis],
+  )
+
   function atualizarForm<K extends keyof Formulario>(
     campo: K,
     valor: Formulario[K],
   ) {
+    setForm((atual) => {
+      const proximo = {
+        ...atual,
+        [campo]: valor,
+      } as Formulario
+
+      if (campo === "dataInicio") {
+        const novaData = String(valor)
+        const exigeDataUnica =
+          atual.tipo === "day_off" || atual.periodoDia !== "integral"
+
+        if (exigeDataUnica) {
+          proximo.dataFim = novaData
+        }
+      }
+
+      if (campo === "periodoDia" && valor !== "integral" && atual.dataInicio) {
+        proximo.dataFim = atual.dataInicio
+      }
+
+      return proximo
+    })
+  }
+
+  function alterarTipo(tipo: TipoSolicitavel) {
     setForm((atual) => ({
       ...atual,
-      [campo]: valor,
+      tipo,
+      periodoDia: "integral",
+      dataFim: tipo === "day_off" && atual.dataInicio ? atual.dataInicio : atual.dataFim,
+      periodoAquisitivoId: tipo === "ferias" ? atual.periodoAquisitivoId : "",
     }))
   }
 
@@ -139,13 +205,19 @@ export default function MinhasFerias({
     startTransition(() => {
       void (async () => {
         try {
-          await criarMinhaSolicitacaoFerias({
+          await criarMinhaSolicitacaoAusencia({
+            tipo: form.tipo,
+            periodoDia: form.periodoDia,
             dataInicio: form.dataInicio,
             dataFim: form.dataFim,
             observacao: form.observacao || undefined,
+            periodoAquisitivoId:
+              form.tipo === "ferias" && form.periodoAquisitivoId
+                ? form.periodoAquisitivoId
+                : undefined,
           })
 
-          toast.success("Solicitação de férias enviada para análise.")
+          toast.success(`${tipoLabels[form.tipo]} enviado(a) para análise.`)
           setForm(formularioInicial)
           setDialogAberto(false)
           router.refresh()
@@ -165,9 +237,7 @@ export default function MinhasFerias({
       "Tem certeza que deseja cancelar esta solicitação pendente?",
     )
 
-    if (!confirmado) {
-      return
-    }
+    if (!confirmado) return
 
     startTransition(() => {
       void (async () => {
@@ -191,10 +261,11 @@ export default function MinhasFerias({
       <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Solicitação de Férias
+            Minhas Ausências
           </h1>
           <p className="text-sm text-muted-foreground">
-            Solicite suas férias e acompanhe somente os seus próprios pedidos.
+            Solicite férias, day-off ou folga de banco de horas e acompanhe o
+            andamento dos seus pedidos.
           </p>
         </div>
 
@@ -216,7 +287,7 @@ export default function MinhasFerias({
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <ResumoCard
           title="Total"
           value={resumo.total}
@@ -247,13 +318,19 @@ export default function MinhasFerias({
           description="canceladas"
           icon={Ban}
         />
+        <ResumoCard
+          title="Banco disponível"
+          value={formatarHoras(saldoBancoHoras.saldoDisponivel)}
+          description={`${formatarHoras(saldoBancoHoras.horasReservadas)} reservadas`}
+          icon={TimerReset}
+        />
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Minhas solicitações</CardTitle>
           <CardDescription>
-            Apenas as suas solicitações de férias são exibidas nesta tela.
+            Histórico de férias, day-offs e folgas de banco de horas.
           </CardDescription>
         </CardHeader>
 
@@ -262,9 +339,10 @@ export default function MinhasFerias({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Início</TableHead>
-                  <TableHead>Fim</TableHead>
-                  <TableHead>Dias</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Período</TableHead>
+                  <TableHead>Datas</TableHead>
+                  <TableHead>Quantidade</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Observação</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
@@ -275,22 +353,32 @@ export default function MinhasFerias({
                 {solicitacoes.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="h-24 text-center text-muted-foreground"
                     >
-                      Você ainda não possui solicitações de férias.
+                      Você ainda não possui solicitações de ausência.
                     </TableCell>
                   </TableRow>
                 ) : (
                   solicitacoes.map((solicitacao) => (
                     <TableRow key={solicitacao.id}>
                       <TableCell>
-                        {formatarData(solicitacao.data_inicio)}
+                        {labelTipo(solicitacao.tipo)}
                       </TableCell>
                       <TableCell>
-                        {formatarData(solicitacao.data_fim)}
+                        {formatarPeriodoDia(solicitacao.periodo_dia)}
                       </TableCell>
-                      <TableCell>{solicitacao.dias_corridos}</TableCell>
+                      <TableCell>
+                        {formatarData(solicitacao.data_inicio)}
+                        {solicitacao.data_fim !== solicitacao.data_inicio
+                          ? ` a ${formatarData(solicitacao.data_fim)}`
+                          : ""}
+                      </TableCell>
+                      <TableCell>
+                        {solicitacao.horas_solicitadas != null
+                          ? formatarHoras(solicitacao.horas_solicitadas)
+                          : `${solicitacao.dias_corridos} dia(s)`}
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
@@ -333,15 +421,92 @@ export default function MinhasFerias({
       <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Nova solicitação de férias</DialogTitle>
+            <DialogTitle>Nova solicitação de ausência</DialogTitle>
             <DialogDescription>
-              Informe somente o período em que pretende gozar as férias. A
-              solicitação será enviada para a Gestão de Férias.
+              O pedido ficará pendente até a análise. Pedidos pendentes também
+              aparecem no calendário de gestão para antecipar conflitos.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={criarSolicitacao} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
+                <Label>Tipo de ausência</Label>
+                <Select
+                  value={form.tipo}
+                  onValueChange={(value) => alterarTipo(value as TipoSolicitavel)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ferias">Férias</SelectItem>
+                    <SelectItem value="day_off">Day off</SelectItem>
+                    <SelectItem value="folga_banco_horas">
+                      Folga de banco de horas
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {form.tipo === "ferias" && periodosDisponiveis.length > 0 && (
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Período aquisitivo</Label>
+                  <Select
+                    value={form.periodoAquisitivoId}
+                    onValueChange={(value) =>
+                      atualizarForm("periodoAquisitivoId", value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o período" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {periodosDisponiveis.map((periodo) => (
+                        <SelectItem
+                          key={periodo.periodo_id}
+                          value={periodo.periodo_id}
+                        >
+                          {formatarData(periodo.aquisitivo_inicio)} a {" "}
+                          {formatarData(periodo.aquisitivo_fim)} · saldo {" "}
+                          {periodo.saldo_apos_pendencias} dia(s)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {periodoSelecionado && (
+                    <p className="text-xs text-muted-foreground">
+                      Período concessivo até {" "}
+                      {formatarData(periodoSelecionado.concessivo_fim)}.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {form.tipo !== "ferias" && (
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Período do dia</Label>
+                  <Select
+                    value={form.periodoDia}
+                    onValueChange={(value) =>
+                      atualizarForm(
+                        "periodoDia",
+                        value as AusenciaPeriodoDia,
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="integral">Dia inteiro</SelectItem>
+                      <SelectItem value="manha">Manhã</SelectItem>
+                      <SelectItem value="tarde">Tarde</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Data de início</Label>
                 <Input
@@ -359,12 +524,35 @@ export default function MinhasFerias({
                 <Input
                   type="date"
                   value={form.dataFim}
+                  min={form.dataInicio || undefined}
                   onChange={(event) =>
                     atualizarForm("dataFim", event.target.value)
                   }
+                  disabled={
+                    form.tipo === "day_off" || form.periodoDia !== "integral"
+                  }
                   required
                 />
+                {(form.tipo === "day_off" ||
+                  form.periodoDia !== "integral") && (
+                  <p className="text-xs text-muted-foreground">
+                    Para este tipo de solicitação, início e fim usam a mesma data.
+                  </p>
+                )}
               </div>
+
+              {form.tipo === "folga_banco_horas" && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm md:col-span-2">
+                  <p className="font-medium text-amber-900">
+                    Saldo disponível: {formatarHoras(saldoBancoHoras.saldoDisponivel)}
+                  </p>
+                  <p className="mt-1 text-xs text-amber-800">
+                    O sistema reserva as horas enquanto o pedido estiver pendente
+                    ou aprovado. A aprovação não faz uma baixa manual no banco;
+                    isso evita descontar as mesmas horas duas vezes.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2 md:col-span-2">
                 <Label>Observação</Label>
@@ -404,7 +592,7 @@ function ResumoCard({
   icon: Icon,
 }: {
   title: string
-  value: number
+  value: number | string
   description: string
   icon: LucideIcon
 }) {
@@ -422,10 +610,30 @@ function ResumoCard({
   )
 }
 
+function labelTipo(tipo: FeriasTipo) {
+  if (tipo === "ferias") return "Férias"
+  if (tipo === "day_off") return "Day off"
+  if (tipo === "folga_banco_horas") return "Folga banco de horas"
+  if (tipo === "atestado") return "Atestado"
+  if (tipo === "licenca") return "Licença"
+  return "Ausência"
+}
+
+function formatarPeriodoDia(periodo: AusenciaPeriodoDia) {
+  if (periodo === "manha") return "Manhã"
+  if (periodo === "tarde") return "Tarde"
+  return "Dia inteiro"
+}
+
+function formatarHoras(valor: number) {
+  return `${Number(valor).toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}h`
+}
+
 function formatarData(data: string) {
-  if (!data) {
-    return "-"
-  }
+  if (!data) return "-"
 
   const [ano, mes, dia] = data.split("-")
   return `${dia}/${mes}/${ano}`

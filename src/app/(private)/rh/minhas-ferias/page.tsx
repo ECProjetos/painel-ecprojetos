@@ -28,7 +28,7 @@ export default async function MinhasFeriasPage() {
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
-            <BreadcrumbPage>Solicitação de Férias</BreadcrumbPage>
+            <BreadcrumbPage>Minhas Ausências</BreadcrumbPage>
           </BreadcrumbList>
         </Breadcrumb>
       </header>
@@ -38,6 +38,7 @@ export default async function MinhasFeriasPage() {
         solicitacoes={dashboard.solicitacoes}
         resumo={dashboard.resumo}
         periodosDisponiveis={dashboard.periodosDisponiveis}
+        saldoBancoHoras={dashboard.saldoBancoHoras}
       />
     </div>
   );

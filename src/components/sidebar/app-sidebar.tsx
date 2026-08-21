@@ -72,7 +72,7 @@ const createData = (pathname: string, userId?: string) => ({
       isActive: pathname.startsWith("/feedback-interno/responder"),
     },
     {
-      title: "Solicitação de Férias",
+      title: "Minhas Ausências",
       url: "/rh/minhas-ferias",
       icon: CalendarPlus,
       isActive: pathname.startsWith("/rh/minhas-ferias"),
@@ -129,7 +129,7 @@ const createData = (pathname: string, userId?: string) => ({
       isActive: pathname.startsWith("/inventario"),
     },
     {
-      title: "Solicitação de Férias",
+      title: "Minhas Ausências",
       url: "/rh/minhas-ferias",
       icon: CalendarPlus,
       isActive: pathname.startsWith("/rh/minhas-ferias"),
@@ -180,13 +180,13 @@ const createData = (pathname: string, userId?: string) => ({
       isActive: pathname.startsWith("/atividades"),
     },
     {
-      title: "Férias da Equipe",
+      title: "Ausências da Equipe",
       url: "/rh/ferias-equipe",
       icon: CalendarDays,
       isActive: pathname.startsWith("/rh/ferias-equipe"),
     },
     {
-      title: "Solicitação de Férias",
+      title: "Minhas Ausências",
       url: "/rh/minhas-ferias",
       icon: CalendarDays,
       isActive: pathname.startsWith("/rh/minhas-ferias"),
@@ -267,7 +267,7 @@ const createData = (pathname: string, userId?: string) => ({
       isActive: pathname.startsWith("/inventario"),
     },
     {
-      title: "Solicitação de Férias",
+      title: "Minhas Ausências",
       url: "/rh/minhas-ferias",
       icon: CalendarPlus,
       isActive: pathname.startsWith("/rh/minhas-ferias"),
@@ -310,7 +310,7 @@ export function AppSidebar({
 
   if (temAcessoFerias) {
     const feriasItem = {
-      title: "Gestão de Férias",
+      title: "Gestão de Ausências",
       url: "/rh/ferias",
       icon: CalendarDays,
       isActive: pathname.startsWith("/rh/ferias"),
