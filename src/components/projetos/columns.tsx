@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { Trash, MoreHorizontal, PenSquare } from "lucide-react";
+import { Check, Trash, MoreHorizontal, PenSquare } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +29,56 @@ import { deletProject } from "@/app/actions/projects";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Label } from "@/components/ui/label"; // Corrected import
-import { ProjectsType } from "@/types/inicio/projetos";
+import { Badge } from "@/components/ui/badge";
+import { ProjectType } from "@/types/inicio/projetos";
+
+const projectStatusConfig: Record<
+  ProjectType["status"],
+  { label: string; className: string; completed?: boolean }
+> = {
+  ativo: {
+    label: "Ativo",
+    className:
+      "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300",
+  },
+  inativo: {
+    label: "Inativo",
+    className:
+      "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+  },
+  pausado: {
+    label: "Pausado",
+    className:
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
+  },
+  concluido: {
+    label: "Concluído",
+    className:
+      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300",
+    completed: true,
+  },
+};
+
+const ProjectStatusCell = ({ status }: { status: ProjectType["status"] }) => {
+  const config = projectStatusConfig[status];
+
+  return (
+    <Badge
+      variant="outline"
+      className={`gap-1.5 rounded-full px-2.5 py-0.5 ${config.className}`}
+    >
+      {config.completed ? (
+        <Check aria-hidden="true" strokeWidth={2.5} />
+      ) : (
+        <span
+          aria-hidden="true"
+          className="size-1.5 rounded-full bg-current"
+        />
+      )}
+      {config.label}
+    </Badge>
+  );
+};
 
 // Component for the description cell
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -183,7 +232,7 @@ type projectColumnsProps = {
 
 export const projectColumns = ({
   onUpdate,
-}: projectColumnsProps): ColumnDef<ProjectsType>[] => [
+}: projectColumnsProps): ColumnDef<ProjectType>[] => [
   {
     accessorKey: "code",
     header: "Código",
@@ -191,6 +240,11 @@ export const projectColumns = ({
   {
     accessorKey: "name",
     header: "Nome",
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => <ProjectStatusCell status={row.original.status} />,
   },
   {
     accessorKey: "description",

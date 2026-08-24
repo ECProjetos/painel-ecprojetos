@@ -23,7 +23,7 @@ import { getProjetos } from "@/app/actions/inicio/get-projetos";
 
 export default function ProjetosPage() {
   const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState<ProjectsType[]>([]);
+  const [projects, setProjects] = useState<ProjectsType>([]);
   const [refresh, setRefresh] = useState<number>(0);
   console.log(projects)
 
