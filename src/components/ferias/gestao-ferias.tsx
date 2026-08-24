@@ -63,6 +63,7 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import { no } from "zod/v4/locales"
 
 type ColaboradorFerias = {
   id: string
@@ -327,34 +328,82 @@ export default function GestaoFerias({
     )
   }, [colaboradores, solicitacoes])
 
-  function aplicarFiltros() {
+  function navegarComFiltros(
+    alteracoes: {
+      ano?: string
+      mes?: string
+      status?: FeriasStatus | "todos"
+      tipo?: FeriasTipo | "todos"
+      equipe?: string
+      colaborador?: string
+    } = {},
+  ) {
+    const proximoAno = alteracoes.ano ?? ano
+    const proximoMes = alteracoes.mes ?? mes
+    const proximoStatus = alteracoes.status ?? statusFiltro
+    const proximoTipo = alteracoes.tipo ?? tipoFiltro
+    const proximaEquipe = alteracoes.equipe ?? equipeFiltro
+    const proximoColaborador =
+      alteracoes.colaborador ?? colaboradorBusca
+  
     const params = new URLSearchParams()
-
-    params.set("ano", ano)
-    params.set("mes", mes)
-
-    if (statusFiltro !== "todos") {
-      params.set("status", statusFiltro)
+  
+    params.set("ano", proximoAno)
+    params.set("mes", proximoMes)
+  
+    if (proximoStatus !== "todos") {
+      params.set("status", proximoStatus)
     }
 
-    if (tipoFiltro !== "todos") {
-      params.set("tipo", tipoFiltro)
+    if (proximoTipo !== "todos") { 
+      params.set("tipo", proximoTipo)
     }
-
-    if (equipeFiltro !== "todos") {
-      params.set("equipe", equipeFiltro)
+  
+    if (proximaEquipe !== "todos") {
+      params.set("equipe", proximaEquipe)
     }
-
-    if (colaboradorBusca.trim()) {
-      params.set("colaborador", colaboradorBusca.trim())
+  
+    if (proximoColaborador.trim()) {
+      params.set("colaborador", proximoColaborador.trim())
     }
-
-    router.push(`/rh/ferias?${params.toString()}`)
+  
+    router.replace(`/rh/ferias?${params.toString()}`)
   }
-
+  
+  function alterarMes(novoMes: string) {
+    setMes(novoMes)
+    navegarComFiltros({ mes: novoMes })
+  }
+  
+  function alterarAno(novoAno: string) {
+    setAno(novoAno)
+    navegarComFiltros({ ano: novoAno })
+  }
+  
+  function alterarStatusFiltro(novoStatus: FeriasStatus | "todos") {
+    setStatusFiltro(novoStatus)
+    navegarComFiltros({ status: novoStatus })
+  }
+  
+  function alterarTipoFiltro(novoTipo: FeriasTipo | "todos") {
+    setTipoFiltro(novoTipo)
+    navegarComFiltros({ tipo: novoTipo })
+  }
+  
+  function alterarEquipeFiltro(novaEquipe: string) {
+    setEquipeFiltro(novaEquipe)
+    navegarComFiltros({ equipe: novaEquipe })
+  }
+  
+  function aplicarFiltros() {
+    navegarComFiltros()
+  }
+  
   function limparFiltros() {
-    router.push("/rh/ferias")
+    router.replace("/rh/ferias")
   }
+
+
 
   function alterarStatus(solicitacaoId: string, status: FeriasStatus) {
     let observacao: string | undefined
@@ -595,7 +644,7 @@ export default function GestaoFerias({
             <div className="space-y-2">
               <Label>Mês</Label>
 
-              <Select value={mes} onValueChange={setMes}>
+              <Select value={mes} onValueChange={alterarMes}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Mês" />
                 </SelectTrigger>
@@ -613,7 +662,7 @@ export default function GestaoFerias({
             <div className="space-y-2">
               <Label>Ano</Label>
 
-              <Select value={ano} onValueChange={setAno}>
+              <Select value={ano} onValueChange={alterarAno}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Ano" />
                 </SelectTrigger>
@@ -634,7 +683,7 @@ export default function GestaoFerias({
               <Select
                 value={statusFiltro}
                 onValueChange={(value) =>
-                  setStatusFiltro(value as FeriasStatus | "todos")
+                  alterarStatusFiltro(value as FeriasStatus | "todos")
                 }
               >
                 <SelectTrigger className="w-full">
@@ -657,7 +706,7 @@ export default function GestaoFerias({
               <Select
                 value={tipoFiltro}
                 onValueChange={(value) =>
-                  setTipoFiltro(value as FeriasTipo | "todos")
+                  alterarTipoFiltro(value as FeriasTipo | "todos")
                 }
               >
                 <SelectTrigger className="w-full">
@@ -681,7 +730,7 @@ export default function GestaoFerias({
             <div className="space-y-2">
               <Label>Equipe</Label>
 
-              <Select value={equipeFiltro} onValueChange={setEquipeFiltro}>
+              <Select value={equipeFiltro} onValueChange={alterarEquipeFiltro}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Equipe" />
                 </SelectTrigger>
@@ -705,13 +754,18 @@ export default function GestaoFerias({
                 <Input
                   value={colaboradorBusca}
                   onChange={(event) => setColaboradorBusca(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      aplicarFiltros()
+                    }
+                  }}
                   placeholder="Buscar por nome"
                 />
 
                 <Button
                   type="button"
                   onClick={aplicarFiltros}
-                  aria-label="Aplicar filtros"
+                  aria-label="Buscar colaborador"
                 >
                   <Search className="h-4 w-4" />
                 </Button>
