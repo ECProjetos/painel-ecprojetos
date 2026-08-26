@@ -1,4 +1,3 @@
-import Link from "next/link"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -7,25 +6,31 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
+
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { getPortfolioProjects } from "@/app/actions/portfolio"
-import { Clock, FolderKanban } from "lucide-react"
+
+import {
+  getPortfolioProjects,
+  getPortfolioTags,
+} from "@/app/actions/portfolio"
+
+import { PortfolioGrid } from "@/components/portfolio/portfolio-grid"
+
+import { FolderKanban } from "lucide-react"
 
 export default async function PortfolioPage() {
-  const projects = await getPortfolioProjects()
+  const [projects, tags] = await Promise.all([
+    getPortfolioProjects(),
+    getPortfolioTags(),
+  ])
 
   return (
-    <div className="w-full min-h-full rounded-2xl border bg-white p-6 shadow-lg dark:bg-[#1c1c20]">
+    <div className="min-h-full w-full rounded-2xl border bg-white p-6 shadow-lg dark:bg-[#1c1c20]">
       <div className="flex h-16 shrink-0 items-center gap-2 px-4">
         <SidebarTrigger className="-ml-1" />
 
@@ -40,7 +45,9 @@ export default async function PortfolioPage() {
             <BreadcrumbSeparator />
 
             <BreadcrumbItem>
-              <BreadcrumbPage>Portfólio</BreadcrumbPage>
+              <BreadcrumbPage>
+                Portfólio
+              </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -65,11 +72,6 @@ export default async function PortfolioPage() {
           </div>
         </div>
 
-        <div className="mb-5 text-sm text-muted-foreground">
-          {projects.length}{" "}
-          {projects.length === 1 ? "projeto concluído" : "projetos concluídos"}
-        </div>
-
         {projects.length === 0 ? (
           <Card>
             <CardContent className="flex min-h-48 items-center justify-center">
@@ -88,82 +90,10 @@ export default async function PortfolioPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {projects.map((project) => {
-              const portfolioPreenchido = project.portfolio !== null
-
-              return (
-                <Card
-                  key={project.id}
-                  className="flex h-full flex-col transition-shadow hover:shadow-md"
-                >
-                  <CardHeader>
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <Badge variant="outline">
-                        {project.code ?? "Sem código"}
-                      </Badge>
-
-                      {portfolioPreenchido ? (
-                        <Badge>Portfólio preenchido</Badge>
-                      ) : (
-                        <Badge variant="secondary">
-                          Dados do portfólio pendentes
-                        </Badge>
-                      )}
-                    </div>
-
-                    <CardTitle className="text-lg">{project.name}</CardTitle>
-
-                    <CardDescription className="line-clamp-3">
-                      {project.description ||
-                        "Projeto sem descrição cadastrada."}
-                    </CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="flex-1 space-y-4">
-                    {project.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {project.tags.map((tag) => (
-                          <Badge
-                            key={tag.id}
-                            variant={
-                              tag.category === "setor" ? "secondary" : "outline"
-                            }
-                          >
-                            {tag.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    {project.estimated_hours !== null && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-
-                        <span>{project.estimated_hours} horas estimadas</span>
-                      </div>
-                    )}
-                  </CardContent>
-
-                  <CardFooter className="flex flex-col gap-2">
-                    <Button asChild className="w-full">
-                      <Link href={`/portfolio/${project.id}/editar`}>
-                        {portfolioPreenchido
-                          ? "Editar dados do Portfólio"
-                          : "Completar dados do Portfólio"}
-                      </Link>
-                    </Button>
-
-                    <Button asChild variant="outline" className="w-full">
-                      <Link href={`/projetos/${project.id}`}>
-                        Abrir projeto
-                      </Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
-              )
-            })}
-          </div>
+          <PortfolioGrid
+            projects={projects}
+            tags={tags}
+          />
         )}
       </div>
     </div>
