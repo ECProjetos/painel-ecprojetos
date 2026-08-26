@@ -13,6 +13,7 @@ import {
   CalendarPlus,
   ClipboardList,
   Clock,
+  FolderKanban,
   LogOut,
   LucideNotebook,
   NotebookPen,
@@ -173,6 +174,12 @@ const createData = (pathname: string, userId?: string) => ({
       icon: NotebookPen,
       isActive: pathname.startsWith("/projetos"),
     },
+    /*{
+     title: "Portfólio",
+     url: "/portfolio",
+     icon:FolderKanban,
+     isActive: pathname.startsWith("/portfolio"), 
+    },*/
     {
       title: "Atividades",
       url: "/atividades",
@@ -254,6 +261,12 @@ const createData = (pathname: string, userId?: string) => ({
       icon: NotebookPen,
       isActive: pathname.startsWith("/projetos"),
     },
+    {
+      title: "Portfólio",
+      url: "/portfolio",
+      icon:FolderKanban,
+      isActive: pathname.startsWith("/portfolio"), 
+     },
     {
       title: "Atividades",
       url: "/atividades",
@@ -354,7 +367,7 @@ export function AppSidebar({
 
             {open && (
               <div className="flex flex-col">
-                <h1 className="text-sm font-bold">EC Projetos</h1>
+                <h1 className="text-sm font-bold">Gestão Integrada</h1>
 
                 {(() => {
                   const label = getRoleLabel(userRole ?? "")

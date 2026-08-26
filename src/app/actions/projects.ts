@@ -44,6 +44,7 @@ function normalizeProducts(products: ProjectProductInput[]) {
 function revalidateProjectPages(id?: number) {
   revalidatePath("/projetos");
   revalidatePath("/projetos/novo");
+  revalidatePath("/portfolio")
 
   if (id) {
     revalidatePath(`/projetos/${id}`);
