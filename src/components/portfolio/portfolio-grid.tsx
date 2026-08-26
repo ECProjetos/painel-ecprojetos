@@ -4,10 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { Clock, Search } from "lucide-react"
 
-import type {
-  PortfolioProject,
-  PortfolioTag,
-} from "@/app/actions/portfolio"
+import type { PortfolioProject, PortfolioTag } from "@/app/actions/portfolio"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,22 +39,15 @@ function formatDepartmentName(name: string) {
     .replace(/^Departamento /i, "")
 }
 
-export function PortfolioGrid({
-  projects,
-  tags,
-}: PortfolioGridProps) {
+export function PortfolioGrid({ projects, tags }: PortfolioGridProps) {
   const [search, setSearch] = useState("")
   const [areaId, setAreaId] = useState("")
   const [assuntoId, setAssuntoId] = useState("")
   const [setorId, setSetorId] = useState("")
 
-  const assuntoTags = tags.filter(
-    (tag) => tag.category === "assunto",
-  )
+  const assuntoTags = tags.filter((tag) => tag.category === "assunto")
 
-  const setorTags = tags.filter(
-    (tag) => tag.category === "setor",
-  )
+  const setorTags = tags.filter((tag) => tag.category === "setor")
 
   const areas = useMemo(() => {
     const areaMap = new Map<
@@ -95,61 +85,39 @@ export function PortfolioGrid({
 
           ...project.tags.map((tag) => tag.name),
 
-          ...project.departments.map(
-            (department) => department.name,
-          ),
+          ...project.departments.map((department) => department.name),
         ]
           .filter(Boolean)
           .join(" "),
       )
 
       const matchesSearch =
-        normalizedSearch === "" ||
-        searchableContent.includes(normalizedSearch)
+        normalizedSearch === "" || searchableContent.includes(normalizedSearch)
 
       const matchesArea =
         areaId === "" ||
         project.departments.some(
-          (department) =>
-            String(department.id) === areaId,
+          (department) => String(department.id) === areaId,
         )
 
       const matchesAssunto =
         assuntoId === "" ||
         project.tags.some(
-          (tag) =>
-            tag.category === "assunto" &&
-            String(tag.id) === assuntoId,
+          (tag) => tag.category === "assunto" && String(tag.id) === assuntoId,
         )
 
       const matchesSetor =
         setorId === "" ||
         project.tags.some(
-          (tag) =>
-            tag.category === "setor" &&
-            String(tag.id) === setorId,
+          (tag) => tag.category === "setor" && String(tag.id) === setorId,
         )
 
-      return (
-        matchesSearch &&
-        matchesArea &&
-        matchesAssunto &&
-        matchesSetor
-      )
+      return matchesSearch && matchesArea && matchesAssunto && matchesSetor
     })
-  }, [
-    projects,
-    search,
-    areaId,
-    assuntoId,
-    setorId,
-  ])
+  }, [projects, search, areaId, assuntoId, setorId])
 
   const hasFilters =
-    search !== "" ||
-    areaId !== "" ||
-    assuntoId !== "" ||
-    setorId !== ""
+    search !== "" || areaId !== "" || assuntoId !== "" || setorId !== ""
 
   function clearFilters() {
     setSearch("")
@@ -169,9 +137,7 @@ export function PortfolioGrid({
 
             <Input
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar por projeto, código, descrição ou assunto..."
               className="pl-9"
             />
@@ -180,20 +146,13 @@ export function PortfolioGrid({
           {/* ÁREA */}
           <select
             value={areaId}
-            onChange={(event) =>
-              setAreaId(event.target.value)
-            }
+            onChange={(event) => setAreaId(event.target.value)}
             className="flex h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
-            <option value="">
-              Todas as áreas
-            </option>
+            <option value="">Todas as áreas</option>
 
             {areas.map((area) => (
-              <option
-                key={area.id}
-                value={String(area.id)}
-              >
+              <option key={area.id} value={String(area.id)}>
                 {formatDepartmentName(area.name)}
               </option>
             ))}
@@ -202,20 +161,13 @@ export function PortfolioGrid({
           {/* ASSUNTO */}
           <select
             value={assuntoId}
-            onChange={(event) =>
-              setAssuntoId(event.target.value)
-            }
+            onChange={(event) => setAssuntoId(event.target.value)}
             className="flex h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
-            <option value="">
-              Todos os assuntos
-            </option>
+            <option value="">Todos os assuntos</option>
 
             {assuntoTags.map((tag) => (
-              <option
-                key={tag.id}
-                value={String(tag.id)}
-              >
+              <option key={tag.id} value={String(tag.id)}>
                 {tag.name}
               </option>
             ))}
@@ -224,20 +176,13 @@ export function PortfolioGrid({
           {/* SETOR */}
           <select
             value={setorId}
-            onChange={(event) =>
-              setSetorId(event.target.value)
-            }
+            onChange={(event) => setSetorId(event.target.value)}
             className="flex h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
-            <option value="">
-              Todos os setores
-            </option>
+            <option value="">Todos os setores</option>
 
             {setorTags.map((tag) => (
-              <option
-                key={tag.id}
-                value={String(tag.id)}
-              >
+              <option key={tag.id} value={String(tag.id)}>
                 {tag.name}
               </option>
             ))}
@@ -271,9 +216,7 @@ export function PortfolioGrid({
             <div className="text-center">
               <Search className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
 
-              <p className="font-medium">
-                Nenhum projeto encontrado
-              </p>
+              <p className="font-medium">Nenhum projeto encontrado</p>
 
               <p className="mt-1 text-sm text-muted-foreground">
                 Tente alterar os filtros ou os termos da busca.
@@ -296,8 +239,7 @@ export function PortfolioGrid({
         /* CARDS */
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filteredProjects.map((project) => {
-            const portfolioPreenchido =
-              project.portfolio !== null
+            const portfolioPreenchido = project.portfolio !== null
 
             const assuntos = project.tags.filter(
               (tag) => tag.category === "assunto",
@@ -320,9 +262,7 @@ export function PortfolioGrid({
                     </Badge>
 
                     {portfolioPreenchido ? (
-                      <Badge>
-                        Portfólio preenchido
-                      </Badge>
+                      <Badge>Portfólio preenchido</Badge>
                     ) : (
                       <Badge variant="secondary">
                         Dados do portfólio pendentes
@@ -330,13 +270,10 @@ export function PortfolioGrid({
                     )}
                   </div>
 
-                  <CardTitle className="text-lg">
-                    {project.name}
-                  </CardTitle>
+                  <CardTitle className="text-lg">{project.name}</CardTitle>
 
                   <CardDescription className="line-clamp-3">
-                    {project.description ||
-                      "Projeto sem descrição cadastrada."}
+                    {project.description || "Projeto sem descrição cadastrada."}
                   </CardDescription>
                 </CardHeader>
 
@@ -350,19 +287,15 @@ export function PortfolioGrid({
                       </p>
 
                       <div className="flex flex-wrap gap-2">
-                        {project.departments.map(
-                          (department) => (
-                            <Badge
-                              key={department.id}
-                              variant="default"
-                              className="max-w-full whitespace-normal text-left"
-                            >
-                              {formatDepartmentName(
-                                department.name,
-                              )}
-                            </Badge>
-                          ),
-                        )}
+                        {project.departments.map((department) => (
+                          <Badge
+                            key={department.id}
+                            variant="default"
+                            className="max-w-full whitespace-normal text-left"
+                          >
+                            {formatDepartmentName(department.name)}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -414,39 +347,48 @@ export function PortfolioGrid({
                     <div className="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4 shrink-0" />
 
-                      <span>
-                        {project.estimated_hours} horas estimadas
-                      </span>
+                      <span>{project.estimated_hours} horas estimadas</span>
                     </div>
                   )}
                 </CardContent>
 
                 {/* AÇÕES */}
                 <CardFooter className="flex flex-col gap-2">
-                  <Button
-                    asChild
-                    className="w-full"
-                  >
-                    <Link
-                      href={`/portfolio/${project.id}/editar`}
-                    >
-                      {portfolioPreenchido
-                        ? "Editar dados do Portfólio"
-                        : "Completar dados do Portfólio"}
-                    </Link>
-                  </Button>
+                  {portfolioPreenchido ? (
+                    <>
+                      <Button asChild className="w-full">
+                        <Link href={`/portfolio/${project.id}`}>Ver case</Link>
+                      </Button>
 
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <Link
-                      href={`/projetos/${project.id}`}
-                    >
-                      Abrir projeto
-                    </Link>
-                  </Button>
+                      <div className="grid w-full grid-cols-2 gap-2">
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/portfolio/${project.id}/editar`}>
+                            Editar dados
+                          </Link>
+                        </Button>
+
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/projetos/${project.id}`}>
+                            Abrir projeto
+                          </Link>
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Button asChild className="w-full">
+                        <Link href={`/portfolio/${project.id}/editar`}>
+                          Completar dados do Portfólio
+                        </Link>
+                      </Button>
+
+                      <Button asChild variant="outline" className="w-full">
+                        <Link href={`/projetos/${project.id}`}>
+                          Abrir projeto
+                        </Link>
+                      </Button>
+                    </>
+                  )}
                 </CardFooter>
               </Card>
             )

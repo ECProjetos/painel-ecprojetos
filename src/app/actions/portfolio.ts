@@ -236,11 +236,11 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
           ? null
           : Number(project.estimated_hours),
       status: "concluido" as const,
-      
+
       departments: departmentsByProject.get(Number(project.id)) ?? [],
 
       tags: portfolio ? (tagsByPortfolio.get(Number(portfolio.id)) ?? []) : [],
-      
+
       portfolio: portfolio
         ? {
             id: Number(portfolio.id),
@@ -571,4 +571,234 @@ export async function getPortfolioTags(): Promise<PortfolioTag[]> {
     category: tag.category as "assunto" | "setor",
     sort_order: Number(tag.sort_order),
   }))
+}
+export type PortfolioCase = {
+  id: number
+  code: string | null
+  name: string
+  description: string | null
+  estimated_hours: number | null
+
+  departments: PortfolioDepartment[]
+  tags: PortfolioTag[]
+
+  portfolio: {
+    id: number
+    executive_summary: string | null
+    challenge: string | null
+    solution: string | null
+    results: string | null
+    quantitative_results: string | null
+    associated_investment: number | null
+    capex: number | null
+    currency: string
+    completion_date: string | null
+    notes: string | null
+    allow_external_export: boolean
+    show_values_in_pdf: boolean
+  }
+}
+
+export async function getPortfolioCaseById(
+  projectId: number,
+): Promise<PortfolioCase | null> {
+  const supabase = await createClient()
+
+  // Projeto concluído
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select(
+      "id, code, name, description, estimated_hours, status",
+    )
+    .eq("id", projectId)
+    .eq("status", "concluido")
+    .maybeSingle()
+
+  if (projectError) {
+    throw new Error(
+      "Erro ao buscar o projeto: " + projectError.message,
+    )
+  }
+
+  if (!project) {
+    return null
+  }
+
+  // Ficha de portfólio
+  const { data: portfolio, error: portfolioError } =
+    await supabase
+      .from("project_portfolio")
+      .select(`
+        id,
+        executive_summary,
+        challenge,
+        solution,
+        results,
+        quantitative_results,
+        associated_investment,
+        capex,
+        currency,
+        completion_date,
+        notes,
+        allow_external_export,
+        show_values_in_pdf
+      `)
+      .eq("project_id", projectId)
+      .maybeSingle()
+
+  if (portfolioError) {
+    throw new Error(
+      "Erro ao buscar os dados do portfólio: " +
+        portfolioError.message,
+    )
+  }
+
+  // Um projeto pendente ainda não possui um case para visualizar.
+  if (!portfolio) {
+    return null
+  }
+
+  // Áreas
+  const {
+    data: projectDepartmentRows,
+    error: projectDepartmentsError,
+  } = await supabase
+    .from("project_departments")
+    .select("department_id")
+    .eq("project_id", projectId)
+
+  if (projectDepartmentsError) {
+    throw new Error(
+      "Erro ao buscar as áreas do projeto: " +
+        projectDepartmentsError.message,
+    )
+  }
+
+  const departmentIds = (
+    projectDepartmentRows ?? []
+  ).map((row) => Number(row.department_id))
+
+  let departments: PortfolioDepartment[] = []
+
+  if (departmentIds.length > 0) {
+    const { data: departmentRows, error: departmentsError } =
+      await supabase
+        .from("departments")
+        .select("id, name")
+        .in("id", departmentIds)
+
+    if (departmentsError) {
+      throw new Error(
+        "Erro ao buscar os departamentos: " +
+          departmentsError.message,
+      )
+    }
+
+    departments = (departmentRows ?? [])
+      .map((department) => ({
+        id: Number(department.id),
+        name: department.name,
+      }))
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, "pt-BR"),
+      )
+  }
+
+  // Relações de tags
+  const { data: relationRows, error: relationsError } =
+    await supabase
+      .from("project_portfolio_tags")
+      .select("tag_id")
+      .eq("portfolio_id", portfolio.id)
+
+  if (relationsError) {
+    throw new Error(
+      "Erro ao buscar as classificações do projeto: " +
+        relationsError.message,
+    )
+  }
+
+  const tagIds = (relationRows ?? []).map((row) =>
+    Number(row.tag_id),
+  )
+
+  let tags: PortfolioTag[] = []
+
+  if (tagIds.length > 0) {
+    const { data: tagRows, error: tagsError } =
+      await supabase
+        .from("portfolio_tags")
+        .select("id, name, category, sort_order")
+        .eq("active", true)
+        .in("id", tagIds)
+
+    if (tagsError) {
+      throw new Error(
+        "Erro ao buscar os rótulos do projeto: " +
+          tagsError.message,
+      )
+    }
+
+    tags = (tagRows ?? [])
+      .map((tag) => ({
+        id: Number(tag.id),
+        name: tag.name,
+        category: tag.category as
+          | "assunto"
+          | "setor",
+        sort_order: Number(tag.sort_order),
+      }))
+      .sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category)
+        }
+
+        return a.sort_order - b.sort_order
+      })
+  }
+
+  return {
+    id: Number(project.id),
+    code: project.code,
+    name: project.name,
+    description: project.description,
+
+    estimated_hours:
+      project.estimated_hours === null
+        ? null
+        : Number(project.estimated_hours),
+
+    departments,
+    tags,
+
+    portfolio: {
+      id: Number(portfolio.id),
+      executive_summary: portfolio.executive_summary,
+      challenge: portfolio.challenge,
+      solution: portfolio.solution,
+      results: portfolio.results,
+      quantitative_results:
+        portfolio.quantitative_results,
+
+      associated_investment:
+        portfolio.associated_investment === null
+          ? null
+          : Number(portfolio.associated_investment),
+
+      capex:
+        portfolio.capex === null
+          ? null
+          : Number(portfolio.capex),
+
+      currency: portfolio.currency ?? "BRL",
+      completion_date: portfolio.completion_date,
+      notes: portfolio.notes,
+
+      allow_external_export:
+        portfolio.allow_external_export ?? false,
+
+      show_values_in_pdf:
+        portfolio.show_values_in_pdf ?? false,
+    },
+  }
 }
