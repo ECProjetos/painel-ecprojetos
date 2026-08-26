@@ -367,7 +367,7 @@ export function AppSidebar({
 
             {open && (
               <div className="flex flex-col">
-                <h1 className="text-sm font-bold">Gestão Integrada</h1>
+                <h1 className="text-sm font-bold">EC Projetos</h1>
 
                 {(() => {
                   const label = getRoleLabel(userRole ?? "")
