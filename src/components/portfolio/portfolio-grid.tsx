@@ -34,11 +34,20 @@ function normalizeText(value: string | null | undefined) {
     .trim()
 }
 
+function formatDepartmentName(name: string) {
+  return name
+    .replace(/^Departamento de /i, "")
+    .replace(/^Departamento da /i, "")
+    .replace(/^Departamento do /i, "")
+    .replace(/^Departamento /i, "")
+}
+
 export function PortfolioGrid({
   projects,
   tags,
 }: PortfolioGridProps) {
   const [search, setSearch] = useState("")
+  const [areaId, setAreaId] = useState("")
   const [assuntoId, setAssuntoId] = useState("")
   const [setorId, setSetorId] = useState("")
 
@@ -50,6 +59,29 @@ export function PortfolioGrid({
     (tag) => tag.category === "setor",
   )
 
+  const areas = useMemo(() => {
+    const areaMap = new Map<
+      number,
+      {
+        id: number
+        name: string
+      }
+    >()
+
+    for (const project of projects) {
+      for (const department of project.departments) {
+        areaMap.set(department.id, department)
+      }
+    }
+
+    return Array.from(areaMap.values()).sort((a, b) =>
+      formatDepartmentName(a.name).localeCompare(
+        formatDepartmentName(b.name),
+        "pt-BR",
+      ),
+    )
+  }, [projects])
+
   const filteredProjects = useMemo(() => {
     const normalizedSearch = normalizeText(search)
 
@@ -60,7 +92,12 @@ export function PortfolioGrid({
           project.name,
           project.description,
           project.portfolio?.executive_summary,
+
           ...project.tags.map((tag) => tag.name),
+
+          ...project.departments.map(
+            (department) => department.name,
+          ),
         ]
           .filter(Boolean)
           .join(" "),
@@ -69,6 +106,13 @@ export function PortfolioGrid({
       const matchesSearch =
         normalizedSearch === "" ||
         searchableContent.includes(normalizedSearch)
+
+      const matchesArea =
+        areaId === "" ||
+        project.departments.some(
+          (department) =>
+            String(department.id) === areaId,
+        )
 
       const matchesAssunto =
         assuntoId === "" ||
@@ -88,19 +132,28 @@ export function PortfolioGrid({
 
       return (
         matchesSearch &&
+        matchesArea &&
         matchesAssunto &&
         matchesSetor
       )
     })
-  }, [projects, search, assuntoId, setorId])
+  }, [
+    projects,
+    search,
+    areaId,
+    assuntoId,
+    setorId,
+  ])
 
   const hasFilters =
     search !== "" ||
+    areaId !== "" ||
     assuntoId !== "" ||
     setorId !== ""
 
   function clearFilters() {
     setSearch("")
+    setAreaId("")
     setAssuntoId("")
     setSetorId("")
   }
@@ -109,8 +162,9 @@ export function PortfolioGrid({
     <div className="space-y-6">
       {/* FILTROS */}
       <div className="rounded-xl border bg-muted/20 p-4">
-        <div className="grid gap-4 lg:grid-cols-[minmax(260px,1fr)_220px_220px_auto]">
-          <div className="relative">
+        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-[minmax(320px,1.8fr)_repeat(3,minmax(170px,1fr))_auto]">
+          {/* BUSCA */}
+          <div className="relative md:col-span-2 2xl:col-span-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
             <Input
@@ -123,14 +177,39 @@ export function PortfolioGrid({
             />
           </div>
 
+          {/* ÁREA */}
+          <select
+            value={areaId}
+            onChange={(event) =>
+              setAreaId(event.target.value)
+            }
+            className="flex h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            <option value="">
+              Todas as áreas
+            </option>
+
+            {areas.map((area) => (
+              <option
+                key={area.id}
+                value={String(area.id)}
+              >
+                {formatDepartmentName(area.name)}
+              </option>
+            ))}
+          </select>
+
+          {/* ASSUNTO */}
           <select
             value={assuntoId}
             onChange={(event) =>
               setAssuntoId(event.target.value)
             }
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="flex h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
-            <option value="">Todos os assuntos</option>
+            <option value="">
+              Todos os assuntos
+            </option>
 
             {assuntoTags.map((tag) => (
               <option
@@ -142,14 +221,17 @@ export function PortfolioGrid({
             ))}
           </select>
 
+          {/* SETOR */}
           <select
             value={setorId}
             onChange={(event) =>
               setSetorId(event.target.value)
             }
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="flex h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
-            <option value="">Todos os setores</option>
+            <option value="">
+              Todos os setores
+            </option>
 
             {setorTags.map((tag) => (
               <option
@@ -161,11 +243,13 @@ export function PortfolioGrid({
             ))}
           </select>
 
+          {/* LIMPAR */}
           <Button
             type="button"
             variant="outline"
             disabled={!hasFilters}
             onClick={clearFilters}
+            className="md:col-span-2 2xl:col-span-1 2xl:w-auto"
           >
             Limpar filtros
           </Button>
@@ -180,7 +264,7 @@ export function PortfolioGrid({
           : "projetos encontrados"}
       </div>
 
-      {/* SEM RESULTADO */}
+      {/* SEM RESULTADOS */}
       {filteredProjects.length === 0 ? (
         <Card>
           <CardContent className="flex min-h-48 items-center justify-center">
@@ -209,16 +293,26 @@ export function PortfolioGrid({
           </CardContent>
         </Card>
       ) : (
+        /* CARDS */
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filteredProjects.map((project) => {
             const portfolioPreenchido =
               project.portfolio !== null
 
+            const assuntos = project.tags.filter(
+              (tag) => tag.category === "assunto",
+            )
+
+            const setores = project.tags.filter(
+              (tag) => tag.category === "setor",
+            )
+
             return (
               <Card
                 key={project.id}
-                className="flex h-full flex-col transition-shadow hover:shadow-md"
+                className="flex h-full min-w-0 flex-col overflow-hidden transition-shadow hover:shadow-md"
               >
+                {/* CABEÇALHO */}
                 <CardHeader>
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <Badge variant="outline">
@@ -246,70 +340,79 @@ export function PortfolioGrid({
                   </CardDescription>
                 </CardHeader>
 
-                <CardContent className="flex-1 space-y-4">
-                  {project.tags.length > 0 && (
-                    <div className="space-y-3">
-                      {project.tags.some(
-                        (tag) =>
-                          tag.category === "assunto",
-                      ) && (
-                        <div>
-                          <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                            Assuntos
-                          </p>
+                {/* CONTEÚDO */}
+                <CardContent className="flex-1 space-y-5">
+                  {/* ÁREAS */}
+                  {project.departments.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Áreas
+                      </p>
 
-                          <div className="flex flex-wrap gap-2">
-                            {project.tags
-                              .filter(
-                                (tag) =>
-                                  tag.category ===
-                                  "assunto",
-                              )
-                              .map((tag) => (
-                                <Badge
-                                  key={tag.id}
-                                  variant="outline"
-                                >
-                                  {tag.name}
-                                </Badge>
-                              ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {project.tags.some(
-                        (tag) =>
-                          tag.category === "setor",
-                      ) && (
-                        <div>
-                          <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                            Setores
-                          </p>
-
-                          <div className="flex flex-wrap gap-2">
-                            {project.tags
-                              .filter(
-                                (tag) =>
-                                  tag.category ===
-                                  "setor",
-                              )
-                              .map((tag) => (
-                                <Badge
-                                  key={tag.id}
-                                  variant="secondary"
-                                >
-                                  {tag.name}
-                                </Badge>
-                              ))}
-                          </div>
-                        </div>
-                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {project.departments.map(
+                          (department) => (
+                            <Badge
+                              key={department.id}
+                              variant="default"
+                              className="max-w-full whitespace-normal text-left"
+                            >
+                              {formatDepartmentName(
+                                department.name,
+                              )}
+                            </Badge>
+                          ),
+                        )}
+                      </div>
                     </div>
                   )}
 
+                  {/* ASSUNTOS */}
+                  {assuntos.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Assuntos
+                      </p>
+
+                      <div className="flex flex-wrap gap-2">
+                        {assuntos.map((tag) => (
+                          <Badge
+                            key={tag.id}
+                            variant="outline"
+                            className="whitespace-normal"
+                          >
+                            {tag.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SETORES */}
+                  {setores.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Setores
+                      </p>
+
+                      <div className="flex flex-wrap gap-2">
+                        {setores.map((tag) => (
+                          <Badge
+                            key={tag.id}
+                            variant="secondary"
+                            className="whitespace-normal"
+                          >
+                            {tag.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* HORAS */}
                   {project.estimated_hours !== null && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
+                    <div className="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4 shrink-0" />
 
                       <span>
                         {project.estimated_hours} horas estimadas
@@ -318,6 +421,7 @@ export function PortfolioGrid({
                   )}
                 </CardContent>
 
+                {/* AÇÕES */}
                 <CardFooter className="flex flex-col gap-2">
                   <Button
                     asChild

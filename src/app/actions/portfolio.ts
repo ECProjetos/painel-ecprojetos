@@ -10,6 +10,11 @@ export type PortfolioTag = {
   sort_order: number
 }
 
+export type PortfolioDepartment = {
+  id: number
+  name: string
+}
+
 export type PortfolioProject = {
   id: number
   code: string | null
@@ -48,6 +53,73 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
   }
 
   const projectIds = projects.map((project) => project.id)
+
+  const { data: projectDepartmentRows, error: projectDepartmentsError } =
+    await supabase
+      .from("project_departments")
+      .select("project_id, department_id")
+      .in("project_id", projectIds)
+
+  if (projectDepartmentsError) {
+    throw new Error(
+      "Erro ao buscar as áreas dos projetos: " +
+        projectDepartmentsError.message,
+    )
+  }
+
+  const departmentIds = Array.from(
+    new Set(
+      (projectDepartmentRows ?? []).map((row) => Number(row.department_id)),
+    ),
+  )
+
+  const departmentById = new Map<number, PortfolioDepartment>()
+
+  if (departmentIds.length > 0) {
+    const { data: departmentRows, error: departmentsError } = await supabase
+      .from("departments")
+      .select("id, name")
+      .in("id", departmentIds)
+
+    if (departmentsError) {
+      throw new Error(
+        "Erro ao buscar os departamentos: " + departmentsError.message,
+      )
+    }
+
+    for (const department of departmentRows ?? []) {
+      departmentById.set(Number(department.id), {
+        id: Number(department.id),
+        name: department.name,
+      })
+    }
+  }
+
+  const departmentsByProject = new Map<number, PortfolioDepartment[]>()
+
+  for (const relation of projectDepartmentRows ?? []) {
+    const projectId = Number(relation.project_id)
+    const department = departmentById.get(Number(relation.department_id))
+
+    if (!department) {
+      continue
+    }
+
+    const current = departmentsByProject.get(projectId) ?? []
+
+    current.push(department)
+
+    departmentsByProject.set(projectId, current)
+  }
+
+  for (const [
+    projectId,
+    projectDepartments,
+  ] of departmentsByProject.entries()) {
+    projectDepartments.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+
+    departmentsByProject.set(projectId, projectDepartments)
+  }
 
   const { data: portfolioRows, error: portfolioError } = await supabase
     .from("project_portfolio")
@@ -164,8 +236,11 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
           ? null
           : Number(project.estimated_hours),
       status: "concluido" as const,
-      tags: portfolio ? (tagsByPortfolio.get(Number(portfolio.id)) ?? []) : [],
+      
+      departments: departmentsByProject.get(Number(project.id)) ?? [],
 
+      tags: portfolio ? (tagsByPortfolio.get(Number(portfolio.id)) ?? []) : [],
+      
       portfolio: portfolio
         ? {
             id: Number(portfolio.id),
@@ -190,6 +265,7 @@ export type PortfolioProjectDetails = {
   description: string | null
   estimated_hours: number | null
   tag_ids: number[]
+  departments: PortfolioDepartment[]
   portfolio: {
     id: number
     executive_summary: string | null
