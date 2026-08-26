@@ -23,12 +23,8 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { PortfolioPdfButton } from "@/components/portfolio/portfolio-pdf-button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
 type PortfolioCasePageProps = {
@@ -45,10 +41,7 @@ function formatDepartmentName(name: string) {
     .replace(/^Departamento /i, "")
 }
 
-function formatCurrency(
-  value: number,
-  currency: string,
-) {
+function formatCurrency(value: number, currency: string) {
   try {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -76,15 +69,11 @@ export default async function PortfolioCasePage({
   const { id } = await params
   const projectId = Number(id)
 
-  if (
-    !Number.isInteger(projectId) ||
-    projectId <= 0
-  ) {
+  if (!Number.isInteger(projectId) || projectId <= 0) {
     notFound()
   }
 
-  const project =
-    await getPortfolioCaseById(projectId)
+  const project = await getPortfolioCaseById(projectId)
 
   if (!project) {
     notFound()
@@ -92,17 +81,12 @@ export default async function PortfolioCasePage({
 
   const portfolio = project.portfolio
 
-  const assuntos = project.tags.filter(
-    (tag) => tag.category === "assunto",
-  )
+  const assuntos = project.tags.filter((tag) => tag.category === "assunto")
 
-  const setores = project.tags.filter(
-    (tag) => tag.category === "setor",
-  )
+  const setores = project.tags.filter((tag) => tag.category === "setor")
 
   const hasFinancialData =
-    portfolio.associated_investment !== null ||
-    portfolio.capex !== null
+    portfolio.associated_investment !== null || portfolio.capex !== null
 
   return (
     <div className="min-h-full w-full rounded-2xl border bg-white p-6 shadow-lg dark:bg-[#1c1c20]">
@@ -121,17 +105,13 @@ export default async function PortfolioCasePage({
             <BreadcrumbSeparator />
 
             <BreadcrumbItem>
-              <BreadcrumbLink href="/portfolio">
-                Portfólio
-              </BreadcrumbLink>
+              <BreadcrumbLink href="/portfolio">Portfólio</BreadcrumbLink>
             </BreadcrumbItem>
 
             <BreadcrumbSeparator />
 
             <BreadcrumbItem>
-              <BreadcrumbPage>
-                {project.code ?? project.name}
-              </BreadcrumbPage>
+              <BreadcrumbPage>{project.code ?? project.name}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -140,12 +120,7 @@ export default async function PortfolioCasePage({
       <div className="mx-auto max-w-6xl px-4 pb-10">
         {/* TOPO */}
         <div className="mb-8">
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="mb-5 -ml-2"
-          >
+          <Button asChild variant="ghost" size="sm" className="mb-5 -ml-2">
             <Link href="/portfolio">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Voltar ao Portfólio
@@ -156,9 +131,7 @@ export default async function PortfolioCasePage({
             <div className="max-w-4xl">
               <div className="mb-3 flex flex-wrap gap-2">
                 {project.code && (
-                  <Badge variant="outline">
-                    {project.code}
-                  </Badge>
+                  <Badge variant="outline">{project.code}</Badge>
                 )}
 
                 <Badge>Portfólio preenchido</Badge>
@@ -177,18 +150,16 @@ export default async function PortfolioCasePage({
 
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button asChild variant="outline">
-                <Link
-                  href={`/portfolio/${project.id}/editar`}
-                >
+                <Link href={`/portfolio/${project.id}/editar`}>
                   <Pencil className="mr-2 h-4 w-4" />
                   Editar dados
                 </Link>
               </Button>
 
+              <PortfolioPdfButton project={project} />
+
               <Button asChild variant="outline">
-                <Link href={`/projetos/${project.id}`}>
-                  Abrir projeto
-                </Link>
+                <Link href={`/projetos/${project.id}`}>Abrir projeto</Link>
               </Button>
             </div>
           </div>
@@ -207,17 +178,11 @@ export default async function PortfolioCasePage({
 
                 <div className="flex flex-wrap gap-2">
                   {project.departments.length > 0 ? (
-                    project.departments.map(
-                      (department) => (
-                        <Badge
-                          key={department.id}
-                        >
-                          {formatDepartmentName(
-                            department.name,
-                          )}
-                        </Badge>
-                      ),
-                    )
+                    project.departments.map((department) => (
+                      <Badge key={department.id}>
+                        {formatDepartmentName(department.name)}
+                      </Badge>
+                    ))
                   ) : (
                     <span className="text-sm text-muted-foreground">
                       Não informado
@@ -234,10 +199,7 @@ export default async function PortfolioCasePage({
                 <div className="flex flex-wrap gap-2">
                   {assuntos.length > 0 ? (
                     assuntos.map((tag) => (
-                      <Badge
-                        key={tag.id}
-                        variant="outline"
-                      >
+                      <Badge key={tag.id} variant="outline">
                         {tag.name}
                       </Badge>
                     ))
@@ -257,10 +219,7 @@ export default async function PortfolioCasePage({
                 <div className="flex flex-wrap gap-2">
                   {setores.length > 0 ? (
                     setores.map((tag) => (
-                      <Badge
-                        key={tag.id}
-                        variant="secondary"
-                      >
+                      <Badge key={tag.id} variant="secondary">
                         {tag.name}
                       </Badge>
                     ))
@@ -285,14 +244,10 @@ export default async function PortfolioCasePage({
                 </div>
 
                 <div>
-                  <p className="text-xs text-muted-foreground">
-                    Conclusão
-                  </p>
+                  <p className="text-xs text-muted-foreground">Conclusão</p>
 
                   <p className="font-semibold">
-                    {formatDate(
-                      portfolio.completion_date,
-                    )}
+                    {formatDate(portfolio.completion_date)}
                   </p>
                 </div>
               </CardContent>
@@ -312,10 +267,7 @@ export default async function PortfolioCasePage({
                   </p>
 
                   <p className="font-semibold">
-                    {project.estimated_hours.toLocaleString(
-                      "pt-BR",
-                    )}{" "}
-                    h
+                    {project.estimated_hours.toLocaleString("pt-BR")} h
                   </p>
                 </div>
               </CardContent>
@@ -353,15 +305,10 @@ export default async function PortfolioCasePage({
                 </div>
 
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">
-                    CAPEX
-                  </p>
+                  <p className="text-xs text-muted-foreground">CAPEX</p>
 
                   <p className="break-words font-semibold">
-                    {formatCurrency(
-                      portfolio.capex,
-                      portfolio.currency,
-                    )}
+                    {formatCurrency(portfolio.capex, portfolio.currency)}
                   </p>
                 </div>
               </CardContent>
@@ -391,9 +338,7 @@ export default async function PortfolioCasePage({
           {portfolio.challenge && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">
-                  Desafio / contexto
-                </CardTitle>
+                <CardTitle className="text-lg">Desafio / contexto</CardTitle>
               </CardHeader>
 
               <CardContent>
@@ -407,9 +352,7 @@ export default async function PortfolioCasePage({
           {portfolio.solution && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">
-                  Solução desenvolvida
-                </CardTitle>
+                <CardTitle className="text-lg">Solução desenvolvida</CardTitle>
               </CardHeader>
 
               <CardContent>
@@ -423,9 +366,7 @@ export default async function PortfolioCasePage({
           {portfolio.results && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">
-                  Resultados alcançados
-                </CardTitle>
+                <CardTitle className="text-lg">Resultados alcançados</CardTitle>
               </CardHeader>
 
               <CardContent>
@@ -454,14 +395,12 @@ export default async function PortfolioCasePage({
         </div>
 
         {/* AVISO DE DADOS FINANCEIROS */}
-        {hasFinancialData &&
-          !portfolio.show_values_in_pdf && (
-            <p className="mt-5 text-xs text-muted-foreground">
-              Os valores financeiros estão disponíveis
-              internamente, mas estão configurados para não
-              aparecer na futura exportação em PDF.
-            </p>
-          )}
+        {hasFinancialData && !portfolio.show_values_in_pdf && (
+          <p className="mt-5 text-xs text-muted-foreground">
+            Os valores financeiros estão disponíveis internamente, mas estão
+            configurados para não aparecer na futura exportação em PDF.
+          </p>
+        )}
       </div>
     </div>
   )
