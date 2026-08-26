@@ -59,8 +59,8 @@ export default async function PortfolioPage() {
               </h1>
 
               <p className="text-sm text-muted-foreground">
-                Projetos concluídos e resultados desenvolvidos pela
-                ornganização.
+                Projetos concluídos e resultados desenvolvidos pela EC Projetos
+                .
               </p>
             </div>
           </div>
@@ -131,7 +131,15 @@ export default async function PortfolioPage() {
                     )}
                   </CardContent>
 
-                  <CardFooter>
+                  <CardFooter className="flex flex-col gap-2">
+                    <Button asChild className="w-full">
+                      <Link href={`/portfolio/${project.id}/editar`}>
+                        {portfolioPreenchido
+                          ? "Editar dados do Portfólio"
+                          : "Completar dados do Portfólio"}
+                      </Link>
+                    </Button>
+
                     <Button asChild variant="outline" className="w-full">
                       <Link href={`/projetos/${project.id}`}>
                         Abrir projeto
