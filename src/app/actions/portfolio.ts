@@ -3,6 +3,13 @@
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
 
+export type PortfolioTag = {
+  id: number
+  name: string
+  category: "assunto" | "setor"
+  sort_order: number
+}
+
 export type PortfolioProject = {
   id: number
   code: string | null
@@ -10,6 +17,7 @@ export type PortfolioProject = {
   description: string | null
   estimated_hours: number | null
   status: "concluido"
+  tags: PortfolioTag[]
   portfolio: {
     id: number
     executive_summary: string | null
@@ -61,6 +69,80 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
       "Erro ao buscar dados do portfólio: " + portfolioError.message,
     )
   }
+  const portfolioIds = (portfolioRows ?? []).map((portfolio) =>
+    Number(portfolio.id),
+  )
+
+  const tagsByPortfolio = new Map<number, PortfolioTag[]>()
+
+  if (portfolioIds.length > 0) {
+    const { data: relationRows, error: relationsError } = await supabase
+      .from("project_portfolio_tags")
+      .select("portfolio_id, tag_id")
+      .in("portfolio_id", portfolioIds)
+
+    if (relationsError) {
+      throw new Error(
+        "Erro ao buscar classificações do portfólio: " + relationsError.message,
+      )
+    }
+
+    const tagIds = Array.from(
+      new Set((relationRows ?? []).map((row) => Number(row.tag_id))),
+    )
+
+    if (tagIds.length > 0) {
+      const { data: tagRows, error: tagsError } = await supabase
+        .from("portfolio_tags")
+        .select("id, name, category, sort_order")
+        .eq("active", true)
+        .in("id", tagIds)
+
+      if (tagsError) {
+        throw new Error(
+          "Erro ao buscar os rótulos do portfólio: " + tagsError.message,
+        )
+      }
+
+      const tagById = new Map<number, PortfolioTag>(
+        (tagRows ?? []).map((tag) => [
+          Number(tag.id),
+          {
+            id: Number(tag.id),
+            name: tag.name,
+            category: tag.category as "assunto" | "setor",
+            sort_order: Number(tag.sort_order),
+          },
+        ]),
+      )
+
+      for (const relation of relationRows ?? []) {
+        const portfolioId = Number(relation.portfolio_id)
+        const tag = tagById.get(Number(relation.tag_id))
+
+        if (!tag) {
+          continue
+        }
+
+        const current = tagsByPortfolio.get(portfolioId) ?? []
+
+        current.push(tag)
+        tagsByPortfolio.set(portfolioId, current)
+      }
+
+      for (const [portfolioId, tags] of tagsByPortfolio.entries()) {
+        tags.sort((a, b) => {
+          if (a.category !== b.category) {
+            return a.category.localeCompare(b.category)
+          }
+
+          return a.sort_order - b.sort_order
+        })
+
+        tagsByPortfolio.set(portfolioId, tags)
+      }
+    }
+  }
 
   const portfolioByProject = new Map(
     (portfolioRows ?? []).map((portfolio) => [
@@ -82,6 +164,7 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
           ? null
           : Number(project.estimated_hours),
       status: "concluido" as const,
+      tags: portfolio ? (tagsByPortfolio.get(Number(portfolio.id)) ?? []) : [],
 
       portfolio: portfolio
         ? {
@@ -138,13 +221,6 @@ export type PortfolioFormInput = {
   notes: string
   allow_external_export: boolean
   show_values_in_pdf: boolean
-}
-
-export type PortfolioTag = {
-  id: number
-  name: string
-  category: "assunto" | "setor"
-  sort_order: number
 }
 
 function emptyToNull(value: string) {
@@ -325,59 +401,44 @@ export async function savePortfolioProject(
   const portfolioId = Number(savedPortfolio.id)
 
   const tagIds = Array.from(
-    new Set(
-      input.tag_ids.filter(
-        (id) => Number.isInteger(id) && id > 0,
-      ),
-    ),
+    new Set(input.tag_ids.filter((id) => Number.isInteger(id) && id > 0)),
   )
-  
+
   if (tagIds.length > 0) {
     const { data: validTags, error: validTagsError } = await supabase
       .from("portfolio_tags")
       .select("id")
       .eq("active", true)
       .in("id", tagIds)
-  
+
     if (validTagsError) {
       throw new Error(
-        "Erro ao validar os rótulos selecionados: " +
-          validTagsError.message,
+        "Erro ao validar os rótulos selecionados: " + validTagsError.message,
       )
     }
-  
+
     if ((validTags ?? []).length !== tagIds.length) {
-      throw new Error(
-        "Um ou mais rótulos selecionados não são válidos.",
-      )
+      throw new Error("Um ou mais rótulos selecionados não são válidos.")
     }
   }
-  
-  const { data: currentTagRows, error: currentTagsError } =
-    await supabase
-      .from("project_portfolio_tags")
-      .select("tag_id")
-      .eq("portfolio_id", portfolioId)
-  
+
+  const { data: currentTagRows, error: currentTagsError } = await supabase
+    .from("project_portfolio_tags")
+    .select("tag_id")
+    .eq("portfolio_id", portfolioId)
+
   if (currentTagsError) {
     throw new Error(
-      "Erro ao consultar os rótulos atuais: " +
-        currentTagsError.message,
+      "Erro ao consultar os rótulos atuais: " + currentTagsError.message,
     )
   }
-  
-  const currentTagIds = (currentTagRows ?? []).map((row) =>
-    Number(row.tag_id),
-  )
-  
-  const tagsToAdd = tagIds.filter(
-    (tagId) => !currentTagIds.includes(tagId),
-  )
-  
-  const tagsToRemove = currentTagIds.filter(
-    (tagId) => !tagIds.includes(tagId),
-  )
-  
+
+  const currentTagIds = (currentTagRows ?? []).map((row) => Number(row.tag_id))
+
+  const tagsToAdd = tagIds.filter((tagId) => !currentTagIds.includes(tagId))
+
+  const tagsToRemove = currentTagIds.filter((tagId) => !tagIds.includes(tagId))
+
   if (tagsToAdd.length > 0) {
     const { error: insertTagsError } = await supabase
       .from("project_portfolio_tags")
@@ -387,27 +448,23 @@ export async function savePortfolioProject(
           tag_id: tagId,
         })),
       )
-  
+
     if (insertTagsError) {
       throw new Error(
-        "Erro ao adicionar os rótulos: " +
-          insertTagsError.message,
+        "Erro ao adicionar os rótulos: " + insertTagsError.message,
       )
     }
   }
-  
+
   if (tagsToRemove.length > 0) {
     const { error: removeTagsError } = await supabase
       .from("project_portfolio_tags")
       .delete()
       .eq("portfolio_id", portfolioId)
       .in("tag_id", tagsToRemove)
-  
+
     if (removeTagsError) {
-      throw new Error(
-        "Erro ao remover os rótulos: " +
-          removeTagsError.message,
-      )
+      throw new Error("Erro ao remover os rótulos: " + removeTagsError.message)
     }
   }
 

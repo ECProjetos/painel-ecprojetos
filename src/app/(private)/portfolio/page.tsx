@@ -59,8 +59,7 @@ export default async function PortfolioPage() {
               </h1>
 
               <p className="text-sm text-muted-foreground">
-                Projetos concluídos e resultados desenvolvidos pela EC Projetos
-                .
+                Projetos concluídos e resultados desenvolvidos pela EC Projetos.
               </p>
             </div>
           </div>
@@ -121,7 +120,22 @@ export default async function PortfolioPage() {
                     </CardDescription>
                   </CardHeader>
 
-                  <CardContent className="flex-1">
+                  <CardContent className="flex-1 space-y-4">
+                    {project.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {project.tags.map((tag) => (
+                          <Badge
+                            key={tag.id}
+                            variant={
+                              tag.category === "setor" ? "secondary" : "outline"
+                            }
+                          >
+                            {tag.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
                     {project.estimated_hours !== null && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-4 w-4" />
