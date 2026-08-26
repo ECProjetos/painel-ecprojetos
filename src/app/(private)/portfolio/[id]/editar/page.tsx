@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
-import { getPortfolioProjectById } from "@/app/actions/portfolio"
+import { getPortfolioProjectById, getPortfolioTags } from "@/app/actions/portfolio"
 import { PortfolioForm } from "@/components/portfolio/portfolio-form"
 
 type PortfolioEditPageProps = {
@@ -35,8 +35,10 @@ export default async function PortfolioEditPage({
     notFound()
   }
 
-  const project =
-    await getPortfolioProjectById(projectId)
+  const [project, tags] = await Promise.all([
+    getPortfolioProjectById(projectId), 
+    getPortfolioTags(),
+])
 
   if (!project) {
     notFound()
@@ -116,7 +118,7 @@ export default async function PortfolioEditPage({
           </Link>
         </div>
 
-        <PortfolioForm project={project} />
+        <PortfolioForm project={project} tags={tags} />
       </div>
     </div>
   )

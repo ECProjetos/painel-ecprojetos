@@ -31,7 +31,7 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
 
   if (projectsError) {
     throw new Error(
-      "Erro ao buscar projetos concluídos: " + projectsError.message
+      "Erro ao buscar projetos concluídos: " + projectsError.message,
     )
   }
 
@@ -43,7 +43,8 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
 
   const { data: portfolioRows, error: portfolioError } = await supabase
     .from("project_portfolio")
-    .select(`
+    .select(
+      `
       id,
       project_id,
       executive_summary,
@@ -51,12 +52,13 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
       capex,
       currency,
       completion_date
-    `)
+    `,
+    )
     .in("project_id", projectIds)
 
   if (portfolioError) {
     throw new Error(
-      "Erro ao buscar dados do portfólio: " + portfolioError.message
+      "Erro ao buscar dados do portfólio: " + portfolioError.message,
     )
   }
 
@@ -64,7 +66,7 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
     (portfolioRows ?? []).map((portfolio) => [
       Number(portfolio.project_id),
       portfolio,
-    ])
+    ]),
   )
 
   return projects.map((project) => {
@@ -89,10 +91,7 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
               portfolio.associated_investment === null
                 ? null
                 : Number(portfolio.associated_investment),
-            capex:
-              portfolio.capex === null
-                ? null
-                : Number(portfolio.capex),
+            capex: portfolio.capex === null ? null : Number(portfolio.capex),
             currency: portfolio.currency,
             completion_date: portfolio.completion_date,
           }
@@ -107,6 +106,7 @@ export type PortfolioProjectDetails = {
   name: string
   description: string | null
   estimated_hours: number | null
+  tag_ids: number[]
   portfolio: {
     id: number
     executive_summary: string | null
@@ -133,10 +133,18 @@ export type PortfolioFormInput = {
   associated_investment: number | null
   capex: number | null
   currency: string
+  tag_ids: number[]
   completion_date: string
   notes: string
   allow_external_export: boolean
   show_values_in_pdf: boolean
+}
+
+export type PortfolioTag = {
+  id: number
+  name: string
+  category: "assunto" | "setor"
+  sort_order: number
 }
 
 function emptyToNull(value: string) {
@@ -157,9 +165,7 @@ export async function getPortfolioProjectById(
     .maybeSingle()
 
   if (projectError) {
-    throw new Error(
-      "Erro ao buscar o projeto: " + projectError.message,
-    )
+    throw new Error("Erro ao buscar o projeto: " + projectError.message)
   }
 
   if (!project) {
@@ -168,7 +174,8 @@ export async function getPortfolioProjectById(
 
   const { data: portfolio, error: portfolioError } = await supabase
     .from("project_portfolio")
-    .select(`
+    .select(
+      `
       id,
       executive_summary,
       challenge,
@@ -182,7 +189,8 @@ export async function getPortfolioProjectById(
       notes,
       allow_external_export,
       show_values_in_pdf
-    `)
+    `,
+    )
     .eq("project_id", projectId)
     .maybeSingle()
 
@@ -191,16 +199,31 @@ export async function getPortfolioProjectById(
       "Erro ao buscar os dados do portfólio: " + portfolioError.message,
     )
   }
+  let tagIds: number[] = []
+
+  if (portfolio) {
+    const { data: tagRows, error: tagsError } = await supabase
+      .from("project_portfolio_tags")
+      .select("tag_id")
+      .eq("portfolio_id", portfolio.id)
+
+    if (tagsError) {
+      throw new Error(
+        "Erro ao buscar os rótulos do projeto: " + tagsError.message,
+      )
+    }
+
+    tagIds = (tagRows ?? []).map((row) => Number(row.tag_id))
+  }
 
   return {
     id: Number(project.id),
     code: project.code,
     name: project.name,
     description: project.description,
+    tag_ids: tagIds,
     estimated_hours:
-      project.estimated_hours === null
-        ? null
-        : Number(project.estimated_hours),
+      project.estimated_hours === null ? null : Number(project.estimated_hours),
 
     portfolio: portfolio
       ? {
@@ -214,17 +237,12 @@ export async function getPortfolioProjectById(
             portfolio.associated_investment === null
               ? null
               : Number(portfolio.associated_investment),
-          capex:
-            portfolio.capex === null
-              ? null
-              : Number(portfolio.capex),
+          capex: portfolio.capex === null ? null : Number(portfolio.capex),
           currency: portfolio.currency ?? "BRL",
           completion_date: portfolio.completion_date,
           notes: portfolio.notes,
-          allow_external_export:
-            portfolio.allow_external_export ?? false,
-          show_values_in_pdf:
-            portfolio.show_values_in_pdf ?? false,
+          allow_external_export: portfolio.allow_external_export ?? false,
+          show_values_in_pdf: portfolio.show_values_in_pdf ?? false,
         }
       : null,
   }
@@ -245,9 +263,7 @@ export async function savePortfolioProject(
     .maybeSingle()
 
   if (projectError) {
-    throw new Error(
-      "Erro ao validar o projeto: " + projectError.message,
-    )
+    throw new Error("Erro ao validar o projeto: " + projectError.message)
   }
 
   if (!project) {
@@ -256,10 +272,7 @@ export async function savePortfolioProject(
     )
   }
 
-  if (
-    input.associated_investment !== null &&
-    input.associated_investment < 0
-  ) {
+  if (input.associated_investment !== null && input.associated_investment < 0) {
     throw new Error("O investimento associado não pode ser negativo.")
   }
 
@@ -284,29 +297,145 @@ export async function savePortfolioProject(
     capex: input.capex,
     currency,
     completion_date:
-      input.completion_date === ""
-        ? null
-        : input.completion_date,
+      input.completion_date === "" ? null : input.completion_date,
     notes: emptyToNull(input.notes),
     allow_external_export: input.allow_external_export,
     show_values_in_pdf: input.show_values_in_pdf,
     updated_at: new Date().toISOString(),
   }
 
-  const { error } = await supabase
+  const { data: savedPortfolio, error } = await supabase
     .from("project_portfolio")
     .upsert(payload, {
       onConflict: "project_id",
     })
+    .select("id")
+    .single()
 
   if (error) {
+    throw new Error("Erro ao salvar os dados do portfólio: " + error.message)
+  }
+
+  if (!savedPortfolio) {
     throw new Error(
-      "Erro ao salvar os dados do portfólio: " + error.message,
+      "Não foi possível identificar o registro do portfólio salvo.",
     )
+  }
+
+  const portfolioId = Number(savedPortfolio.id)
+
+  const tagIds = Array.from(
+    new Set(
+      input.tag_ids.filter(
+        (id) => Number.isInteger(id) && id > 0,
+      ),
+    ),
+  )
+  
+  if (tagIds.length > 0) {
+    const { data: validTags, error: validTagsError } = await supabase
+      .from("portfolio_tags")
+      .select("id")
+      .eq("active", true)
+      .in("id", tagIds)
+  
+    if (validTagsError) {
+      throw new Error(
+        "Erro ao validar os rótulos selecionados: " +
+          validTagsError.message,
+      )
+    }
+  
+    if ((validTags ?? []).length !== tagIds.length) {
+      throw new Error(
+        "Um ou mais rótulos selecionados não são válidos.",
+      )
+    }
+  }
+  
+  const { data: currentTagRows, error: currentTagsError } =
+    await supabase
+      .from("project_portfolio_tags")
+      .select("tag_id")
+      .eq("portfolio_id", portfolioId)
+  
+  if (currentTagsError) {
+    throw new Error(
+      "Erro ao consultar os rótulos atuais: " +
+        currentTagsError.message,
+    )
+  }
+  
+  const currentTagIds = (currentTagRows ?? []).map((row) =>
+    Number(row.tag_id),
+  )
+  
+  const tagsToAdd = tagIds.filter(
+    (tagId) => !currentTagIds.includes(tagId),
+  )
+  
+  const tagsToRemove = currentTagIds.filter(
+    (tagId) => !tagIds.includes(tagId),
+  )
+  
+  if (tagsToAdd.length > 0) {
+    const { error: insertTagsError } = await supabase
+      .from("project_portfolio_tags")
+      .insert(
+        tagsToAdd.map((tagId) => ({
+          portfolio_id: portfolioId,
+          tag_id: tagId,
+        })),
+      )
+  
+    if (insertTagsError) {
+      throw new Error(
+        "Erro ao adicionar os rótulos: " +
+          insertTagsError.message,
+      )
+    }
+  }
+  
+  if (tagsToRemove.length > 0) {
+    const { error: removeTagsError } = await supabase
+      .from("project_portfolio_tags")
+      .delete()
+      .eq("portfolio_id", portfolioId)
+      .in("tag_id", tagsToRemove)
+  
+    if (removeTagsError) {
+      throw new Error(
+        "Erro ao remover os rótulos: " +
+          removeTagsError.message,
+      )
+    }
   }
 
   revalidatePath("/portfolio")
   revalidatePath(`/portfolio/${projectId}/editar`)
 
   return { success: true }
+}
+
+export async function getPortfolioTags(): Promise<PortfolioTag[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from("portfolio_tags")
+    .select("id, name, category, sort_order")
+    .eq("active", true)
+    .order("category", { ascending: true })
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true })
+
+  if (error) {
+    throw new Error("Erro ao buscar os rótulos do portfólio: " + error.message)
+  }
+
+  return (data ?? []).map((tag) => ({
+    id: Number(tag.id),
+    name: tag.name,
+    category: tag.category as "assunto" | "setor",
+    sort_order: Number(tag.sort_order),
+  }))
 }
