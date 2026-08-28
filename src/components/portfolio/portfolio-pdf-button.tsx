@@ -577,16 +577,14 @@ export function PortfolioPdfButton({
         project.portfolio.projected_demand.toLocaleString("pt-BR", {
           maximumFractionDigits: 2,
         })
-    
-      metrics.push({
+        metrics.push({
         label: "Demanda projetada",
         value: project.portfolio.projected_demand_unit
           ? `${projectedDemandValue} ${project.portfolio.projected_demand_unit}`
           : projectedDemandValue,
       })
     }
-    
-    if (
+  if (
       project.portfolio
         .show_values_in_pdf &&
       project.portfolio.capex !==

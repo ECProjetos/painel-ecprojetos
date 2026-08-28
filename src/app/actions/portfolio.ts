@@ -256,7 +256,8 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
               portfolio.projected_demand === null
                 ? null
                 : Number(portfolio.projected_demand),
-            projected_demand_unit: portfolio.projected_demand_unit as PortfolioDemandUnit | null,
+            projected_demand_unit:
+              portfolio.projected_demand_unit as PortfolioDemandUnit | null,
             capex: portfolio.capex === null ? null : Number(portfolio.capex),
             currency: portfolio.currency,
             completion_date: portfolio.completion_date,
@@ -442,7 +443,8 @@ export async function getPortfolioProjectById(
             portfolio.projected_demand === null
               ? null
               : Number(portfolio.projected_demand),
-          projected_demand_unit: portfolio.projected_demand_unit as PortfolioDemandUnit | null,
+          projected_demand_unit:
+            portfolio.projected_demand_unit as PortfolioDemandUnit | null,
           capex: portfolio.capex === null ? null : Number(portfolio.capex),
           currency: portfolio.currency ?? "BRL",
           completion_date: portfolio.completion_date,
@@ -481,14 +483,13 @@ export async function savePortfolioProject(
   if (input.projected_demand !== null && input.projected_demand < 0) {
     throw new Error("A demanda projetada não pode ser negativa.")
   }
-  if ( 
+
+  if (
     input.projected_demand !== null &&
     input.projected_demand_unit !== "TEU" &&
     input.projected_demand_unit !== "t"
   ) {
-    throw new Error(
-      "Selecione a unidade da deanda projetada: TEU ou t.", 
-  )
+    throw new Error("Selecione a unidade da demanda projetada: TEU ou t.")
   }
 
   if (input.capex !== null && input.capex < 0) {
@@ -509,10 +510,8 @@ export async function savePortfolioProject(
     results: emptyToNull(input.results),
     quantitative_results: emptyToNull(input.quantitative_results),
     projected_demand: input.projected_demand,
-    projected_demand_unit: 
-      input.projected_demand === null 
-        ? null
-        : input.projected_demand_unit,
+    projected_demand_unit:
+      input.projected_demand === null ? null : input.projected_demand_unit,
     capex: input.capex,
     currency,
     completion_date:
@@ -833,7 +832,7 @@ export async function getPortfolioCaseById(
           : Number(portfolio.projected_demand),
 
       projected_demand_unit:
-          portfolio.projected_demand_unit as PortfolioDemandUnit | null,
+        portfolio.projected_demand_unit as PortfolioDemandUnit | null,
 
       capex: portfolio.capex === null ? null : Number(portfolio.capex),
 
