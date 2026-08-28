@@ -22,7 +22,10 @@ export type PortfolioProject = {
   description: string | null
   estimated_hours: number | null
   status: "concluido"
+
+  departments: PortfolioDepartment[]
   tags: PortfolioTag[]
+
   portfolio: {
     id: number
     executive_summary: string | null
@@ -368,14 +371,56 @@ export async function getPortfolioProjectById(
     tagIds = (tagRows ?? []).map((row) => Number(row.tag_id))
   }
 
+  // Áreas do projeto
+  const { data: projectDepartmentRows, error: projectDepartmentsError } =
+    await supabase
+      .from("project_departments")
+      .select("department_id")
+      .eq("project_id", projectId)
+
+  if (projectDepartmentsError) {
+    throw new Error(
+      "Erro ao buscar as áreas do projeto: " + projectDepartmentsError.message,
+    )
+  }
+
+  const departmentIds = (projectDepartmentRows ?? []).map((row) =>
+    Number(row.department_id),
+  )
+
+  let departments: PortfolioDepartment[] = []
+
+  if (departmentIds.length > 0) {
+    const { data: departmentRows, error: departmentsError } = await supabase
+      .from("departments")
+      .select("id, name")
+      .in("id", departmentIds)
+
+    if (departmentsError) {
+      throw new Error(
+        "Erro ao buscar os departamentos: " + departmentsError.message,
+      )
+    }
+
+    departments = (departmentRows ?? [])
+      .map((department) => ({
+        id: Number(department.id),
+        name: department.name,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+  }
+
   return {
     id: Number(project.id),
     code: project.code,
     name: project.name,
     description: project.description,
-    tag_ids: tagIds,
     estimated_hours:
       project.estimated_hours === null ? null : Number(project.estimated_hours),
+
+    departments,
+
+    tag_ids: tagIds,
 
     portfolio: portfolio
       ? {
@@ -607,17 +652,13 @@ export async function getPortfolioCaseById(
   // Projeto concluído
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select(
-      "id, code, name, description, estimated_hours, status",
-    )
+    .select("id, code, name, description, estimated_hours, status")
     .eq("id", projectId)
     .eq("status", "concluido")
     .maybeSingle()
 
   if (projectError) {
-    throw new Error(
-      "Erro ao buscar o projeto: " + projectError.message,
-    )
+    throw new Error("Erro ao buscar o projeto: " + projectError.message)
   }
 
   if (!project) {
@@ -625,10 +666,10 @@ export async function getPortfolioCaseById(
   }
 
   // Ficha de portfólio
-  const { data: portfolio, error: portfolioError } =
-    await supabase
-      .from("project_portfolio")
-      .select(`
+  const { data: portfolio, error: portfolioError } = await supabase
+    .from("project_portfolio")
+    .select(
+      `
         id,
         executive_summary,
         challenge,
@@ -642,14 +683,14 @@ export async function getPortfolioCaseById(
         notes,
         allow_external_export,
         show_values_in_pdf
-      `)
-      .eq("project_id", projectId)
-      .maybeSingle()
+      `,
+    )
+    .eq("project_id", projectId)
+    .maybeSingle()
 
   if (portfolioError) {
     throw new Error(
-      "Erro ao buscar os dados do portfólio: " +
-        portfolioError.message,
+      "Erro ao buscar os dados do portfólio: " + portfolioError.message,
     )
   }
 
@@ -659,38 +700,33 @@ export async function getPortfolioCaseById(
   }
 
   // Áreas
-  const {
-    data: projectDepartmentRows,
-    error: projectDepartmentsError,
-  } = await supabase
-    .from("project_departments")
-    .select("department_id")
-    .eq("project_id", projectId)
+  const { data: projectDepartmentRows, error: projectDepartmentsError } =
+    await supabase
+      .from("project_departments")
+      .select("department_id")
+      .eq("project_id", projectId)
 
   if (projectDepartmentsError) {
     throw new Error(
-      "Erro ao buscar as áreas do projeto: " +
-        projectDepartmentsError.message,
+      "Erro ao buscar as áreas do projeto: " + projectDepartmentsError.message,
     )
   }
 
-  const departmentIds = (
-    projectDepartmentRows ?? []
-  ).map((row) => Number(row.department_id))
+  const departmentIds = (projectDepartmentRows ?? []).map((row) =>
+    Number(row.department_id),
+  )
 
   let departments: PortfolioDepartment[] = []
 
   if (departmentIds.length > 0) {
-    const { data: departmentRows, error: departmentsError } =
-      await supabase
-        .from("departments")
-        .select("id, name")
-        .in("id", departmentIds)
+    const { data: departmentRows, error: departmentsError } = await supabase
+      .from("departments")
+      .select("id, name")
+      .in("id", departmentIds)
 
     if (departmentsError) {
       throw new Error(
-        "Erro ao buscar os departamentos: " +
-          departmentsError.message,
+        "Erro ao buscar os departamentos: " + departmentsError.message,
       )
     }
 
@@ -699,43 +735,35 @@ export async function getPortfolioCaseById(
         id: Number(department.id),
         name: department.name,
       }))
-      .sort((a, b) =>
-        a.name.localeCompare(b.name, "pt-BR"),
-      )
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
   }
 
   // Relações de tags
-  const { data: relationRows, error: relationsError } =
-    await supabase
-      .from("project_portfolio_tags")
-      .select("tag_id")
-      .eq("portfolio_id", portfolio.id)
+  const { data: relationRows, error: relationsError } = await supabase
+    .from("project_portfolio_tags")
+    .select("tag_id")
+    .eq("portfolio_id", portfolio.id)
 
   if (relationsError) {
     throw new Error(
-      "Erro ao buscar as classificações do projeto: " +
-        relationsError.message,
+      "Erro ao buscar as classificações do projeto: " + relationsError.message,
     )
   }
 
-  const tagIds = (relationRows ?? []).map((row) =>
-    Number(row.tag_id),
-  )
+  const tagIds = (relationRows ?? []).map((row) => Number(row.tag_id))
 
   let tags: PortfolioTag[] = []
 
   if (tagIds.length > 0) {
-    const { data: tagRows, error: tagsError } =
-      await supabase
-        .from("portfolio_tags")
-        .select("id, name, category, sort_order")
-        .eq("active", true)
-        .in("id", tagIds)
+    const { data: tagRows, error: tagsError } = await supabase
+      .from("portfolio_tags")
+      .select("id, name, category, sort_order")
+      .eq("active", true)
+      .in("id", tagIds)
 
     if (tagsError) {
       throw new Error(
-        "Erro ao buscar os rótulos do projeto: " +
-          tagsError.message,
+        "Erro ao buscar os rótulos do projeto: " + tagsError.message,
       )
     }
 
@@ -743,9 +771,7 @@ export async function getPortfolioCaseById(
       .map((tag) => ({
         id: Number(tag.id),
         name: tag.name,
-        category: tag.category as
-          | "assunto"
-          | "setor",
+        category: tag.category as "assunto" | "setor",
         sort_order: Number(tag.sort_order),
       }))
       .sort((a, b) => {
@@ -764,9 +790,7 @@ export async function getPortfolioCaseById(
     description: project.description,
 
     estimated_hours:
-      project.estimated_hours === null
-        ? null
-        : Number(project.estimated_hours),
+      project.estimated_hours === null ? null : Number(project.estimated_hours),
 
     departments,
     tags,
@@ -777,28 +801,22 @@ export async function getPortfolioCaseById(
       challenge: portfolio.challenge,
       solution: portfolio.solution,
       results: portfolio.results,
-      quantitative_results:
-        portfolio.quantitative_results,
+      quantitative_results: portfolio.quantitative_results,
 
       associated_investment:
         portfolio.associated_investment === null
           ? null
           : Number(portfolio.associated_investment),
 
-      capex:
-        portfolio.capex === null
-          ? null
-          : Number(portfolio.capex),
+      capex: portfolio.capex === null ? null : Number(portfolio.capex),
 
       currency: portfolio.currency ?? "BRL",
       completion_date: portfolio.completion_date,
       notes: portfolio.notes,
 
-      allow_external_export:
-        portfolio.allow_external_export ?? false,
+      allow_external_export: portfolio.allow_external_export ?? false,
 
-      show_values_in_pdf:
-        portfolio.show_values_in_pdf ?? false,
+      show_values_in_pdf: portfolio.show_values_in_pdf ?? false,
     },
   }
 }

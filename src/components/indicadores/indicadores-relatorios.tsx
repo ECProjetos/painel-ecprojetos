@@ -322,9 +322,7 @@ const REPORT_CONTENT_WIDTH =
 
 const REPORT_BLUE: [number, number, number] = [33, 94, 153]
 const REPORT_FOOTER_BLUE: [number, number, number] = [37, 91, 151]
-const REPORT_LIGHT_BLUE: [number, number, number] = [180, 204, 228]
-const REPORT_MEDIUM_BLUE: [number, number, number] = [118, 159, 199]
-const REPORT_DARK_BLUE: [number, number, number] = [11, 42, 96]
+
 
 function setTextColor(pdf: jsPDF, color: "dark" | "muted" | "blue") {
   if (color === "blue") {
@@ -340,75 +338,6 @@ function setTextColor(pdf: jsPDF, color: "dark" | "muted" | "blue") {
   pdf.setTextColor(0, 0, 0)
 }
 
-function drawParallelogram(
-  pdf: jsPDF,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  skew: number,
-  color: [number, number, number],
-) {
-  pdf.setFillColor(color[0], color[1], color[2])
-  ;(pdf as any).triangle(
-    x + skew,
-    y,
-    x + width,
-    y,
-    x + width - skew,
-    y + height,
-    "F",
-  )
-  ;(pdf as any).triangle(
-    x + skew,
-    y,
-    x + width - skew,
-    y + height,
-    x,
-    y + height,
-    "F",
-  )
-}
-
-let reportBackgroundCache: string | null = null
-
-async function loadReportBackgroundImage() {
-  if (reportBackgroundCache) return reportBackgroundCache
-
-  try {
-    const response = await fetch("/modelo-pdf-fundo.png")
-
-    if (!response.ok) {
-      return null
-    }
-
-    const blob = await response.blob()
-
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-
-      reader.onload = () => resolve(String(reader.result))
-      reader.onerror = reject
-
-      reader.readAsDataURL(blob)
-    })
-
-    reportBackgroundCache = dataUrl
-    return dataUrl
-  } catch {
-    return null
-  }
-}
-
-function drawReportBackground(pdf: jsPDF, backgroundImage: string | null) {
-  if (backgroundImage) {
-    pdf.addImage(backgroundImage, "PNG", 0, 0, PAGE_WIDTH, PAGE_HEIGHT)
-    return
-  }
-
-  drawReportHeader(pdf)
-  drawReportFooter(pdf)
-}
 
 function drawReportLine(pdf: jsPDF, y: number) {
   pdf.setFillColor(
