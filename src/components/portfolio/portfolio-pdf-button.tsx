@@ -340,7 +340,6 @@ export function PortfolioPdfButton({ project }: PortfolioPdfButtonProps) {
 
       metrics.push({
         label: "Demanda projetada",
-
         value: project.portfolio.projected_demand_unit
           ? `${projectedDemandValue} ${project.portfolio.projected_demand_unit}`
           : projectedDemandValue,
