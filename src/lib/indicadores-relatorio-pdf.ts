@@ -2,6 +2,11 @@ import jsPDF from "jspdf"
 
 import { getDescricaoIesRelatorio } from "@/lib/indicadores-ies"
 
+import {
+  drawTechnicalTemplatePage,
+  loadPdfImage,
+} from "@/lib/pdf/ec-pdf-branding"
+
 export type StatusRelatorioIndicador = "OK" | "Atenção" | "Crítico"
 
 export type RelatorioIndicadorPdfItem = {
@@ -383,6 +388,10 @@ export async function gerarPdfRelatorioIndicador(
   codigo: CodigoRelatorioIndicador,
 ): Promise<jsPDF> {
   const pdf = new jsPDF("p", "mm", "a4")
+  const technicalBackground =
+   await loadPdfImage( 
+    "/modelo-pdf-fundo.png",
+  )
 
   const marginLeft = 29
   const marginRight = 29
@@ -391,22 +400,55 @@ export async function gerarPdfRelatorioIndicador(
 
   let y = 34
 
-  function startPage(options?: { showTitle?: boolean }) {
-    drawReportHeader(pdf)
-    drawReportFooter(pdf)
-
+  function startPage(options?: {
+    showTitle?: boolean
+  }) {
+    /**
+     * O template deve sempre ser desenhado
+     * ANTES do conteúdo da página.
+     */
+    if (technicalBackground) {
+      drawTechnicalTemplatePage(
+        pdf,
+        technicalBackground,
+      )
+    } else {
+      /**
+       * Fallback de segurança:
+       * se por algum motivo a imagem institucional
+       * não carregar, mantém o cabeçalho antigo.
+       */
+      drawReportHeader(pdf)
+      drawReportFooter(pdf)
+    }
+  
     if (options?.showTitle) {
-      pdf.setFont("helvetica", "bold")
+      pdf.setFont(
+        "helvetica",
+        "bold",
+      )
+  
       pdf.setFontSize(13)
-      pdf.setTextColor(29, 93, 140)
-      pdf.text(`REVISÃO TÉCNICA - ${codigo.tituloRevisao}`, 105, 33, {
-        align: "center",
-      })
-
+  
+      pdf.setTextColor(
+        29,
+        93,
+        140,
+      )
+  
+      pdf.text(
+        `REVISÃO TÉCNICA - ${codigo.tituloRevisao}`,
+        105,
+        33,
+        {
+          align: "center",
+        },
+      )
+  
       y = 45
       return
     }
-
+  
     y = 42
   }
 
