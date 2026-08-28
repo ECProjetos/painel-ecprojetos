@@ -570,28 +570,21 @@ export function PortfolioPdfButton({
     }
 
     if (
-      project.portfolio
-        .show_values_in_pdf &&
-      project.portfolio
-        .associated_investment !==
-        null
+      project.portfolio.show_values_in_pdf &&
+      project.portfolio.projected_demand !== null
     ) {
-      metrics.push({
-        label:
-          "Investimento associado",
-
-        value:
-          formatCommercialCurrency(
-            project.portfolio
-              .associated_investment,
-
-            project.portfolio
-              .currency,
-          ),
+      const projectedDemandValue =
+        project.portfolio.projected_demand.toLocaleString("pt-BR", {
+          maximumFractionDigits: 2,
+        })
+        metrics.push({
+        label: "Demanda projetada",
+        value: project.portfolio.projected_demand_unit
+          ? `${projectedDemandValue} ${project.portfolio.projected_demand_unit}`
+          : projectedDemandValue,
       })
     }
-
-    if (
+  if (
       project.portfolio
         .show_values_in_pdf &&
       project.portfolio.capex !==
