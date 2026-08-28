@@ -15,6 +15,8 @@ export type PortfolioDepartment = {
   name: string
 }
 
+export type PortfolioDemandUnit = "TEU" | "t"
+
 export type PortfolioProject = {
   id: number
   code: string | null
@@ -29,7 +31,8 @@ export type PortfolioProject = {
   portfolio: {
     id: number
     executive_summary: string | null
-    associated_investment: number | null
+    projected_demand: number | null
+    projected_demand_unit: PortfolioDemandUnit | null
     capex: number | null
     currency: string
     completion_date: string | null
@@ -131,7 +134,8 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
       id,
       project_id,
       executive_summary,
-      associated_investment,
+      projected_demand,
+      projected_demand_unit,
       capex,
       currency,
       completion_date
@@ -248,10 +252,11 @@ export async function getPortfolioProjects(): Promise<PortfolioProject[]> {
         ? {
             id: Number(portfolio.id),
             executive_summary: portfolio.executive_summary,
-            associated_investment:
-              portfolio.associated_investment === null
+            projected_demand:
+              portfolio.projected_demand === null
                 ? null
-                : Number(portfolio.associated_investment),
+                : Number(portfolio.projected_demand),
+            projected_demand_unit: portfolio.projected_demand_unit as PortfolioDemandUnit | null,
             capex: portfolio.capex === null ? null : Number(portfolio.capex),
             currency: portfolio.currency,
             completion_date: portfolio.completion_date,
@@ -276,7 +281,8 @@ export type PortfolioProjectDetails = {
     solution: string | null
     results: string | null
     quantitative_results: string | null
-    associated_investment: number | null
+    projected_demand: number | null
+    projected_demand_unit: PortfolioDemandUnit | null
     capex: number | null
     currency: string
     completion_date: string | null
@@ -292,7 +298,8 @@ export type PortfolioFormInput = {
   solution: string
   results: string
   quantitative_results: string
-  associated_investment: number | null
+  projected_demand: number | null
+  projected_demand_unit: PortfolioDemandUnit | ""
   capex: number | null
   currency: string
   tag_ids: number[]
@@ -337,7 +344,8 @@ export async function getPortfolioProjectById(
       solution,
       results,
       quantitative_results,
-      associated_investment,
+      projected_demand,
+      projected_demand_unit,
       capex,
       currency,
       completion_date,
@@ -430,10 +438,11 @@ export async function getPortfolioProjectById(
           solution: portfolio.solution,
           results: portfolio.results,
           quantitative_results: portfolio.quantitative_results,
-          associated_investment:
-            portfolio.associated_investment === null
+          projected_demand:
+            portfolio.projected_demand === null
               ? null
-              : Number(portfolio.associated_investment),
+              : Number(portfolio.projected_demand),
+          projected_demand_unit: portfolio.projected_demand_unit as PortfolioDemandUnit | null,
           capex: portfolio.capex === null ? null : Number(portfolio.capex),
           currency: portfolio.currency ?? "BRL",
           completion_date: portfolio.completion_date,
@@ -469,8 +478,17 @@ export async function savePortfolioProject(
     )
   }
 
-  if (input.associated_investment !== null && input.associated_investment < 0) {
-    throw new Error("O investimento associado não pode ser negativo.")
+  if (input.projected_demand !== null && input.projected_demand < 0) {
+    throw new Error("A demanda projetada não pode ser negativa.")
+  }
+  if ( 
+    input.projected_demand !== null &&
+    input.projected_demand_unit !== "TEU" &&
+    input.projected_demand_unit !== "t"
+  ) {
+    throw new Error(
+      "Selecione a unidade da deanda projetada: TEU ou t.", 
+  )
   }
 
   if (input.capex !== null && input.capex < 0) {
@@ -490,7 +508,11 @@ export async function savePortfolioProject(
     solution: emptyToNull(input.solution),
     results: emptyToNull(input.results),
     quantitative_results: emptyToNull(input.quantitative_results),
-    associated_investment: input.associated_investment,
+    projected_demand: input.projected_demand,
+    projected_demand_unit: 
+      input.projected_demand === null 
+        ? null
+        : input.projected_demand_unit,
     capex: input.capex,
     currency,
     completion_date:
@@ -634,7 +656,8 @@ export type PortfolioCase = {
     solution: string | null
     results: string | null
     quantitative_results: string | null
-    associated_investment: number | null
+    projected_demand: number | null
+    projected_demand_unit: PortfolioDemandUnit | null
     capex: number | null
     currency: string
     completion_date: string | null
@@ -676,7 +699,8 @@ export async function getPortfolioCaseById(
         solution,
         results,
         quantitative_results,
-        associated_investment,
+        projected_demand,
+        projected_demand_unit,
         capex,
         currency,
         completion_date,
@@ -803,10 +827,13 @@ export async function getPortfolioCaseById(
       results: portfolio.results,
       quantitative_results: portfolio.quantitative_results,
 
-      associated_investment:
-        portfolio.associated_investment === null
+      projected_demand:
+        portfolio.projected_demand === null
           ? null
-          : Number(portfolio.associated_investment),
+          : Number(portfolio.projected_demand),
+
+      projected_demand_unit:
+          portfolio.projected_demand_unit as PortfolioDemandUnit | null,
 
       capex: portfolio.capex === null ? null : Number(portfolio.capex),
 

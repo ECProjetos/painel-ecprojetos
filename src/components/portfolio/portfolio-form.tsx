@@ -41,7 +41,8 @@ export function PortfolioForm({ project, tags }: PortfolioFormProps) {
     solution: portfolio?.solution ?? "",
     results: portfolio?.results ?? "",
     quantitative_results: portfolio?.quantitative_results ?? "",
-    associated_investment: numberToInput(portfolio?.associated_investment),
+    projected_demand: numberToInput(portfolio?.projected_demand),
+    projected_demand_unit: portfolio?.projected_demand_unit ?? "",
     capex: numberToInput(portfolio?.capex),
     currency: portfolio?.currency ?? "BRL",
     completion_date: portfolio?.completion_date ?? "",
@@ -97,7 +98,8 @@ export function PortfolioForm({ project, tags }: PortfolioFormProps) {
       solution: form.solution,
       results: form.results,
       quantitative_results: form.quantitative_results,
-      associated_investment: parseOptionalNumber(form.associated_investment),
+      projected_demand: parseOptionalNumber(form.projected_demand),
+      projected_demand_unit: form.projected_demand_unit as PortfolioFormInput["projected_demand_unit"],
       capex: parseOptionalNumber(form.capex),
       currency: form.currency,
       completion_date: form.completion_date,
@@ -329,13 +331,13 @@ export function PortfolioForm({ project, tags }: PortfolioFormProps) {
         </div>
       </section>
 
-      {/* INVESTIMENTOS */}
+      {/* DADOS DO EMPREENDIMENTO */}
       <section className="space-y-5 rounded-xl border p-5">
         <div>
           <h2 className="text-lg font-semibold">Dados do empreendimento</h2>
 
           <p className="text-sm text-muted-foreground">
-            Valores associados ao empreendimento ou projeto desenvolvido.
+            Informações de demanda, CAPEX e conclusão do projeto desenvolvido.
           </p>
         </div>
 
@@ -369,24 +371,38 @@ export function PortfolioForm({ project, tags }: PortfolioFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="associated_investment">
-              Investimento associado
-            </Label>
+            <Label htmlFor="projected_demand">Demanda projetada</Label>
 
-            <Input
-              id="associated_investment"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Ex.: 150000000"
-              value={form.associated_investment}
-              onChange={(event) =>
-                updateField("associated_investment", event.target.value)
-              }
-            />
+            <div className="grid grid-cols-[1fr_110px] gap-2">
+              <Input
+                id="projected_demand"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Ex.: 1500000"
+                value={form.projected_demand}
+                onChange={(event) =>
+                  updateField("projected_demand", event.target.value)
+                }
+              />
+
+              <select
+                value={form.projected_demand_unit}
+                onChange={(event) =>
+                  updateField("projected_demand_unit", event.target.value)
+                }
+                className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                aria-label="Unidade da demanda projetada"
+              >
+                <option value="">Unidade</option>
+                <option value="TEU">TEU</option>
+                <option value="t">t</option>
+              </select>
+            </div>
 
             <p className="text-xs text-muted-foreground">
-              Valor do empreendimento associado ao case, quando aplicável.
+              Demanda projetada do empreendimento, informada em TEU ou
+              toneladas.
             </p>
           </div>
 
@@ -457,12 +473,11 @@ export function PortfolioForm({ project, tags }: PortfolioFormProps) {
 
             <div>
               <p className="text-sm font-medium">
-                Exibir valores financeiros no PDF
+                Exibir demanda e CAPEX no PDF
               </p>
 
               <p className="text-xs text-muted-foreground">
-                Define se investimento e CAPEX poderão aparecer na futura
-                exportação do projeto.
+                Define se a demanda projetada e o CAPEX poderão aparecer na exportação do projeto.
               </p>
             </div>
           </label>

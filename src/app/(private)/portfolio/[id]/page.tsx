@@ -53,6 +53,14 @@ function formatCurrency(value: number, currency: string) {
   }
 }
 
+function formatProjectedDemand(value: number, unit: "TEU" | "t" | null) {
+  const formattedValue = value.toLocaleString("pt-BR", {
+    maximumFractionDigits: 2,
+  })
+
+  return unit ? `${formattedValue} ${unit}` : formattedValue
+}
+
 function formatDate(value: string) {
   const [year, month, day] = value.split("-")
 
@@ -85,8 +93,8 @@ export default async function PortfolioCasePage({
 
   const setores = project.tags.filter((tag) => tag.category === "setor")
 
-  const hasFinancialData =
-    portfolio.associated_investment !== null || portfolio.capex !== null
+  const hasExportableData =
+    portfolio.projected_demand !== null || portfolio.capex !== null
 
   return (
     <div className="min-h-full w-full rounded-2xl border bg-white p-6 shadow-lg dark:bg-[#1c1c20]">
@@ -274,7 +282,7 @@ export default async function PortfolioCasePage({
             </Card>
           )}
 
-          {portfolio.associated_investment !== null && (
+          {portfolio.projected_demand !== null && (
             <Card>
               <CardContent className="flex items-center gap-4 p-5">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
@@ -283,13 +291,13 @@ export default async function PortfolioCasePage({
 
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">
-                    Investimento associado
+                    Demanda projetada
                   </p>
 
                   <p className="break-words font-semibold">
-                    {formatCurrency(
-                      portfolio.associated_investment,
-                      portfolio.currency,
+                    {formatProjectedDemand(
+                      portfolio.projected_demand,
+                      portfolio.projected_demand_unit,
                     )}
                   </p>
                 </div>
@@ -394,11 +402,11 @@ export default async function PortfolioCasePage({
           )}
         </div>
 
-        {/* AVISO DE DADOS FINANCEIROS */}
-        {hasFinancialData && !portfolio.show_values_in_pdf && (
+        {/* AVISO DE DADOS DA EXPORTAÇÃO */}
+        {hasExportableData && !portfolio.show_values_in_pdf && (
           <p className="mt-5 text-xs text-muted-foreground">
-            Os valores financeiros estão disponíveis internamente, mas estão
-            configurados para não aparecer na futura exportação em PDF.
+            A demanda projetada e o CAPEX estão disponíveis internamente, mas
+            estão configurados para não aparecer na exportação em PDF.
           </p>
         )}
       </div>
