@@ -16,6 +16,11 @@ import {
   getDescricaoIesRelatorio,
 } from "@/lib/indicadores-ies"
 
+import { 
+  drawTechnicalTemplatePage,
+  loadPdfImage,
+} from "@/lib/pdf/ec-pdf-branding"
+
 import { getRelatoriosEntregasIndicadores } from "@/app/actions/indicadores"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -439,32 +444,70 @@ async function gerarPdfRelatorio(
   codigo: CodigoRelatorio,
 ) {
   const pdf = new jsPDF("p", "mm", "a4")
+  
+  const technicalBackground = 
+  await loadPdfImage(
+    "/modelo-pdf-fundo.png",
+  )
 
   const pageWidth = PAGE_WIDTH
   const marginLeft = REPORT_MARGIN_LEFT
   const marginRight = REPORT_MARGIN_RIGHT
   const contentWidth = REPORT_CONTENT_WIDTH
-  const bottomLimit = 274
+  const bottomLimit = 260
 
   let y = 34
 
-  function startPage(options?: { showTitle?: boolean }) {
+ function startPage(options?: {
+  showTitle?: boolean
+}) {
+  /**
+   * Aplica o template institucional antes
+   * de desenhar qualquer conteúdo.
+   */
+  if (technicalBackground) {
+    drawTechnicalTemplatePage(
+      pdf,
+      technicalBackground,
+    )
+  } else {
+    /**
+     * Fallback caso a imagem institucional
+     * não consiga ser carregada.
+     */
     drawReportHeader(pdf)
     drawReportFooter(pdf)
-
-    if (options?.showTitle) {
-      pdf.setFont("helvetica", "bold")
-      pdf.setFontSize(13)
-      pdf.setTextColor(REPORT_BLUE[0], REPORT_BLUE[1], REPORT_BLUE[2])
-      pdf.text(`REVISÃO TÉCNICA - ${codigo.tituloRevisao}`, pageWidth / 2, 33, {
-        align: "center",
-      })
-      y = 45
-      return
-    }
-
-    y = 34
   }
+
+  if (options?.showTitle) {
+    pdf.setFont(
+      "helvetica",
+      "bold",
+    )
+
+    pdf.setFontSize(13)
+
+    pdf.setTextColor(
+      REPORT_BLUE[0],
+      REPORT_BLUE[1],
+      REPORT_BLUE[2],
+    )
+
+    pdf.text(
+      `REVISÃO TÉCNICA - ${codigo.tituloRevisao}`,
+      pageWidth / 2,
+      33,
+      {
+        align: "center",
+      },
+    )
+
+    y = 45
+    return
+  }
+
+  y = 42
+}
 
   function addNewPage() {
     pdf.addPage()
