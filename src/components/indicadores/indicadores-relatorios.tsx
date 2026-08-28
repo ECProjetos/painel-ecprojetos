@@ -16,6 +16,11 @@ import {
   getDescricaoIesRelatorio,
 } from "@/lib/indicadores-ies"
 
+import { 
+  drawTechnicalTemplatePage,
+  loadPdfImage,
+} from "@/lib/pdf/ec-pdf-branding"
+
 import { getRelatoriosEntregasIndicadores } from "@/app/actions/indicadores"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -317,9 +322,7 @@ const REPORT_CONTENT_WIDTH =
 
 const REPORT_BLUE: [number, number, number] = [33, 94, 153]
 const REPORT_FOOTER_BLUE: [number, number, number] = [37, 91, 151]
-const REPORT_LIGHT_BLUE: [number, number, number] = [180, 204, 228]
-const REPORT_MEDIUM_BLUE: [number, number, number] = [118, 159, 199]
-const REPORT_DARK_BLUE: [number, number, number] = [11, 42, 96]
+
 
 function setTextColor(pdf: jsPDF, color: "dark" | "muted" | "blue") {
   if (color === "blue") {
@@ -335,75 +338,6 @@ function setTextColor(pdf: jsPDF, color: "dark" | "muted" | "blue") {
   pdf.setTextColor(0, 0, 0)
 }
 
-function drawParallelogram(
-  pdf: jsPDF,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  skew: number,
-  color: [number, number, number],
-) {
-  pdf.setFillColor(color[0], color[1], color[2])
-  ;(pdf as any).triangle(
-    x + skew,
-    y,
-    x + width,
-    y,
-    x + width - skew,
-    y + height,
-    "F",
-  )
-  ;(pdf as any).triangle(
-    x + skew,
-    y,
-    x + width - skew,
-    y + height,
-    x,
-    y + height,
-    "F",
-  )
-}
-
-let reportBackgroundCache: string | null = null
-
-async function loadReportBackgroundImage() {
-  if (reportBackgroundCache) return reportBackgroundCache
-
-  try {
-    const response = await fetch("/modelo-pdf-fundo.png")
-
-    if (!response.ok) {
-      return null
-    }
-
-    const blob = await response.blob()
-
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-
-      reader.onload = () => resolve(String(reader.result))
-      reader.onerror = reject
-
-      reader.readAsDataURL(blob)
-    })
-
-    reportBackgroundCache = dataUrl
-    return dataUrl
-  } catch {
-    return null
-  }
-}
-
-function drawReportBackground(pdf: jsPDF, backgroundImage: string | null) {
-  if (backgroundImage) {
-    pdf.addImage(backgroundImage, "PNG", 0, 0, PAGE_WIDTH, PAGE_HEIGHT)
-    return
-  }
-
-  drawReportHeader(pdf)
-  drawReportFooter(pdf)
-}
 
 function drawReportLine(pdf: jsPDF, y: number) {
   pdf.setFillColor(
@@ -439,32 +373,70 @@ async function gerarPdfRelatorio(
   codigo: CodigoRelatorio,
 ) {
   const pdf = new jsPDF("p", "mm", "a4")
+  
+  const technicalBackground = 
+  await loadPdfImage(
+    "/modelo-pdf-fundo.png",
+  )
 
   const pageWidth = PAGE_WIDTH
   const marginLeft = REPORT_MARGIN_LEFT
   const marginRight = REPORT_MARGIN_RIGHT
   const contentWidth = REPORT_CONTENT_WIDTH
-  const bottomLimit = 274
+  const bottomLimit = 260
 
   let y = 34
 
-  function startPage(options?: { showTitle?: boolean }) {
+ function startPage(options?: {
+  showTitle?: boolean
+}) {
+  /**
+   * Aplica o template institucional antes
+   * de desenhar qualquer conteúdo.
+   */
+  if (technicalBackground) {
+    drawTechnicalTemplatePage(
+      pdf,
+      technicalBackground,
+    )
+  } else {
+    /**
+     * Fallback caso a imagem institucional
+     * não consiga ser carregada.
+     */
     drawReportHeader(pdf)
     drawReportFooter(pdf)
-
-    if (options?.showTitle) {
-      pdf.setFont("helvetica", "bold")
-      pdf.setFontSize(13)
-      pdf.setTextColor(REPORT_BLUE[0], REPORT_BLUE[1], REPORT_BLUE[2])
-      pdf.text(`REVISÃO TÉCNICA - ${codigo.tituloRevisao}`, pageWidth / 2, 33, {
-        align: "center",
-      })
-      y = 45
-      return
-    }
-
-    y = 34
   }
+
+  if (options?.showTitle) {
+    pdf.setFont(
+      "helvetica",
+      "bold",
+    )
+
+    pdf.setFontSize(13)
+
+    pdf.setTextColor(
+      REPORT_BLUE[0],
+      REPORT_BLUE[1],
+      REPORT_BLUE[2],
+    )
+
+    pdf.text(
+      `REVISÃO TÉCNICA - ${codigo.tituloRevisao}`,
+      pageWidth / 2,
+      33,
+      {
+        align: "center",
+      },
+    )
+
+    y = 45
+    return
+  }
+
+  y = 42
+}
 
   function addNewPage() {
     pdf.addPage()
