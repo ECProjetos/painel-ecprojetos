@@ -846,3 +846,305 @@ export async function getPortfolioCaseById(
     },
   }
 }
+
+export type PortfolioExportProject = {
+  id: number
+  code: string | null
+  name: string
+  description: string | null
+  estimated_hours: number | null
+
+  departments: PortfolioDepartment[]
+  tags: PortfolioTag[]
+
+  portfolio: {
+    id: number
+    executive_summary: string | null
+    challenge: string | null
+    solution: string | null
+    results: string | null
+    quantitative_results: string | null
+    projected_demand: number | null
+    projected_demand_unit: PortfolioDemandUnit | null
+    capex: number | null
+    currency: string
+    completion_date: string | null
+    show_values_in_pdf: boolean
+  }
+}
+
+export async function getPortfolioProjectsForExport(): Promise<
+  PortfolioExportProject[]
+> {
+  const supabase = await createClient()
+
+  const { data: portfolioRows, error: portfolioError } = await supabase
+    .from("project_portfolio")
+    .select(
+      `
+        id,
+        project_id,
+        executive_summary,
+        challenge,
+        solution,
+        results,
+        quantitative_results,
+        projected_demand,
+        projected_demand_unit,
+        capex,
+        currency,
+        completion_date,
+        show_values_in_pdf
+      `,
+    )
+    .eq("allow_external_export", true)
+
+  if (portfolioError) {
+    throw new Error(
+      "Erro ao buscar projetos liberados para exportação: " +
+        portfolioError.message,
+    )
+  }
+
+  if (!portfolioRows || portfolioRows.length === 0) {
+    return []
+  }
+
+  const projectIds = portfolioRows.map((portfolio) =>
+    Number(portfolio.project_id),
+  )
+
+  const { data: projects, error: projectsError } = await supabase
+    .from("projects")
+    .select("id, code, name, description, estimated_hours, status")
+    .in("id", projectIds)
+    .eq("status", "concluido")
+    .order("name", { ascending: true })
+
+  if (projectsError) {
+    throw new Error(
+      "Erro ao buscar projetos do portfólio: " + projectsError.message,
+    )
+  }
+
+  if (!projects || projects.length === 0) {
+    return []
+  }
+
+  const validProjectIds = projects.map((project) => Number(project.id))
+
+  // =====================================================
+  // ÁREAS
+  // =====================================================
+
+  const { data: projectDepartmentRows, error: projectDepartmentsError } =
+    await supabase
+      .from("project_departments")
+      .select("project_id, department_id")
+      .in("project_id", validProjectIds)
+
+  if (projectDepartmentsError) {
+    throw new Error(
+      "Erro ao buscar as áreas dos projetos: " +
+        projectDepartmentsError.message,
+    )
+  }
+
+  const departmentIds = Array.from(
+    new Set(
+      (projectDepartmentRows ?? []).map((row) =>
+        Number(row.department_id),
+      ),
+    ),
+  )
+
+  const departmentById = new Map<number, PortfolioDepartment>()
+
+  if (departmentIds.length > 0) {
+    const { data: departmentRows, error: departmentsError } = await supabase
+      .from("departments")
+      .select("id, name")
+      .in("id", departmentIds)
+
+    if (departmentsError) {
+      throw new Error(
+        "Erro ao buscar os departamentos: " + departmentsError.message,
+      )
+    }
+
+    for (const department of departmentRows ?? []) {
+      departmentById.set(Number(department.id), {
+        id: Number(department.id),
+        name: department.name,
+      })
+    }
+  }
+
+  const departmentsByProject = new Map<number, PortfolioDepartment[]>()
+
+  for (const relation of projectDepartmentRows ?? []) {
+    const projectId = Number(relation.project_id)
+    const department = departmentById.get(Number(relation.department_id))
+
+    if (!department) {
+      continue
+    }
+
+    const current = departmentsByProject.get(projectId) ?? []
+
+    current.push(department)
+
+    departmentsByProject.set(projectId, current)
+  }
+
+  for (const [projectId, departments] of departmentsByProject.entries()) {
+    departments.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+
+    departmentsByProject.set(projectId, departments)
+  }
+
+  // =====================================================
+  // TAGS
+  // =====================================================
+
+  const portfolioIds = portfolioRows.map((portfolio) =>
+    Number(portfolio.id),
+  )
+
+  const { data: relationRows, error: relationsError } = await supabase
+    .from("project_portfolio_tags")
+    .select("portfolio_id, tag_id")
+    .in("portfolio_id", portfolioIds)
+
+  if (relationsError) {
+    throw new Error(
+      "Erro ao buscar classificações do portfólio: " +
+        relationsError.message,
+    )
+  }
+
+  const tagIds = Array.from(
+    new Set((relationRows ?? []).map((row) => Number(row.tag_id))),
+  )
+
+  const tagById = new Map<number, PortfolioTag>()
+
+  if (tagIds.length > 0) {
+    const { data: tagRows, error: tagsError } = await supabase
+      .from("portfolio_tags")
+      .select("id, name, category, sort_order")
+      .eq("active", true)
+      .in("id", tagIds)
+
+    if (tagsError) {
+      throw new Error(
+        "Erro ao buscar os rótulos do portfólio: " + tagsError.message,
+      )
+    }
+
+    for (const tag of tagRows ?? []) {
+      tagById.set(Number(tag.id), {
+        id: Number(tag.id),
+        name: tag.name,
+        category: tag.category as "assunto" | "setor",
+        sort_order: Number(tag.sort_order),
+      })
+    }
+  }
+
+  const tagsByPortfolio = new Map<number, PortfolioTag[]>()
+
+  for (const relation of relationRows ?? []) {
+    const portfolioId = Number(relation.portfolio_id)
+    const tag = tagById.get(Number(relation.tag_id))
+
+    if (!tag) {
+      continue
+    }
+
+    const current = tagsByPortfolio.get(portfolioId) ?? []
+
+    current.push(tag)
+
+    tagsByPortfolio.set(portfolioId, current)
+  }
+
+  for (const [portfolioId, tags] of tagsByPortfolio.entries()) {
+    tags.sort((a, b) => {
+      if (a.category !== b.category) {
+        return a.category.localeCompare(b.category)
+      }
+
+      return a.sort_order - b.sort_order
+    })
+
+    tagsByPortfolio.set(portfolioId, tags)
+  }
+
+  // =====================================================
+  // RESULTADO
+  // =====================================================
+
+  const portfolioByProject = new Map(
+    portfolioRows.map((portfolio) => [
+      Number(portfolio.project_id),
+      portfolio,
+    ]),
+  )
+
+  return projects.flatMap((project) => {
+    const portfolio = portfolioByProject.get(Number(project.id))
+
+    if (!portfolio) {
+      return []
+    }
+
+    return [
+      {
+        id: Number(project.id),
+        code: project.code,
+        name: project.name,
+        description: project.description,
+
+        estimated_hours:
+          project.estimated_hours === null
+            ? null
+            : Number(project.estimated_hours),
+
+        departments:
+          departmentsByProject.get(Number(project.id)) ?? [],
+
+        tags: tagsByPortfolio.get(Number(portfolio.id)) ?? [],
+
+        portfolio: {
+          id: Number(portfolio.id),
+          executive_summary: portfolio.executive_summary,
+          challenge: portfolio.challenge,
+          solution: portfolio.solution,
+          results: portfolio.results,
+          quantitative_results: portfolio.quantitative_results,
+
+          projected_demand:
+            portfolio.projected_demand === null
+              ? null
+              : Number(portfolio.projected_demand),
+
+          projected_demand_unit:
+            portfolio.projected_demand_unit as PortfolioDemandUnit | null,
+
+          capex:
+            portfolio.capex === null
+              ? null
+              : Number(portfolio.capex),
+
+          currency: portfolio.currency ?? "BRL",
+
+          completion_date: portfolio.completion_date,
+
+          show_values_in_pdf:
+            portfolio.show_values_in_pdf ?? false,
+        },
+      },
+    ]
+  })
+}

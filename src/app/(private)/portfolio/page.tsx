@@ -7,19 +7,15 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
-import {
-  getPortfolioProjects,
-  getPortfolioTags,
-} from "@/app/actions/portfolio"
+import { getPortfolioProjects, getPortfolioTags } from "@/app/actions/portfolio"
 
 import { PortfolioGrid } from "@/components/portfolio/portfolio-grid"
+
+import { PortfolioFullPdfButton } from "@/components/portfolio/portfolio-full-pdf-button"
 
 import { FolderKanban } from "lucide-react"
 
@@ -45,16 +41,14 @@ export default async function PortfolioPage() {
             <BreadcrumbSeparator />
 
             <BreadcrumbItem>
-              <BreadcrumbPage>
-                Portfólio
-              </BreadcrumbPage>
+              <BreadcrumbPage>Portfólio</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
       </div>
 
       <div className="px-4">
-        <div className="mb-8 flex flex-col gap-2">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950">
               <FolderKanban className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -70,6 +64,8 @@ export default async function PortfolioPage() {
               </p>
             </div>
           </div>
+
+          <PortfolioFullPdfButton />
         </div>
 
         {projects.length === 0 ? (
@@ -90,10 +86,7 @@ export default async function PortfolioPage() {
             </CardContent>
           </Card>
         ) : (
-          <PortfolioGrid
-            projects={projects}
-            tags={tags}
-          />
+          <PortfolioGrid projects={projects} tags={tags} />
         )}
       </div>
     </div>
