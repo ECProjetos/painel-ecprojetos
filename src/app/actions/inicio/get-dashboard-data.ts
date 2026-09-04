@@ -8,6 +8,7 @@ type DashboardFilterParams = {
   month?: string
   week?: string
   projetoId?: string
+  produtoId?: string
   colaboradorId?: string
 }
 
@@ -17,12 +18,24 @@ type VPontoRow = {
   entry_date: string
   projeto: number | null
   projeto_nome: string | null
+  product_id: number | null
+  produto_nome: string | null
+  produto_codigo: string | null
   worked_time: string
 }
 
 type ProjectRow = {
   id: number
   code: string
+  name: string
+  estimated_hours: number | null
+  status: string
+}
+
+type ProductRow = {
+  id: number
+  project_id: number
+  code: string | null
   name: string
   estimated_hours: number | null
   status: string
@@ -67,8 +80,22 @@ export type DashboardColaboradorDiaProjetoFiltrado = {
   total_horas_dia: number
 }
 
+export type DashboardProdutoFiltrado = {
+  produto_id: number | null
+  produto_codigo: string | null
+  produto_nome: string
+  projeto_id: number
+  projeto_codigo: string
+  projeto_nome: string
+  horas_estimadas: number | null
+  horas_feitas: number
+  saldo_horas: number | null
+  percentual_consumido: number | null
+}
+
 export type DashboardDataResponse = {
   projetos: DashboardProjetoFiltrado[]
+  produtos: DashboardProdutoFiltrado[]
   colaboradores: DashboardColaboradorProjetoFiltrado[]
   diario: DashboardColaboradorDiaProjetoFiltrado[]
 }
@@ -157,7 +184,7 @@ async function fetchAllVPontoRows(
     let query = supabase
       .from("v_ponto")
       .select(
-        "user_id, user_name, entry_date, projeto, projeto_nome, worked_time",
+        "user_id, user_name, entry_date, projeto, projeto_nome, product_id, produto_nome, produto_codigo, worked_time",
       )
       .range(from, from + pageSize - 1)
 
@@ -173,6 +200,12 @@ async function fetchAllVPontoRows(
       query = query.eq("projeto", Number(params.projetoId))
     }
 
+    if (params.produtoId === "sem-produto") {
+      query = query.is("product_id", null)
+    } else if (params.produtoId && params.produtoId !== "all") {
+      query = query.eq("product_id", Number(params.produtoId))
+    }
+
     if (params.colaboradorId && params.colaboradorId !== "all") {
       query = query.eq("user_id", params.colaboradorId)
     }
@@ -181,7 +214,9 @@ async function fetchAllVPontoRows(
 
     if (error) {
       console.error("Erro ao buscar v_ponto filtrada:", error)
-      throw new Error("Não foi possível buscar os dados filtrados do dashboard.")
+      throw new Error(
+        "Não foi possível buscar os dados filtrados do dashboard.",
+      )
     }
 
     const batch = (data ?? []) as VPontoRow[]
@@ -218,12 +253,17 @@ export async function getDashboardDataFiltered(
     ),
   ]
 
+  const projetoIdsParaConsulta =
+    params.projetoId && params.projetoId !== "all"
+      ? [Number(params.projetoId)]
+      : projetoIds
+
   let projectsQuery = supabase
     .from("projects")
     .select("id, code, name, estimated_hours, status")
 
-  if (projetoIds.length > 0) {
-    projectsQuery = projectsQuery.in("id", projetoIds)
+  if (projetoIdsParaConsulta.length > 0) {
+    projectsQuery = projectsQuery.in("id", projetoIdsParaConsulta)
   }
 
   const { data: projectsData, error: projectsError } = await projectsQuery
@@ -236,7 +276,62 @@ export async function getDashboardDataFiltered(
   const projects = (projectsData ?? []) as ProjectRow[]
   const projectMap = new Map(projects.map((project) => [project.id, project]))
 
+  let products: ProductRow[] = []
+
+  if (projetoIdsParaConsulta.length > 0) {
+    const { data: productsData, error: productsError } = await supabase
+      .from("project_products")
+      .select("id, project_id, code, name, estimated_hours, status")
+      .in("project_id", projetoIdsParaConsulta)
+
+    if (productsError) {
+      console.error("Erro ao buscar produtos:", productsError)
+      throw new Error("Não foi possível buscar os produtos do dashboard.")
+    }
+
+    products = (productsData ?? []) as ProductRow[]
+  }
+
+  const productMap = new Map(products.map((product) => [product.id, product]))
+
   const projetoAgg = new Map<number, DashboardProjetoFiltrado>()
+
+  const produtoAgg = new Map<string, DashboardProdutoFiltrado>()
+
+  if (params.produtoId !== "sem-produto") {
+    for (const product of products) {
+      if (
+        params.produtoId &&
+        params.produtoId !== "all" &&
+        String(product.id) !== params.produtoId
+      ) {
+        continue
+      }
+
+      const project = projectMap.get(product.project_id)
+
+      if (!project) continue
+
+      const produtoKey = `${product.project_id}-${product.id}`
+
+      produtoAgg.set(produtoKey, {
+        produto_id: product.id,
+        produto_codigo: product.code,
+        produto_nome: product.name,
+        projeto_id: product.project_id,
+        projeto_codigo: project.code,
+        projeto_nome: project.name,
+        horas_estimadas:
+          product.estimated_hours !== null
+            ? Number(product.estimated_hours)
+            : null,
+        horas_feitas: 0,
+        saldo_horas: null,
+        percentual_consumido: null,
+      })
+    }
+  }
+
   const colaboradorAgg = new Map<string, DashboardColaboradorProjetoFiltrado>()
   const diarioProjetoAgg = new Map<
     string,
@@ -251,6 +346,59 @@ export async function getDashboardDataFiltered(
     const projetoCodigo = project?.code ?? "SEM-PROJETO"
     const projetoNome =
       project?.name ?? row.projeto_nome?.trim() ?? "Sem projeto informado"
+
+    if (row.projeto !== null && project) {
+      if (row.product_id !== null) {
+        const product = productMap.get(row.product_id)
+
+        const produtoKey = `${row.projeto}-${row.product_id}`
+        const produtoAtual = produtoAgg.get(produtoKey)
+
+        if (!produtoAtual) {
+          produtoAgg.set(produtoKey, {
+            produto_id: row.product_id,
+            produto_codigo: product?.code ?? row.produto_codigo?.trim() ?? null,
+            produto_nome:
+              product?.name ??
+              row.produto_nome?.trim() ??
+              "Produto não identificado",
+            projeto_id: row.projeto,
+            projeto_codigo: project.code,
+            projeto_nome: project.name,
+            horas_estimadas:
+              product?.estimated_hours !== null &&
+              product?.estimated_hours !== undefined
+                ? Number(product.estimated_hours)
+                : null,
+            horas_feitas: horas,
+            saldo_horas: null,
+            percentual_consumido: null,
+          })
+        } else {
+          produtoAtual.horas_feitas += horas
+        }
+      } else {
+        const produtoKey = `${row.projeto}-sem-produto`
+        const produtoAtual = produtoAgg.get(produtoKey)
+
+        if (!produtoAtual) {
+          produtoAgg.set(produtoKey, {
+            produto_id: null,
+            produto_codigo: null,
+            produto_nome: "Sem produto",
+            projeto_id: row.projeto,
+            projeto_codigo: project.code,
+            projeto_nome: project.name,
+            horas_estimadas: null,
+            horas_feitas: horas,
+            saldo_horas: null,
+            percentual_consumido: null,
+          })
+        } else {
+          produtoAtual.horas_feitas += horas
+        }
+      }
+    }
     const diarioProjetoKey = `${row.entry_date}|${row.user_id}|${
       row.projeto ?? "sem-projeto"
     }`
@@ -349,6 +497,7 @@ export async function getDashboardDataFiltered(
     const horasFeitas = round2(item.horas_feitas)
     const horasEstimadas = round2(item.horas_estimadas)
     const saldo = round2(horasEstimadas - horasFeitas)
+
     const percentual =
       horasEstimadas > 0 ? round2((horasFeitas / horasEstimadas) * 100) : 0
 
@@ -360,7 +509,33 @@ export async function getDashboardDataFiltered(
       percentual_consumido: percentual,
     }
   })
+  const produtosFiltrados = [...produtoAgg.values()]
+    .map((item) => {
+      const horasFeitas = round2(item.horas_feitas)
 
+      if (item.horas_estimadas === null) {
+        return {
+          ...item,
+          horas_feitas: horasFeitas,
+          saldo_horas: null,
+          percentual_consumido: null,
+        }
+      }
+
+      const horasEstimadas = round2(item.horas_estimadas)
+      const saldo = round2(horasEstimadas - horasFeitas)
+      const percentual =
+        horasEstimadas > 0 ? round2((horasFeitas / horasEstimadas) * 100) : null
+
+      return {
+        ...item,
+        horas_estimadas: horasEstimadas,
+        horas_feitas: horasFeitas,
+        saldo_horas: saldo,
+        percentual_consumido: percentual,
+      }
+    })
+    .sort((a, b) => b.horas_feitas - a.horas_feitas)
   const totalHorasPorProjeto = new Map<number, number>()
   for (const projeto of projetos) {
     totalHorasPorProjeto.set(projeto.projeto_id, projeto.horas_feitas)
@@ -404,6 +579,7 @@ export async function getDashboardDataFiltered(
 
   return {
     projetos,
+    produtos: produtosFiltrados,
     colaboradores,
     diario,
   }

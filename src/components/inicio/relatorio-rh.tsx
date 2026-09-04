@@ -45,7 +45,9 @@ import {
 import {
   getDashboardDataFiltered,
   type DashboardColaboradorDiaProjetoFiltrado,
+  type DashboardProdutoFiltrado,
 } from "@/app/actions/inicio/get-dashboard-data"
+import { getProdutosByProjectId } from "@/app/actions/inicio/get-produtos"
 import type {
   DashboardHorasColaboradorProjeto,
   DashboardHorasProjeto,
@@ -68,6 +70,16 @@ type ProjetoOption = {
   code: string
   name: string
   status: string
+}
+
+type ProdutoOption = {
+  id: number
+  project_id: number
+  code: string | null
+  name: string
+  estimated_hours: number | null
+  status: string
+  sort_order: number | null
 }
 
 type ColaboradorOption = {
@@ -103,6 +115,24 @@ function getStatusConsumo(percentual: number) {
   }
 }
 
+function getStatusProduto(produtoId: number | null, percentual: number | null) {
+  if (produtoId === null) {
+    return {
+      label: "Sem classificação",
+      className: "bg-gray-100 text-gray-700",
+    }
+  }
+
+  if (percentual === null) {
+    return {
+      label: "Sem estimativa",
+      className: "bg-gray-100 text-gray-700",
+    }
+  }
+
+  return getStatusConsumo(percentual)
+}
+
 function formatHours(value: number) {
   const safeValue = Number.isFinite(value) ? value : 0
   const negative = safeValue < 0
@@ -122,7 +152,7 @@ function formatHours(value: number) {
 
 function formatPercent(value: number) {
   const safeValue = Number.isFinite(value) ? value : 0
-  return `${safeValue.toFixed(2)}%`
+  return `${safeValue.toFixed(2).replace(".", ",")}%`
 }
 
 function toSafeNumber(value: unknown) {
@@ -331,6 +361,7 @@ function SearchableFilterSelect({
   placeholder,
   searchPlaceholder,
   emptyText,
+  disabled = false,
 }: {
   label: string
   value: string
@@ -339,6 +370,7 @@ function SearchableFilterSelect({
   placeholder: string
   searchPlaceholder: string
   emptyText: string
+  disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
 
@@ -357,6 +389,7 @@ function SearchableFilterSelect({
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            disabled={disabled}
             className="h-10 w-full justify-between rounded-md border border-gray-300 bg-white px-3 text-sm font-normal"
           >
             <span className="truncate">
@@ -405,6 +438,7 @@ function SearchableFilterSelect({
 export default function RelatorioRh() {
   const [loading, setLoading] = useState(true)
   const [projetos, setProjetos] = useState<DashboardHorasProjeto[]>([])
+  const [produtos, setProdutos] = useState<DashboardProdutoFiltrado[]>([])
   const [colaboradores, setColaboradores] = useState<
     DashboardHorasColaboradorProjeto[]
   >([])
@@ -412,6 +446,7 @@ export default function RelatorioRh() {
     DashboardColaboradorDiaProjetoFiltrado[]
   >([])
   const [projetoOptions, setProjetoOptions] = useState<ProjetoOption[]>([])
+  const [produtoOptions, setProdutoOptions] = useState<ProdutoOption[]>([])
   const [colaboradorOptions, setColaboradorOptions] = useState<
     ColaboradorOption[]
   >([])
@@ -425,6 +460,8 @@ export default function RelatorioRh() {
   const [selectedMonth, setSelectedMonth] = useState<string>("all")
   const [selectedWeek, setSelectedWeek] = useState<string>("all")
   const [selectedProjetoFiltro, setSelectedProjetoFiltro] =
+    useState<string>("all")
+  const [selectedProdutoFiltro, setSelectedProdutoFiltro] =
     useState<string>("all")
   const [selectedColaboradorFiltro, setSelectedColaboradorFiltro] =
     useState<string>("all")
@@ -449,6 +486,42 @@ export default function RelatorioRh() {
   }
 
   useEffect(() => {
+    const loadProdutos = async () => {
+      if (selectedProjetoFiltro === "all") {
+        setProdutoOptions([])
+        setSelectedProdutoFiltro("all")
+        return
+      }
+
+      try {
+        const data = await getProdutosByProjectId({
+          project_id: selectedProjetoFiltro,
+        })
+
+        setProdutoOptions((data as ProdutoOption[]) ?? [])
+
+        setSelectedProdutoFiltro((current) => {
+          if (current === "all" || current === "sem-produto") {
+            return current
+          }
+
+          const produtoExiste = data?.some(
+            (produto) => String(produto.id) === current,
+          )
+
+          return produtoExiste ? current : "all"
+        })
+      } catch (error) {
+        console.error("Erro ao carregar produtos para filtro:", error)
+        setProdutoOptions([])
+        setSelectedProdutoFiltro("all")
+      }
+    }
+
+    loadProdutos()
+  }, [selectedProjetoFiltro])
+
+  useEffect(() => {
     const loadDashboard = async () => {
       setLoading(true)
 
@@ -463,6 +536,7 @@ export default function RelatorioRh() {
               month: selectedMonth,
               week: selectedWeek,
               projetoId: selectedProjetoFiltro,
+              produtoId: selectedProdutoFiltro,
               colaboradorId: selectedColaboradorFiltro,
             }),
           ])
@@ -473,6 +547,7 @@ export default function RelatorioRh() {
         )
 
         setProjetos(dashboardData.projetos as DashboardHorasProjeto[])
+        setProdutos(dashboardData.produtos ?? [])
         setColaboradores(
           dashboardData.colaboradores as DashboardHorasColaboradorProjeto[],
         )
@@ -503,6 +578,7 @@ export default function RelatorioRh() {
     selectedMonth,
     selectedWeek,
     selectedProjetoFiltro,
+    selectedProdutoFiltro,
     selectedColaboradorFiltro,
   ])
 
@@ -542,6 +618,14 @@ export default function RelatorioRh() {
     })
   }, [projetos, selectedProjetoFiltro, orderField, orderDirection])
 
+  const projetoIdContextoColaboradores = useMemo(() => {
+    if (selectedProjetoFiltro !== "all") {
+      return Number(selectedProjetoFiltro)
+    }
+
+    return selectedProjectId
+  }, [selectedProjetoFiltro, selectedProjectId])
+
   const colaboradoresOrdenados = useMemo(() => {
     let filtered = [...colaboradores]
 
@@ -551,9 +635,9 @@ export default function RelatorioRh() {
       )
     }
 
-    if (selectedProjectId !== null) {
+    if (projetoIdContextoColaboradores !== null) {
       return filtered
-        .filter((item) => item.projeto_id === selectedProjectId)
+        .filter((item) => item.projeto_id === projetoIdContextoColaboradores)
         .sort((a, b) => b.horas_feitas - a.horas_feitas)
     }
 
@@ -583,13 +667,17 @@ export default function RelatorioRh() {
     return [...agrupadoPorColaborador.values()].sort(
       (a, b) => b.horas_feitas - a.horas_feitas,
     )
-  }, [colaboradores, selectedColaboradorFiltro, selectedProjectId])
+  }, [colaboradores, selectedColaboradorFiltro, projetoIdContextoColaboradores])
 
   const projetoSelecionado = useMemo(() => {
+    if (projetoIdContextoColaboradores === null) return null
+
     return (
-      projetos.find((item) => item.projeto_id === selectedProjectId) ?? null
+      projetos.find(
+        (item) => item.projeto_id === projetoIdContextoColaboradores,
+      ) ?? null
     )
-  }, [projetos, selectedProjectId])
+  }, [projetos, projetoIdContextoColaboradores])
 
   const totalHorasProjetos = useMemo(() => {
     return projetosFiltrados.reduce((acc, item) => acc + item.horas_feitas, 0)
@@ -666,6 +754,42 @@ export default function RelatorioRh() {
       .sort((a, b) => b.horas - a.horas)
   }, [projetosFiltrados])
 
+  const produtosGrafico = useMemo(() => {
+    return [...produtos]
+      .map((item) => {
+        const horasFeitas = toSafeNumber(item.horas_feitas)
+
+        const percentual =
+          item.percentual_consumido === null
+            ? undefined
+            : toSafeNumber(item.percentual_consumido)
+
+        const color =
+          item.produto_id === null || item.percentual_consumido === null
+            ? "#9ca3af"
+            : getStatusConsumo(item.percentual_consumido).color
+
+        const nomeCompleto = item.produto_codigo
+          ? `${item.produto_codigo} • ${item.produto_nome}`
+          : item.produto_nome
+
+        return {
+          key:
+            item.produto_id === null
+            ? `sem-produto-${item.projeto_id}`
+            : `produto-${item.projeto_id}-${item.produto_id}`,
+          nome: item.produto_codigo
+            ? item.produto_codigo
+            : truncateLabel(item.produto_nome, 28),
+          nomeCompleto,
+          horas: Number(horasFeitas.toFixed(2)),
+          percentual,
+          color,
+        }
+      })
+      .sort((a, b) => b.horas - a.horas)
+  }, [produtos])
+
   const colaboradoresGrafico = useMemo(() => {
     return [...colaboradoresOrdenados]
       .map((item) => {
@@ -679,13 +803,15 @@ export default function RelatorioRh() {
           nomeCompleto: item.user_name || "Sem nome",
           horas: Number(horasFeitas.toFixed(2)),
           percentual:
-            selectedProjectId !== null ? percentualParticipacao : undefined,
+            projetoIdContextoColaboradores !== null
+              ? percentualParticipacao
+              : undefined,
         }
       })
       .filter((item) => item.horas > 0)
       .slice(0, 10)
       .reverse()
-  }, [colaboradoresOrdenados, selectedProjectId])
+  }, [colaboradoresOrdenados, projetoIdContextoColaboradores])
 
   const totalAlertas = useMemo(() => {
     return projetosCriticos.length + projetosAtencao.length
@@ -750,6 +876,58 @@ export default function RelatorioRh() {
     ]
   }, [projetoOptions])
 
+  const produtoFiltroOptions = useMemo(() => {
+    if (selectedProjetoFiltro === "all") {
+      return [{ value: "all", label: "Selecione um projeto" }]
+    }
+
+    return [
+      { value: "all", label: "Todos os produtos" },
+      ...produtoOptions.map((item) => ({
+        value: String(item.id),
+        label: item.code ? `${item.code} • ${item.name}` : item.name,
+      })),
+      { value: "sem-produto", label: "Sem produto" },
+    ]
+  }, [produtoOptions, selectedProjetoFiltro])
+
+  const produtoEspecificoSelecionado =
+    selectedProjetoFiltro !== "all" && selectedProdutoFiltro !== "all"
+
+  const produtoSelecionado = useMemo(() => {
+    if (!produtoEspecificoSelecionado) return null
+
+    if (selectedProdutoFiltro === "sem-produto") {
+      return produtos.find((item) => item.produto_id === null) ?? null
+    }
+
+    return (
+      produtos.find(
+        (item) => String(item.produto_id) === selectedProdutoFiltro,
+      ) ?? null
+    )
+  }, [produtos, produtoEspecificoSelecionado, selectedProdutoFiltro])
+
+  const statusProdutoSelecionado = useMemo(() => {
+    if (!produtoEspecificoSelecionado) return null
+
+    if (selectedProdutoFiltro === "sem-produto") {
+      return getStatusProduto(null, null)
+    }
+
+    return getStatusProduto(
+      produtoSelecionado?.produto_id ?? null,
+      produtoSelecionado?.percentual_consumido ?? null,
+    )
+  }, [produtoEspecificoSelecionado, produtoSelecionado, selectedProdutoFiltro])
+
+  const totalColaboradoresProduto = useMemo(() => {
+    return new Set(colaboradores.map((item) => item.user_id)).size
+  }, [colaboradores])
+
+  const labelProdutoSelecionado =
+    produtoFiltroOptions.find((item) => item.value === selectedProdutoFiltro)
+      ?.label ?? "Produto selecionado"
   const colaboradorFiltroOptions = useMemo(() => {
     return [
       { value: "all", label: "Todos os colaboradores" },
@@ -761,6 +939,7 @@ export default function RelatorioRh() {
   }, [colaboradorOptions])
 
   const projetosChartHeight = Math.max(projetosGrafico.length * 42, 360)
+  const produtosChartHeight = Math.max(produtosGrafico.length * 48, 320)
 
   function handleExportCsv() {
     const rows: Array<Array<unknown>> = []
@@ -785,6 +964,10 @@ export default function RelatorioRh() {
       projetoFiltroOptions.find((item) => item.value === selectedProjetoFiltro)
         ?.label ?? selectedProjetoFiltro
 
+    const filtroProduto =
+      produtoFiltroOptions.find((item) => item.value === selectedProdutoFiltro)
+        ?.label ?? selectedProdutoFiltro
+
     const filtroColaborador =
       colaboradorFiltroOptions.find(
         (item) => item.value === selectedColaboradorFiltro,
@@ -800,94 +983,223 @@ export default function RelatorioRh() {
     rows.push(["Mês", filtroMes])
     rows.push(["Semana", filtroSemana])
     rows.push(["Projeto", filtroProjeto])
+    rows.push(["Produto", filtroProduto])
     rows.push(["Colaborador", filtroColaborador])
     rows.push([])
 
     rows.push(["Indicadores gerais"])
     rows.push(["Indicador", "Valor formatado", "Valor numérico"])
-    rows.push([
-      "Horas realizadas",
-      formatHours(totalHorasProjetos),
-      formatDecimalCsv(totalHorasProjetos),
-    ])
-    rows.push([
-      "Horas em projetos INT",
-      formatHours(totalHorasInt),
-      formatDecimalCsv(totalHorasInt),
-    ])
-    rows.push([
-      "Horas em projetos EXT",
-      formatHours(totalHorasExt),
-      formatDecimalCsv(totalHorasExt),
-    ])
-    rows.push(["Projetos ativos", totalProjetosAtivos, totalProjetosAtivos])
-    rows.push([
-      "Projetos críticos",
-      totalProjetosCriticos,
-      totalProjetosCriticos,
-    ])
-    rows.push([
-      "Projeto mais demandado",
-      projetoMaisConsumido?.projeto_codigo ?? "-",
-      projetoMaisConsumido
-        ? formatDecimalCsv(projetoMaisConsumido.horas_feitas)
-        : "",
-    ])
-    rows.push([])
 
-    rows.push(["Detalhamento por projeto"])
-    rows.push([
-      "Código do projeto",
-      "Nome do projeto",
-      "Status",
-      "Horas estimadas",
-      "Horas estimadas numérico",
-      "Horas feitas",
-      "Horas feitas numérico",
-      "Saldo",
-      "Saldo numérico",
-      "% consumido",
-      "% consumido numérico",
-      "Colaborador destaque",
-    ])
-
-    projetosFiltrados.forEach((item) => {
-      const status = getStatusConsumo(item.percentual_consumido)
-
-      const colaboradoresProjeto = colaboradores
-        .filter((colaborador) => colaborador.projeto_id === item.projeto_id)
-        .sort((a, b) => b.horas_feitas - a.horas_feitas)
-
-      const colaboradorDestaque =
-        colaboradoresProjeto.length > 0
-          ? colaboradoresProjeto[0].user_name
-          : "-"
+    if (produtoEspecificoSelecionado) {
+      const horasProduto = produtoSelecionado?.horas_feitas ?? 0
 
       rows.push([
-        item.projeto_codigo,
-        item.projeto_nome,
-        status.label,
-        formatHours(item.horas_estimadas),
-        formatDecimalCsv(item.horas_estimadas),
-        formatHours(item.horas_feitas),
-        formatDecimalCsv(item.horas_feitas),
-        formatHours(item.saldo_horas),
-        formatDecimalCsv(item.saldo_horas),
-        formatPercent(item.percentual_consumido),
-        formatDecimalCsv(item.percentual_consumido),
-        colaboradorDestaque,
+        "Horas realizadas no produto",
+        formatHours(horasProduto),
+        formatDecimalCsv(horasProduto),
       ])
-    })
+
+      rows.push([
+        "Horas estimadas do produto",
+        produtoSelecionado?.horas_estimadas === null ||
+        produtoSelecionado?.horas_estimadas === undefined
+          ? ""
+          : formatHours(produtoSelecionado.horas_estimadas),
+        produtoSelecionado?.horas_estimadas === null ||
+        produtoSelecionado?.horas_estimadas === undefined
+          ? ""
+          : formatDecimalCsv(produtoSelecionado.horas_estimadas),
+      ])
+
+      rows.push([
+        "Saldo do produto",
+        produtoSelecionado?.saldo_horas === null ||
+        produtoSelecionado?.saldo_horas === undefined
+          ? ""
+          : formatHours(produtoSelecionado.saldo_horas),
+        produtoSelecionado?.saldo_horas === null ||
+        produtoSelecionado?.saldo_horas === undefined
+          ? ""
+          : formatDecimalCsv(produtoSelecionado.saldo_horas),
+      ])
+
+      rows.push([
+        "Consumo do produto",
+        produtoSelecionado?.percentual_consumido === null ||
+        produtoSelecionado?.percentual_consumido === undefined
+          ? ""
+          : formatPercent(produtoSelecionado.percentual_consumido),
+        produtoSelecionado?.percentual_consumido === null ||
+        produtoSelecionado?.percentual_consumido === undefined
+          ? ""
+          : formatDecimalCsv(produtoSelecionado.percentual_consumido),
+      ])
+
+      rows.push([
+        "Status do produto",
+        statusProdutoSelecionado?.label ?? "Sem classificação",
+        "",
+      ])
+
+      rows.push([
+        "Colaboradores no produto",
+        totalColaboradoresProduto,
+        totalColaboradoresProduto,
+      ])
+    } else {
+      rows.push([
+        "Horas realizadas",
+        formatHours(totalHorasProjetos),
+        formatDecimalCsv(totalHorasProjetos),
+      ])
+
+      rows.push([
+        "Horas em projetos INT",
+        formatHours(totalHorasInt),
+        formatDecimalCsv(totalHorasInt),
+      ])
+
+      rows.push([
+        "Horas em projetos EXT",
+        formatHours(totalHorasExt),
+        formatDecimalCsv(totalHorasExt),
+      ])
+
+      rows.push(["Projetos ativos", totalProjetosAtivos, totalProjetosAtivos])
+
+      rows.push([
+        "Projetos críticos",
+        totalProjetosCriticos,
+        totalProjetosCriticos,
+      ])
+
+      rows.push([
+        "Projeto mais demandado",
+        projetoMaisConsumido?.projeto_codigo ?? "-",
+        projetoMaisConsumido
+          ? formatDecimalCsv(projetoMaisConsumido.horas_feitas)
+          : "",
+      ])
+    }
 
     rows.push([])
+
+    if (!produtoEspecificoSelecionado) {
+      rows.push(["Detalhamento por projeto"])
+      rows.push([
+        "Código do projeto",
+        "Nome do projeto",
+        "Status",
+        "Horas estimadas",
+        "Horas estimadas numérico",
+        "Horas feitas",
+        "Horas feitas numérico",
+        "Saldo",
+        "Saldo numérico",
+        "% consumido",
+        "% consumido numérico",
+        "Colaborador destaque",
+      ])
+
+      projetosFiltrados.forEach((item) => {
+        const status = getStatusConsumo(item.percentual_consumido)
+
+        const colaboradoresProjeto = colaboradores
+          .filter((colaborador) => colaborador.projeto_id === item.projeto_id)
+          .sort((a, b) => b.horas_feitas - a.horas_feitas)
+
+        const colaboradorDestaque =
+          colaboradoresProjeto.length > 0
+            ? colaboradoresProjeto[0].user_name
+            : "-"
+
+        rows.push([
+          item.projeto_codigo,
+          item.projeto_nome,
+          status.label,
+          formatHours(item.horas_estimadas),
+          formatDecimalCsv(item.horas_estimadas),
+          formatHours(item.horas_feitas),
+          formatDecimalCsv(item.horas_feitas),
+          formatHours(item.saldo_horas),
+          formatDecimalCsv(item.saldo_horas),
+          formatPercent(item.percentual_consumido),
+          formatDecimalCsv(item.percentual_consumido),
+          colaboradorDestaque,
+        ])
+      })
+      rows.push([])
+    }
+
+    if (selectedProjetoFiltro !== "all") {
+      rows.push(["Detalhamento por produto"])
+      rows.push([
+        "Projeto",
+        "Produto",
+        "Horas estimadas",
+        "Horas estimadas numérico",
+        "Horas realizadas",
+        "Horas realizadas numérico",
+        "Saldo",
+        "Saldo numérico",
+        "% consumido",
+        "% consumido numérico",
+        "Status",
+      ])
+
+      produtos.forEach((item) => {
+        const status = getStatusProduto(
+          item.produto_id,
+          item.percentual_consumido,
+        )
+
+        rows.push([
+          `${item.projeto_codigo} • ${item.projeto_nome}`,
+          item.produto_codigo
+            ? `${item.produto_codigo} • ${item.produto_nome}`
+            : item.produto_nome,
+
+          item.horas_estimadas === null
+            ? ""
+            : formatHours(item.horas_estimadas),
+
+          item.horas_estimadas === null
+            ? ""
+            : formatDecimalCsv(item.horas_estimadas),
+
+          formatHours(item.horas_feitas),
+          formatDecimalCsv(item.horas_feitas),
+
+          item.saldo_horas === null ? "" : formatHours(item.saldo_horas),
+
+          item.saldo_horas === null ? "" : formatDecimalCsv(item.saldo_horas),
+
+          item.percentual_consumido === null
+            ? ""
+            : formatPercent(item.percentual_consumido),
+
+          item.percentual_consumido === null
+            ? ""
+            : formatDecimalCsv(item.percentual_consumido),
+
+          status.label,
+        ])
+      })
+
+      rows.push([])
+    }
     rows.push(["Detalhamento por colaborador"])
     rows.push([
       "Colaborador",
       "Projeto",
       "Horas feitas",
       "Horas feitas numérico",
-      "% participação no projeto",
-      "% participação numérico",
+      produtoEspecificoSelecionado
+        ? "% participação no produto"
+        : "% participação projeto",
+      produtoEspecificoSelecionado
+        ? "% participação no produto numérico"
+        : "% participação no projeto numérico",
     ])
 
     colaboradoresOrdenados.forEach((item) => {
@@ -896,10 +1208,10 @@ export default function RelatorioRh() {
         `${item.projeto_codigo} • ${item.projeto_nome}`,
         formatHours(item.horas_feitas),
         formatDecimalCsv(item.horas_feitas),
-        selectedProjectId !== null
+        projetoIdContextoColaboradores !== null
           ? formatPercent(item.percentual_participacao_projeto)
           : "",
-        selectedProjectId !== null
+        projetoIdContextoColaboradores !== null
           ? formatDecimalCsv(item.percentual_participacao_projeto)
           : "",
       ])
@@ -1017,120 +1329,122 @@ export default function RelatorioRh() {
           </p>
         </div>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              className="relative h-10 w-10 shrink-0 rounded-full border border-gray-300 p-0"
-            >
-              <Bell className="h-5 w-5 text-gray-700" />
-              <span
-                className={cn(
-                  "absolute -right-1 -top-1 inline-flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full px-1 text-[11px] font-semibold",
-                  notificationBadgeClass,
-                )}
+        {!produtoEspecificoSelecionado && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="relative h-10 w-10 shrink-0 rounded-full border border-gray-300 p-0"
               >
-                {totalAlertas}
-              </span>
-            </Button>
-          </PopoverTrigger>
-
-          <PopoverContent
-            align="end"
-            className="w-[360px] rounded-2xl border border-gray-200 p-0 shadow-lg"
-          >
-            <div className="border-b border-gray-100 px-4 py-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">
-                  Alertas de projetos
-                </h3>
-                <span className="text-xs text-gray-500">
-                  {totalAlertas} alerta(s)
+                <Bell className="h-5 w-5 text-gray-700" />
+                <span
+                  className={cn(
+                    "absolute -right-1 -top-1 inline-flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full px-1 text-[11px] font-semibold",
+                    notificationBadgeClass,
+                  )}
+                >
+                  {totalAlertas}
                 </span>
+              </Button>
+            </PopoverTrigger>
+
+            <PopoverContent
+              align="end"
+              className="w-[360px] rounded-2xl border border-gray-200 p-0 shadow-lg"
+            >
+              <div className="border-b border-gray-100 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Alertas de projetos
+                  </h3>
+                  <span className="text-xs text-gray-500">
+                    {totalAlertas} alerta(s)
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Projetos que exigem atenção da gestão.
+                </p>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Projetos que exigem atenção da gestão.
-              </p>
-            </div>
 
-            <div className="max-h-[420px] overflow-y-auto px-4 py-3">
-              {totalAlertas === 0 ? (
-                <div className="rounded-2xl border border-green-100 bg-green-50 p-4 text-sm text-green-700">
-                  Nenhum alerta no momento.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {projetosCriticos.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-red-600" />
-                        <p className="text-sm font-semibold text-red-700">
-                          Projetos críticos
-                        </p>
-                      </div>
-
+              <div className="max-h-[420px] overflow-y-auto px-4 py-3">
+                {totalAlertas === 0 ? (
+                  <div className="rounded-2xl border border-green-100 bg-green-50 p-4 text-sm text-green-700">
+                    Nenhum alerta no momento.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {projetosCriticos.length > 0 && (
                       <div className="space-y-2">
-                        {projetosCriticos.slice(0, 6).map((item) => (
-                          <div
-                            key={`critico-${item.projeto_id}`}
-                            className="rounded-xl border border-red-100 bg-red-50 p-3"
-                          >
-                            <p className="text-sm font-medium text-gray-900">
-                              {item.projeto_codigo} • {item.projeto_nome}
-                            </p>
-                            <p className="mt-1 text-xs text-gray-600">
-                              Consumo:{" "}
-                              <span className="font-semibold text-red-700">
-                                {formatPercent(item.percentual_consumido)}
-                              </span>
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Horas feitas: {formatHours(item.horas_feitas)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-600" />
+                          <p className="text-sm font-semibold text-red-700">
+                            Projetos críticos
+                          </p>
+                        </div>
 
-                  {projetosAtencao.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                        <p className="text-sm font-semibold text-yellow-700">
-                          Projetos em atenção
-                        </p>
+                        <div className="space-y-2">
+                          {projetosCriticos.slice(0, 6).map((item) => (
+                            <div
+                              key={`critico-${item.projeto_id}`}
+                              className="rounded-xl border border-red-100 bg-red-50 p-3"
+                            >
+                              <p className="text-sm font-medium text-gray-900">
+                                {item.projeto_codigo} • {item.projeto_nome}
+                              </p>
+                              <p className="mt-1 text-xs text-gray-600">
+                                Consumo:{" "}
+                                <span className="font-semibold text-red-700">
+                                  {formatPercent(item.percentual_consumido)}
+                                </span>
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Horas feitas: {formatHours(item.horas_feitas)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
+                    )}
 
+                    {projetosAtencao.length > 0 && (
                       <div className="space-y-2">
-                        {projetosAtencao.slice(0, 6).map((item) => (
-                          <div
-                            key={`atencao-${item.projeto_id}`}
-                            className="rounded-xl border border-yellow-100 bg-yellow-50 p-3"
-                          >
-                            <p className="text-sm font-medium text-gray-900">
-                              {item.projeto_codigo} • {item.projeto_nome}
-                            </p>
-                            <p className="mt-1 text-xs text-gray-600">
-                              Consumo:{" "}
-                              <span className="font-semibold text-yellow-700">
-                                {formatPercent(item.percentual_consumido)}
-                              </span>
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Horas feitas: {formatHours(item.horas_feitas)}
-                            </p>
-                          </div>
-                        ))}
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                          <p className="text-sm font-semibold text-yellow-700">
+                            Projetos em atenção
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          {projetosAtencao.slice(0, 6).map((item) => (
+                            <div
+                              key={`atencao-${item.projeto_id}`}
+                              className="rounded-xl border border-yellow-100 bg-yellow-50 p-3"
+                            >
+                              <p className="text-sm font-medium text-gray-900">
+                                {item.projeto_codigo} • {item.projeto_nome}
+                              </p>
+                              <p className="mt-1 text-xs text-gray-600">
+                                Consumo:{" "}
+                                <span className="font-semibold text-yellow-700">
+                                  {formatPercent(item.percentual_consumido)}
+                                </span>
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Horas feitas: {formatHours(item.horas_feitas)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
+                    )}
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
 
       <SectionCard
@@ -1154,7 +1468,7 @@ export default function RelatorioRh() {
           </div>
         }
       >
-        <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
           <FilterSelect
             label="Ano"
             value={selectedYear}
@@ -1186,11 +1500,29 @@ export default function RelatorioRh() {
           <SearchableFilterSelect
             label="Projeto"
             value={selectedProjetoFiltro}
-            onChange={setSelectedProjetoFiltro}
+            onChange={(value) => {
+              setSelectedProjetoFiltro(value)
+              setSelectedProdutoFiltro("all")
+            }}
             options={projetoFiltroOptions}
             placeholder="Selecionar projeto"
             searchPlaceholder="Digite o código ou nome do projeto"
             emptyText="Nenhum projeto encontrado."
+          />
+
+          <SearchableFilterSelect
+            label="Produto"
+            value={selectedProdutoFiltro}
+            onChange={setSelectedProdutoFiltro}
+            options={produtoFiltroOptions}
+            placeholder={
+              selectedProjetoFiltro === "all"
+                ? "Selecione um projeto"
+                : "Selecionar produto"
+            }
+            searchPlaceholder="Digite o nome do produto"
+            emptyText="Nenhum produto encontrado."
+            disabled={selectedProjetoFiltro === "all"}
           />
 
           <SearchableFilterSelect
@@ -1205,232 +1537,472 @@ export default function RelatorioRh() {
         </div>
       </SectionCard>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        <KpiCard
-          title="Horas realizadas"
-          value={formatHours(totalHorasProjetos)}
-          subtitle="Somatório de horas registradas no recorte selecionado"
-          icon={<Clock3 className="h-5 w-5" />}
-        />
+      {produtoEspecificoSelecionado ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <KpiCard
+            title="Horas realizadas no produto"
+            value={formatHours(produtoSelecionado?.horas_feitas ?? 0)}
+            subtitle={
+              selectedProdutoFiltro === "sem-produto"
+                ? "Horas registradas sem classificação de produto"
+                : labelProdutoSelecionado
+            }
+            icon={<Clock3 className="h-5 w-5" />}
+          />
 
-        <KpiCard
-          title="Horas em projetos INT"
-          value={formatHours(totalHorasInt)}
-          subtitle="Somatório das horas em projetos internos no recorte selecionado"
-          icon={<BriefcaseBusiness className="h-5 w-5" />}
-        />
+          <KpiCard
+            title="Horas estimadas do produto"
+            value={
+              produtoSelecionado?.horas_estimadas === null ||
+              produtoSelecionado?.horas_estimadas === undefined
+                ? "—"
+                : formatHours(produtoSelecionado.horas_estimadas)
+            }
+            subtitle="Orçamento de horas definido para o produto"
+            icon={<BriefcaseBusiness className="h-5 w-5" />}
+          />
 
-        <KpiCard
-          title="Horas em projetos EXT"
-          value={formatHours(totalHorasExt)}
-          subtitle="Somatório das horas em projetos externos no recorte selecionado"
-          icon={<BriefcaseBusiness className="h-5 w-5" />}
-        />
+          <KpiCard
+            title="Saldo do produto"
+            value={
+              produtoSelecionado?.saldo_horas === null ||
+              produtoSelecionado?.saldo_horas === undefined
+                ? "—"
+                : formatHours(produtoSelecionado.saldo_horas)
+            }
+            subtitle="Horas estimadas menos horas realizadas"
+            icon={<Clock3 className="h-5 w-5" />}
+          />
 
-        <KpiCard
-          title="Projetos ativos"
-          value={`${totalProjetosAtivos}`}
-          subtitle="Projetos visíveis no recorte atual"
-          icon={<BriefcaseBusiness className="h-5 w-5" />}
-        />
+          <KpiCard
+            title="Consumo do produto"
+            value={
+              produtoSelecionado?.percentual_consumido === null ||
+              produtoSelecionado?.percentual_consumido === undefined
+                ? "—"
+                : formatPercent(produtoSelecionado.percentual_consumido)
+            }
+            subtitle="Percentual das horas estimadas já consumido"
+            icon={<TrendingUp className="h-5 w-5" />}
+          />
 
-        <KpiCard
-          title="Projetos críticos"
-          value={`${totalProjetosCriticos}`}
-          subtitle="Projetos com consumo acima de 100%"
-          icon={<AlertTriangle className="h-5 w-5" />}
-        />
+          <KpiCard
+            title="Status do produto"
+            value={statusProdutoSelecionado?.label ?? "Sem classificação"}
+            subtitle={
+              selectedProdutoFiltro === "sem-produto"
+                ? "Lançamentos históricos sem produto informado"
+                : "Status calculado pelo consumo das horas estimadas"
+            }
+            icon={<AlertTriangle className="h-5 w-5" />}
+          />
 
-        <KpiCard
-          title="Projeto mais demandado"
-          value={projetoMaisConsumido?.projeto_codigo ?? "-"}
-          subtitle={
-            projetoMaisConsumido
-              ? `${formatHours(projetoMaisConsumido.horas_feitas)} em ${projetoMaisConsumido.projeto_nome}`
-              : "Sem dados"
-          }
-          icon={<TrendingUp className="h-5 w-5" />}
-        />
-      </div>
+          <KpiCard
+            title="Colaboradores no produto"
+            value={`${totalColaboradoresProduto}`}
+            subtitle="Colaboradores com horas registradas neste recorte"
+            icon={<Users className="h-5 w-5" />}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <KpiCard
+            title="Horas realizadas"
+            value={formatHours(totalHorasProjetos)}
+            subtitle="Somatório de horas registradas no recorte selecionado"
+            icon={<Clock3 className="h-5 w-5" />}
+          />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <SectionCard
-          title="Projetos que exigem atenção"
-          subtitle="Foco imediato da liderança"
-        >
-          {projetosQueExigemAtencao.length > 0 ? (
-            <div className="max-h-[520px] space-y-3 overflow-y-auto pr-2">
-              {projetosQueExigemAtencao.map((item) => {
-                const status = getStatusConsumo(item.percentual_consumido)
+          <KpiCard
+            title="Horas em projetos INT"
+            value={formatHours(totalHorasInt)}
+            subtitle="Somatório das horas em projetos internos no recorte selecionado"
+            icon={<BriefcaseBusiness className="h-5 w-5" />}
+          />
 
-                return (
-                  <div
-                    key={item.projeto_id}
-                    className="flex flex-col gap-3 rounded-2xl border border-red-100 bg-red-50/50 p-4 md:flex-row md:items-center md:justify-between"
-                  >
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        {item.projeto_codigo} • {item.projeto_nome}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Horas feitas: {formatHours(item.horas_feitas)} | Saldo:{" "}
-                        <span className="font-medium text-red-600">
-                          {formatHours(item.saldo_horas)}
+          <KpiCard
+            title="Horas em projetos EXT"
+            value={formatHours(totalHorasExt)}
+            subtitle="Somatório das horas em projetos externos no recorte selecionado"
+            icon={<BriefcaseBusiness className="h-5 w-5" />}
+          />
+
+          <KpiCard
+            title="Projetos ativos"
+            value={`${totalProjetosAtivos}`}
+            subtitle="Projetos visíveis no recorte atual"
+            icon={<BriefcaseBusiness className="h-5 w-5" />}
+          />
+
+          <KpiCard
+            title="Projetos críticos"
+            value={`${totalProjetosCriticos}`}
+            subtitle="Projetos com consumo acima de 100%"
+            icon={<AlertTriangle className="h-5 w-5" />}
+          />
+
+          <KpiCard
+            title="Projeto mais demandado"
+            value={projetoMaisConsumido?.projeto_codigo ?? "-"}
+            subtitle={
+              projetoMaisConsumido
+                ? `${formatHours(projetoMaisConsumido.horas_feitas)} em ${projetoMaisConsumido.projeto_nome}`
+                : "Sem dados"
+            }
+            icon={<TrendingUp className="h-5 w-5" />}
+          />
+        </div>
+      )}
+
+      {!produtoEspecificoSelecionado && (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <SectionCard
+            title="Projetos que exigem atenção"
+            subtitle="Foco imediato da liderança"
+          >
+            {projetosQueExigemAtencao.length > 0 ? (
+              <div className="max-h-[520px] space-y-3 overflow-y-auto pr-2">
+                {projetosQueExigemAtencao.map((item) => {
+                  const status = getStatusConsumo(item.percentual_consumido)
+
+                  return (
+                    <div
+                      key={item.projeto_id}
+                      className="flex flex-col gap-3 rounded-2xl border border-red-100 bg-red-50/50 p-4 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {item.projeto_codigo} • {item.projeto_nome}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Horas feitas: {formatHours(item.horas_feitas)} |
+                          Saldo:{" "}
+                          <span className="font-medium text-red-600">
+                            {formatHours(item.saldo_horas)}
+                          </span>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-red-700">
+                          {formatPercent(item.percentual_consumido)}
                         </span>
-                      </p>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${status.className}`}
+                        >
+                          {status.label}
+                        </span>
+                      </div>
                     </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-green-100 bg-green-50 p-5 text-sm text-green-700">
+                Nenhum projeto em atenção ou estourado no momento.
+              </div>
+            )}
+          </SectionCard>
 
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-red-700">
-                        {formatPercent(item.percentual_consumido)}
-                      </span>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${status.className}`}
-                      >
-                        {status.label}
-                      </span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-green-100 bg-green-50 p-5 text-sm text-green-700">
-              Nenhum projeto em atenção ou estourado no momento.
-            </div>
-          )}
-        </SectionCard>
-
-        <SectionCard
-          title="Distribuição de status"
-          subtitle="Visão consolidada do portfólio"
-        >
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-[0.95fr_1.05fr] md:items-center">
-            <div className="h-[240px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={statusChartData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={3}
-                  >
-                    {statusChartData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="space-y-3">
-              {statusChartData.map((item) => (
-                <div
-                  key={item.name}
-                  className="flex items-center justify-between rounded-xl border border-gray-100 p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      {item.name}
-                    </span>
-                  </div>
-                  <span className="text-lg font-semibold text-gray-900">
-                    {item.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </SectionCard>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <SectionCard
-          title="Top projetos por horas"
-          subtitle="Projetos com maior volume de esforço acumulado"
-        >
-          {projetosGrafico.length > 0 ? (
-            <div className="h-[360px] overflow-y-auto pr-2">
-              <div style={{ height: projetosChartHeight, minWidth: "100%" }}>
+          <SectionCard
+            title="Distribuição de status"
+            subtitle="Visão consolidada do portfólio"
+          >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[0.95fr_1.05fr] md:items-center">
+              <div className="h-[240px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={projetosGrafico}
-                    layout="vertical"
-                    margin={{ top: 8, right: 20, left: 10, bottom: 8 }}
-                    barCategoryGap={10}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      horizontal={true}
-                      vertical={false}
-                    />
-                    <XAxis type="number" tick={{ fontSize: 12 }} />
-                    <YAxis
-                      type="category"
-                      dataKey="nome"
-                      width={105}
-                      interval={0}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip content={<CustomHoursTooltip />} />
-                    <Bar dataKey="horas" radius={[0, 8, 8, 0]}>
-                      {projetosGrafico.map((entry) => (
-                        <Cell key={entry.nomeCompleto} fill={entry.color} />
+                  <PieChart>
+                    <Pie
+                      data={statusChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={3}
+                    >
+                      {statusChartData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
                       ))}
-                    </Bar>
-                  </BarChart>
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
                 </ResponsiveContainer>
               </div>
+
+              <div className="space-y-3">
+                {statusChartData.map((item) => (
+                  <div
+                    key={item.name}
+                    className="flex items-center justify-between rounded-xl border border-gray-100 p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="h-3 w-3 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        {item.name}
+                      </span>
+                    </div>
+                    <span className="text-lg font-semibold text-gray-900">
+                      {item.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
+          </SectionCard>
+        </div>
+      )}
+
+      <SectionCard
+        title="Horas por produto"
+        subtitle={
+          selectedProjetoFiltro === "all"
+            ? "Selecione um projeto para visualizar a distribuição das horas por produto"
+            : "Comparativo entre horas estimadas e realizadas por produto"
+        }
+      >
+        {selectedProjetoFiltro === "all" ? (
+          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600">
+            Selecione um projeto no filtro acima para visualizar seus produtos.
+          </div>
+        ) : produtos.length > 0 ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produto</TableHead>
+                  <TableHead className="text-right">Horas estimadas</TableHead>
+                  <TableHead className="text-right">Horas realizadas</TableHead>
+                  <TableHead className="text-right">Saldo</TableHead>
+                  <TableHead className="text-right">Consumo</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {produtos.map((item) => {
+                  const status = getStatusProduto(
+                    item.produto_id,
+                    item.percentual_consumido,
+                  )
+
+                  return (
+                    <TableRow
+                      key={`${item.projeto_id}-${item.produto_id ?? "sem-produto"}`}
+                    >
+                      <TableCell>
+                        <div className="min-w-[280px]">
+                          <p className="font-medium text-gray-900">
+                            {item.produto_codigo
+                              ? `${item.produto_codigo} • ${item.produto_nome}`
+                              : item.produto_nome}
+                          </p>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        {item.horas_estimadas === null
+                          ? "—"
+                          : formatHours(item.horas_estimadas)}
+                      </TableCell>
+
+                      <TableCell className="text-right font-medium">
+                        {formatHours(item.horas_feitas)}
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        {item.saldo_horas === null
+                          ? "—"
+                          : formatHours(item.saldo_horas)}
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        {item.percentual_consumido === null
+                          ? "—"
+                          : formatPercent(item.percentual_consumido)}
+                      </TableCell>
+
+                      <TableCell>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${status.className}`}
+                        >
+                          {status.label}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600">
+            Nenhum produto ou hora encontrada para os filtros selecionados.
+          </div>
+        )}
+      </SectionCard>
+
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-6",
+          !produtoEspecificoSelecionado && "xl:grid-cols-2",
+        )}
+      >
+        {!produtoEspecificoSelecionado &&
+          (selectedProjetoFiltro !== "all" ? (
+            <SectionCard
+              title="Produtos do projeto por horas"
+              subtitle="Distribuição das horas realizadas entre os produtos do projeto"
+            >
+              {produtosGrafico.length > 0 ? (
+                <div className="h-[360px] overflow-y-auto pr-2">
+                  <div
+                    style={{ height: produtosChartHeight, minWidth: "100%" }}
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={produtosGrafico}
+                        layout="vertical"
+                        margin={{ top: 8, right: 20, left: 10, bottom: 8 }}
+                        barCategoryGap={10}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          horizontal={true}
+                          vertical={false}
+                        />
+
+                        <XAxis type="number" tick={{ fontSize: 12 }} />
+
+                        <YAxis
+                          type="category"
+                          dataKey="nome"
+                          width={180}
+                          interval={0}
+                          tick={{ fontSize: 11 }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+
+                        <Tooltip content={<CustomHoursTooltip />} />
+
+                        <Bar dataKey="horas" radius={[0, 8, 8, 0]}>
+                          {produtosGrafico.map((entry) => (
+                            <Cell key={entry.key} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600">
+                  Nenhum produto encontrado para o projeto selecionado.
+                </div>
+              )}
+            </SectionCard>
           ) : (
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600">
-              Nenhum dado numérico encontrado para o projeto filtrado.
-            </div>
-          )}
-        </SectionCard>
+            <SectionCard
+              title="Top projetos por horas"
+              subtitle="Projetos com maior volume de esforço acumulado"
+            >
+              {projetosGrafico.length > 0 ? (
+                <div className="h-[360px] overflow-y-auto pr-2">
+                  <div
+                    style={{ height: projetosChartHeight, minWidth: "100%" }}
+                  >
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={projetosGrafico}
+                        layout="vertical"
+                        margin={{ top: 8, right: 20, left: 10, bottom: 8 }}
+                        barCategoryGap={10}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          horizontal={true}
+                          vertical={false}
+                        />
+
+                        <XAxis type="number" tick={{ fontSize: 12 }} />
+
+                        <YAxis
+                          type="category"
+                          dataKey="nome"
+                          width={105}
+                          interval={0}
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+
+                        <Tooltip content={<CustomHoursTooltip />} />
+
+                        <Bar dataKey="horas" radius={[0, 8, 8, 0]}>
+                          {projetosGrafico.map((entry) => (
+                            <Cell key={entry.nomeCompleto} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600">
+                  Nenhum dado numérico encontrado para o projeto filtrado.
+                </div>
+              )}
+            </SectionCard>
+          ))}
 
         <SectionCard
           title={
-            selectedProjectId !== null
-              ? "Top colaboradores do projeto selecionado"
-              : "Top colaboradores por horas"
+            produtoEspecificoSelecionado
+              ? "Top colaboradores do produto"
+              : selectedProjectId !== null
+                ? "Top colaboradores do projeto selecionado"
+                : "Top colaboradores por horas"
           }
           subtitle={
-            selectedProjectId !== null && projetoSelecionado
-              ? `${projetoSelecionado.projeto_codigo} • ${projetoSelecionado.projeto_nome}`
-              : "Somatório geral de todos os projetos"
+            produtoEspecificoSelecionado
+              ? labelProdutoSelecionado
+              : selectedProjectId !== null && projetoSelecionado
+                ? `${projetoSelecionado.projeto_codigo} • ${projetoSelecionado.projeto_nome}`
+                : "Somatório geral de todos os projetos"
           }
         >
-          <div className="h-[360px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={colaboradoresGrafico}
-                layout="vertical"
-                margin={{ left: 10 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tick={{ fontSize: 12 }} />
-                <YAxis
-                  type="category"
-                  dataKey="nome"
-                  width={125}
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip content={<CustomHoursTooltip />} />
-                <Bar dataKey="horas" fill="#2563eb" radius={[0, 8, 8, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {colaboradoresGrafico.length > 0 ? (
+            <div className="h-[360px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={colaboradoresGrafico}
+                  layout="vertical"
+                  margin={{ left: 10 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="nome"
+                    width={125}
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip content={<CustomHoursTooltip />} />
+                  <Bar dataKey="horas" fill="#2563eb" radius={[0, 8, 8, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600">
+              Nenhum colaborador com horas encontrado para o filtro selecionado.
+            </div>
+          )}
         </SectionCard>
       </div>
-      
     </div>
   )
 }
