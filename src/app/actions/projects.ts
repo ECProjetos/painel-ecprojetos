@@ -61,7 +61,13 @@ export async function createProject(project: NewProject) {
   try {
     const validProject = validateProject(project);
     const { department_ids, products, ...projectData } = validProject;
-    const normalizedProducts = normalizeProducts(products);
+    const isExternalProject = validProject.code
+      .trim()
+      .toUpperCase()
+      .startsWith("EXT-");
+    const normalizedProducts = isExternalProject
+      ? normalizeProducts(products)
+      : [];
 
     if (normalizedProducts.some((product) => product.id !== undefined)) {
       throw new Error("Um produto novo não pode possuir ID já cadastrado.");
@@ -98,24 +104,26 @@ export async function createProject(project: NewProject) {
       );
     }
 
-    const { error: productsError } = await supabase
-      .from("project_products")
-      .insert(
-        normalizedProducts.map((product) => ({
-          project_id: createdProjectId,
-          name: product.name,
-          estimated_hours: product.estimated_hours,
-          status: product.status,
-          sort_order: product.sort_order,
-        })),
-      );
+    if (normalizedProducts.length > 0) {
+      const { error: productsError } = await supabase
+        .from("project_products")
+        .insert(
+          normalizedProducts.map((product) => ({
+            project_id: createdProjectId,
+            name: product.name,
+            estimated_hours: product.estimated_hours,
+            status: product.status,
+            sort_order: product.sort_order,
+          })),
+        );
 
-    if (productsError?.code === "23505") {
-      throw new Error("Existem produtos repetidos neste projeto.");
-    }
+      if (productsError?.code === "23505") {
+        throw new Error("Existem produtos repetidos neste projeto.");
+      }
 
-    if (productsError) {
-      throw new Error("Erro ao inserir produtos: " + productsError.message);
+      if (productsError) {
+        throw new Error("Erro ao inserir produtos: " + productsError.message);
+      }
     }
 
     revalidateProjectPages(createdProjectId);
@@ -226,7 +234,13 @@ export async function updateProject(id: number, project: NewProject) {
     const supabase = await createClient();
     const validProject = validateProject(project);
     const { department_ids, products, ...projectData } = validProject;
-    const normalizedProducts = normalizeProducts(products);
+    const isExternalProject = validProject.code
+      .trim()
+      .toUpperCase()
+      .startsWith("EXT-");
+    const normalizedProducts = isExternalProject
+      ? normalizeProducts(products)
+      : [];
 
     const { data: existingProducts, error: existingProductsError } =
       await supabase

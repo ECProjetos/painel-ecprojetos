@@ -71,7 +71,7 @@ export function NewProjectForm({
       department_ids: [],
       activities: [],
       encharged: "",
-      products: [{ ...EMPTY_PRODUCT }],
+      products: [],
     },
   });
 
@@ -80,6 +80,17 @@ export function NewProjectForm({
     name: "products",
     keyName: "fieldKey",
   });
+
+  const projectCode =
+    useWatch({
+      control: form.control,
+      name: "code",
+    }) ?? "";
+
+  const isExternalProject = projectCode
+    .trim()
+    .toUpperCase()
+    .startsWith("EXT-");
 
   const estimatedProjectHours = Number(
     useWatch({
@@ -125,14 +136,16 @@ export function NewProjectForm({
       activities: projeto.activities ?? [],
       encharged: projeto.encharged ?? "",
       products:
-        projeto.products && projeto.products.length > 0
+        projeto.code?.trim().toUpperCase().startsWith("EXT-") &&
+        projeto.products &&
+        projeto.products.length > 0
           ? projeto.products.map((product) => ({
               id: product.id,
               name: product.name ?? "",
               estimated_hours: Number(product.estimated_hours ?? 0),
               status: product.status ?? "ativo",
             }))
-          : [{ ...EMPTY_PRODUCT }],
+          : [],
     });
   }, [projeto, form]);
 
@@ -338,10 +351,11 @@ export function NewProjectForm({
           />
         </div>
 
-        <section className="space-y-4 rounded-lg border p-4 md:p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Produtos do projeto</h2>
+        {isExternalProject && (
+          <section className="space-y-4 rounded-lg border p-4 md:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Produtos do projeto</h2>
               <p className="text-sm text-muted-foreground">
                 Cadastre os relatórios, estudos ou outros entregáveis previstos
                 e informe as horas estimadas de cada produto.
@@ -500,7 +514,8 @@ export function NewProjectForm({
             inativado — não apagado — para preservar os registros de ponto e o
             histórico dos relatórios.
           </p>
-        </section>
+          </section>
+        )}
 
         <FormField
           control={form.control}

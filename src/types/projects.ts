@@ -50,16 +50,19 @@ export const newProjectSchema = projectSchema
     department_ids: z
       .array(z.number().int().positive())
       .min(1, { message: "Selecione pelo menos um departamento" }),
-    products: z
-      .array(projectProductSchema)
-      .min(1, { message: "Cadastre pelo menos um produto para o projeto" }),
+    products: z.array(projectProductSchema),
   })
   .superRefine((data, ctx) => {
+    const isExternalProject = data.code
+      .trim()
+      .toUpperCase()
+      .startsWith("EXT-");
+
     const produtosConsiderados = data.products.filter(
       (produto) => produto.status !== "inativo",
     );
 
-    if (produtosConsiderados.length === 0) {
+    if (isExternalProject && produtosConsiderados.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["products"],
