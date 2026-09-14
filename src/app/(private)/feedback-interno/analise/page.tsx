@@ -38,6 +38,7 @@ import {
   getFeedbackAnaliseResultados,
   getFeedbackEquipes,
 } from "@/app/actions/feedback-interno"
+import { parse } from "path"
 type PageProps = {
   searchParams: Promise<{
     cicloId?: string
@@ -71,9 +72,9 @@ const categorias = [
 ]
 
 function formatScore100(value: number | string | null | undefined) {
-  const number = Number(value)
+  const number = parseNullableNumber(value)
 
-  if (!Number.isFinite(number)) return "-"
+  if (number === null) return "-"
 
   return number.toLocaleString("pt-BR", {
     minimumFractionDigits: 1,
@@ -124,9 +125,9 @@ function formatNumber(value: number | string | null | undefined) {
 }
 
 function formatVariation(value: number | string | null | undefined) {
-  const number = Number(value)
+  const number = parseNullableNumber(value)
 
-  if (!Number.isFinite(number)) return "-"
+  if (number === null) return "-"
 
   const prefix = number > 0 ? "+" : ""
 
@@ -136,10 +137,22 @@ function formatVariation(value: number | string | null | undefined) {
   })}`
 }
 
-function getVariacaoBadge(value: number | string | null | undefined) {
+function parseNullableNumber(
+  value: number | string | null | undefined,
+): number | null {
+  if (value === null || value === undefined || value === "") {
+    return null
+  }
+
   const number = Number(value)
 
-  if (!Number.isFinite(number)) {
+  return Number.isFinite(number) ? number : null
+}
+
+function getVariacaoBadge(value: number | string | null | undefined) {
+  const number = parseNullableNumber(value)
+
+  if (number === null) {
     return {
       label: "Sem comparação",
       variant: "secondary" as const,
@@ -207,8 +220,8 @@ export default async function FeedbackAnalisePage({ searchParams }: PageProps) {
   ).length
 
   const scoresValidos = linhas
-    .map((item) => Number(item.media_atual_100))
-    .filter((value) => Number.isFinite(value))
+    .map((item) => parseNullableNumber(item.media_atual_100))
+    .filter((value): value is number => value !== null)
 
   const scoreExecutivo =
     scoresValidos.length > 0
@@ -217,14 +230,14 @@ export default async function FeedbackAnalisePage({ searchParams }: PageProps) {
       : 0
 
   const variacoesValidas = linhas
-    .map((item) => Number(item.variacao_100))
-    .filter((value) => Number.isFinite(value))
+    .map((item) => parseNullableNumber(item.variacao_100))
+    .filter((value): value is number => value !== null)
 
   const variacaoMedia =
     variacoesValidas.length > 0
       ? variacoesValidas.reduce((acc, value) => acc + value, 0) /
         variacoesValidas.length
-      : 0
+      : null
 
   const pontosCriticos = [...linhas]
     .filter((item) => item.prioridade === "Alta" || item.prioridade === "Média")
@@ -247,19 +260,19 @@ export default async function FeedbackAnalisePage({ searchParams }: PageProps) {
     )
     .slice(0, 5)
 
-  const melhoresIndicadores = [...linhas]
-    .filter((item) => Number.isFinite(Number(item.variacao_media)))
-    .sort(
-      (a, b) => Number(b.variacao_media ?? 0) - Number(a.variacao_media ?? 0),
-    )
-    .slice(0, 3)
+  const melhoresIndicadores = [...linhas].filter(
+    (item) =>
+      item.variacao_media !== null &&
+      item.variacao_media !== undefined &&
+      Number.isFinite(Number(item.variacao_media)),
+  )
 
-  const pioresIndicadores = [...linhas]
-    .filter((item) => Number.isFinite(Number(item.variacao_media)))
-    .sort(
-      (a, b) => Number(a.variacao_media ?? 0) - Number(b.variacao_media ?? 0),
-    )
-    .slice(0, 3)
+  const pioresIndicadores = [...linhas].filter(
+    (item) =>
+      item.variacao_media !== null &&
+      item.variacao_media !== undefined &&
+      Number.isFinite(Number(item.variacao_media)),
+  )
 
   return (
     <div className="flex min-w-0 flex-col gap-4 p-4 pt-0">

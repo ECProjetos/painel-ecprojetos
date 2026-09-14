@@ -39,15 +39,10 @@ const tendenciaColors: Record<string, string> = {
   Melhoraram: "#16A34A",
   Estáveis: "#F59E0B",
   Pioraram: "#DC2626",
+  "Sem comparação": "#94A3B8",
 }
 
-const criticoColors = [
-  "#DC2626",
-  "#EA580C",
-  "#F97316",
-  "#F59E0B",
-  "#EAB308",
-]
+const criticoColors = ["#DC2626", "#EA580C", "#F97316", "#F59E0B", "#EAB308"]
 
 function getChartColor(index: number) {
   return chartColors[index % chartColors.length]
@@ -82,8 +77,8 @@ function getScore(item: LinhaAnalise) {
   )
 }
 
-function getVariacao(item: LinhaAnalise) {
-  return numero(
+function getVariacao(item: LinhaAnalise): number | null {
+  return numeroNullable(
     item.variacao_media_100 ??
       item.variacao_100 ??
       item.variacao_score ??
@@ -143,15 +138,28 @@ function montarScorePorTipo(linhas: LinhaAnalise[]) {
   }))
 }
 
+function numeroNullable(valor: unknown): number | null {
+  if (valor === null || valor === undefined || valor === "") {
+    return null
+  }
+
+  const convertido = Number(valor)
+
+  return Number.isFinite(convertido) ? convertido : null
+}
+
 function montarTendencia(linhas: LinhaAnalise[]) {
   let melhoraram = 0
   let pioraram = 0
   let estaveis = 0
+  let semComparacao = 0
 
   for (const item of linhas) {
     const variacao = getVariacao(item)
 
-    if (variacao > 0.5) {
+    if (variacao === null) {
+      semComparacao += 1
+    } else if (variacao > 0.5) {
       melhoraram += 1
     } else if (variacao < -0.5) {
       pioraram += 1
@@ -172,6 +180,10 @@ function montarTendencia(linhas: LinhaAnalise[]) {
     {
       nome: "Pioraram",
       quantidade: pioraram,
+    },
+    {
+      nome: "Sem comparação",
+      quantidade: semComparacao,
     },
   ]
 }
@@ -252,7 +264,8 @@ export function FeedbackAnaliseCharts({ linhas }: FeedbackAnaliseChartsProps) {
         <CardHeader>
           <CardTitle>Tendência dos indicadores</CardTitle>
           <CardDescription>
-            Quantidade de perguntas que melhoraram, pioraram ou ficaram estáveis.
+            Quantidade de perguntas que melhoraram, pioraram ou ficaram
+            estáveis ou não possuem comparação.
           </CardDescription>
         </CardHeader>
 
