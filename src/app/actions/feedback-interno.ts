@@ -23,26 +23,32 @@ const departamentosPorEquipe: Record<string, string[]> = {
   "Departamento Administrativo": [
     "Departamento Administrativo",
     "Administrativo",
+    "Adm/RH",
     "Adm/Finan/Mkt",
     "Adm/Fin/RH",
     "Gestão ADM/Financeira/MKT",
   ],
+
   "Departamento de Economia": [
     "Departamento de Economia",
     "Economia",
     "Operações e Econômico",
   ],
+
   "Departamento de Engenharia": [
     "Departamento de Engenharia",
     "Engenharia",
     "Engenharia Consultiva e Arquitetura",
     "Engenharia Construtiva e Arquitetura",
     "Engenharia e Sustentabilidade",
+    "Engenharia e sustentabilidade",
   ],
+
   "Departamento de Meio Ambiente e Geoprocessamento": [
     "Departamento de Meio Ambiente e Geoprocessamento",
     "Meio Ambiente",
     "Meio Ambiente e Geoprocessamento",
+    "Sustentabilidade",
   ],
 }
 
@@ -1166,7 +1172,6 @@ export async function getFeedbackAnaliseResultados(
   let query = supabase
     .from("vw_feedback_analise_executiva")
     .select("*")
-    .not("media_ciclo_anterior", "is", null)
     .order("ano", { ascending: false })
     .order("mes", { ascending: false })
     .order("formulario_titulo", { ascending: true })
@@ -1193,23 +1198,12 @@ export async function getFeedbackAnaliseResultados(
     throw new Error("Não foi possível buscar a análise dos feedbacks.")
   }
 
-  let ciclosQuery = supabase
+  const { data: ciclosData, error: ciclosError } = await supabase
     .from("vw_feedback_analise_executiva")
-    .select("ciclo_id, ciclo_nome, ano, mes, departamento, categoria")
+    .select("ciclo_id, ciclo_nome, ano, mes")
+    .eq("departamento", "Todos")
     .order("ano", { ascending: false })
     .order("mes", { ascending: false })
-
-  if (equipeSelecionada === "todos") {
-    ciclosQuery = ciclosQuery.eq("departamento", "Todos")
-  } else {
-    ciclosQuery = ciclosQuery.in("departamento", departamentosFiltro)
-  }
-
-  if (filtros?.categoria && filtros.categoria !== "todos") {
-    ciclosQuery = ciclosQuery.eq("categoria", filtros.categoria)
-  }
-
-  const { data: ciclosData, error: ciclosError } = await ciclosQuery
 
   if (ciclosError) {
     console.error("Erro ao buscar ciclos da análise:", ciclosError)
