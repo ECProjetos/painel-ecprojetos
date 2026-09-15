@@ -12,49 +12,28 @@ export type FeedbackHistoricoFiltros = {
   departamento?: string
 }
 
-const equipesFeedback = [
-  "Departamento Administrativo",
-  "Departamento de Economia",
-  "Departamento de Engenharia",
-  "Departamento de Meio Ambiente e Geoprocessamento",
-]
-
-const departamentosPorEquipe: Record<string, string[]> = {
-  "Departamento Administrativo": [
-    "Departamento Administrativo",
-    "Administrativo",
-    "Adm/RH",
-    "Adm/Finan/Mkt",
-    "Adm/Fin/RH",
-    "Gestão ADM/Financeira/MKT",
-  ],
-
-  "Departamento de Economia": [
-    "Departamento de Economia",
-    "Economia",
-    "Operações e Econômico",
-  ],
-
-  "Departamento de Engenharia": [
-    "Departamento de Engenharia",
-    "Engenharia",
-    "Engenharia Consultiva e Arquitetura",
-    "Engenharia Construtiva e Arquitetura",
-    "Engenharia e Sustentabilidade",
-    "Engenharia e sustentabilidade",
-  ],
-
-  "Departamento de Meio Ambiente e Geoprocessamento": [
-    "Departamento de Meio Ambiente e Geoprocessamento",
-    "Meio Ambiente",
-    "Meio Ambiente e Geoprocessamento",
-    "Sustentabilidade",
-  ],
-}
+const equipesFeedbackIds = [4, 1, 2, 3]
 
 export async function getFeedbackEquipes() {
-  return equipesFeedback
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from("departments")
+    .select("id, name")
+    .in("id", equipesFeedbackIds)
+
+  if (error) {
+    console.error("Erro ao buscar equipes do feedback:", error)
+    throw new Error("Não foi possível buscar as equipes.")
+  }
+
+  const ordem = new Map(equipesFeedbackIds.map((id, index) => [id, index]))
+
+  return (data ?? []).sort(
+    (a, b) => (ordem.get(a.id) ?? 999) - (ordem.get(b.id) ?? 999),
+  )
 }
+
 export async function getFeedbackCiclos() {
   const supabase = await createClient()
 
@@ -831,7 +810,8 @@ export async function responderFeedbackInterno(formData: FormData) {
       !["COLABORADOR", "LIDER"].includes(
         String(colaborador.role ?? "").toUpperCase(),
       ) ||
-      String(colaborador.status ?? "").toLowerCase() !== "ativo" ) {
+      String(colaborador.status ?? "").toLowerCase() !== "ativo"
+    ) {
       console.error("Erro ao validar colaborador avaliado:", colaboradorError)
       throw new Error("O colaborador selecionado não está disponível.")
     }
@@ -1164,24 +1144,23 @@ export async function getFeedbackAnaliseResultados(
 
   const equipeSelecionada = filtros?.equipe ?? "todos"
 
-  const departamentosFiltro =
-    equipeSelecionada !== "todos"
-      ? (departamentosPorEquipe[equipeSelecionada] ?? [equipeSelecionada])
-      : []
+  const departamentoId =
+    equipeSelecionada !== "todos" ? Number(equipeSelecionada) : 8
 
   let query = supabase
     .from("vw_feedback_analise_executiva")
     .select("*")
+    .not("media_ciclo_anterior", "is", null)
     .order("ano", { ascending: false })
     .order("mes", { ascending: false })
     .order("formulario_titulo", { ascending: true })
     .order("ordem", { ascending: true })
 
-  if (equipeSelecionada === "todos") {
-    query = query.eq("departamento", "Todos")
-  } else {
-    query = query.in("departamento", departamentosFiltro)
+  if (equipeSelecionada !== "todos" && !Number.isFinite(departamentoId)) {
+    throw new Error("Equipe inválida.")
   }
+
+  query = query.eq("departamento_id", departamentoId)
 
   if (filtros?.categoria && filtros.categoria !== "todos") {
     query = query.eq("categoria", filtros.categoria)
@@ -1198,12 +1177,18 @@ export async function getFeedbackAnaliseResultados(
     throw new Error("Não foi possível buscar a análise dos feedbacks.")
   }
 
-  const { data: ciclosData, error: ciclosError } = await supabase
+  let ciclosQuery = supabase
     .from("vw_feedback_analise_executiva")
-    .select("ciclo_id, ciclo_nome, ano, mes")
-    .eq("departamento", "Todos")
+    .select("ciclo_id, ciclo_nome, ano, mes, departamento, departamento_id, categoria", )
+    .eq("departamento_id", departamentoId)
     .order("ano", { ascending: false })
     .order("mes", { ascending: false })
+  
+  if(filtros?.categoria && filtros.categoria !== "todos") {
+    ciclosQuery = ciclosQuery.eq("categoria", filtros.categoria)
+  }
+
+  const { data: ciclosData, error: ciclosError } = await ciclosQuery
 
   if (ciclosError) {
     console.error("Erro ao buscar ciclos da análise:", ciclosError)

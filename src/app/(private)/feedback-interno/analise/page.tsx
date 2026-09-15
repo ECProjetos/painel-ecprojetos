@@ -30,15 +30,12 @@ import {
   ArrowLeft,
   BarChart3,
   Filter,
-  TrendingDown,
-  TrendingUp,
   X,
 } from "lucide-react"
 import {
   getFeedbackAnaliseResultados,
   getFeedbackEquipes,
 } from "@/app/actions/feedback-interno"
-import { parse } from "path"
 type PageProps = {
   searchParams: Promise<{
     cicloId?: string
@@ -383,8 +380,8 @@ export default async function FeedbackAnalisePage({ searchParams }: PageProps) {
                   <option value="todos">Todas</option>
 
                   {equipes.map((equipe) => (
-                    <option key={equipe} value={equipe}>
-                      {equipe}
+                    <option key={equipe.id} value={String(equipe.id)}>
+                      {equipe.name}
                     </option>
                   ))}
                 </select>
