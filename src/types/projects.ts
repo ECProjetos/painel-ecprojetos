@@ -1,12 +1,12 @@
-import { z } from "zod";
+import { z } from "zod"
 
-export const statusEnum = z.enum(["ativo", "concluido", "pausado", "inativo"]);
+export const statusEnum = z.enum(["ativo", "concluido", "pausado", "inativo"])
 
 export const projectProductStatusEnum = z.enum([
   "ativo",
   "inativo",
   "concluido",
-]);
+])
 
 export const projectProductSchema = z.object({
   id: z.number().int().positive().optional(),
@@ -14,13 +14,15 @@ export const projectProductSchema = z.object({
     .string()
     .trim()
     .min(1, { message: "Nome do produto é obrigatório" })
-    .max(200, { message: "O nome do produto deve ter no máximo 200 caracteres" }),
+    .max(200, {
+      message: "O nome do produto deve ter no máximo 200 caracteres",
+    }),
   estimated_hours: z
     .number()
     .int({ message: "As horas do produto devem ser um número inteiro" })
     .positive({ message: "As horas do produto devem ser maiores que zero" }),
   status: projectProductStatusEnum,
-});
+})
 
 export const projectSchema = z.object({
   id: z.number(),
@@ -38,7 +40,7 @@ export const projectSchema = z.object({
     .number()
     .int({ message: "Horas estimadas devem ser um número inteiro" })
     .positive({ message: "Horas estimadas devem ser um número positivo" }),
-});
+})
 
 // Schema usado tanto na criação quanto na edição do projeto.
 export const newProjectSchema = projectSchema
@@ -53,54 +55,41 @@ export const newProjectSchema = projectSchema
     products: z.array(projectProductSchema),
   })
   .superRefine((data, ctx) => {
-    const isExternalProject = data.code
-      .trim()
-      .toUpperCase()
-      .startsWith("EXT-");
-
     const produtosConsiderados = data.products.filter(
       (produto) => produto.status !== "inativo",
-    );
+    )
 
-    if (isExternalProject && produtosConsiderados.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["products"],
-        message: "O projeto deve possuir pelo menos um produto ativo ou concluído",
-      });
-    }
-
-    const nomes = new Map<string, number>();
+    const nomes = new Map<string, number>()
 
     data.products.forEach((produto, index) => {
-      const nomeNormalizado = produto.name.trim().toLocaleLowerCase("pt-BR");
-      const indiceAnterior = nomes.get(nomeNormalizado);
+      const nomeNormalizado = produto.name.trim().toLocaleLowerCase("pt-BR")
+      const indiceAnterior = nomes.get(nomeNormalizado)
 
       if (indiceAnterior !== undefined) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["products", index, "name"],
           message: "Já existe outro produto com este nome no projeto",
-        });
+        })
       } else {
-        nomes.set(nomeNormalizado, index);
+        nomes.set(nomeNormalizado, index)
       }
-    });
+    })
 
     const totalHorasProdutos = produtosConsiderados.reduce(
       (total, produto) => total + produto.estimated_hours,
       0,
-    );
+    )
 
     if (totalHorasProdutos > data.estimated_hours) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["products"],
         message: `A soma das horas dos produtos (${totalHorasProdutos} h) não pode ultrapassar as horas estimadas do projeto (${data.estimated_hours} h)`,
-      });
+      })
     }
-  });
+  })
 
-export type Project = z.infer<typeof projectSchema>;
-export type ProjectProductInput = z.infer<typeof projectProductSchema>;
-export type NewProject = z.infer<typeof newProjectSchema>;
+export type Project = z.infer<typeof projectSchema>
+export type ProjectProductInput = z.infer<typeof projectProductSchema>
+export type NewProject = z.infer<typeof newProjectSchema>
